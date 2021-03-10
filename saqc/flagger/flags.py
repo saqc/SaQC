@@ -6,7 +6,7 @@ import dios
 from saqc.common import *
 from saqc.flagger.history import History
 import pandas as pd
-from typing import Union, Dict, DefaultDict, Optional, Type
+from typing import Union, Dict, DefaultDict, Optional, Type, Tuple, Iterable
 
 _VAL = Union[pd.Series, History]
 DictLike = Union[
@@ -15,6 +15,14 @@ DictLike = Union[
     Dict[str, _VAL],
     DefaultDict[str, _VAL],
 ]
+
+_Field = str
+SelectT = Union[
+    _Field,
+    Tuple[pd.Series, _Field],
+    Tuple[pd.Index, _Field],
+]
+ValueT = Union[pd.Series, Iterable, float]
 
 
 class _HistAccess:
@@ -57,8 +65,8 @@ class Flags:
 
     conversion
     ----------
-    make a dios  -> flags.to_dios()
-    make a df    -> flags.to_frame()
+    make a dios  -> flags.toDios()
+    make a df    -> flags.toFrame()
     """
 
     def __init__(self, raw_data: Optional[Union[DictLike, Flags]] = None, copy: bool = False):
@@ -70,7 +78,7 @@ class Flags:
             raw_data = raw_data._data
 
         # with python 3.7 dicts are insertion-ordered by default
-        self._data = self._init_from_raw(raw_data, copy)
+        self._data = self._initFromRaw(raw_data, copy)
 
         # this is a simple cache that reduce the calculation of the flags
         # from the entire history of a flag column. The _cache is filled
@@ -79,7 +87,7 @@ class Flags:
         # have to much trouble.
         self._cache = {}
 
-    def _init_from_raw(self, data, copy) -> Dict[str, History]:
+    def _initFromRaw(self, data, copy) -> Dict[str, History]:
         """
         init from dict-like: keys are flag column, values become
         initial columns of history(s).
@@ -163,39 +171,46 @@ class Flags:
 
         return self._cache[key].copy()
 
-    def __setitem__(self, key: str, value: pd.Series, force=False):
+    def __setitem__(self, key: SelectT, value: ValueT):
         # force-KW is internal available only
 
+        if isinstance(key, tuple):
+            if len(key) != 2:
+                raise KeyError("a single 'column' or a tuple of 'mask, column' must be passt")
+            mask, key = key
+
+            tmp = pd.Series(UNTOUCHED, index=self._data[key].index, dtype=float)
+
+            # make a mask from an index, because it seems
+            # that passing an index is a very common workflow
+            if isinstance(mask, pd.Index):
+                mask = pd.Series(True, index=mask, dtype=bool)
+                mask = mask.reindex(tmp.index, fill_value=False)
+
+            # raises (correct) KeyError
+            try:
+                tmp[mask] = value
+            except Exception:
+                raise ValueError('bad mask')
+            else:
+                value = tmp
+
+        # technically it would be possible to select a field and set
+        # the entire column to a scalar flag value (float), but it has
+        # a high potential, that this is not intended by the user.
+        # if desired use ``flagger[:, field] = flag``
+        if not isinstance(value, pd.Series):
+            raise ValueError("must pass value of type pd.Series")
+
         # if nothing happens no-one writes the history books
-        if isinstance(value, pd.Series) and len(value) == 0:
+        if len(value) == 0:
             return
 
         if key not in self._data:
             self._data[key] = History()
-        
-        self._data[key].append(value, force=force)
-        self._cache.pop(key, None)     
 
-    def force(self, key: str, value: pd.Series) -> Flags:
-        """
-        Overwrite existing flags, regardless if they are better
-        or worse than the existing flags.
-
-        Parameters
-        ----------
-        key : str
-            column name
-
-        value : pandas.Series
-            A series of float flags to force
-
-        Returns
-        -------
-        Flags
-            the same flags object with altered flags, no copy
-        """
-        self.__setitem__(key, value, force=True)
-        return self
+        self._data[key].append(value, force=True)
+        self._cache.pop(key, None)
 
     def __delitem__(self, key):
         self._data.pop(key)
@@ -245,7 +260,7 @@ class Flags:
     # ----------------------------------------------------------------------
     # transformation and representation
 
-    def to_dios(self) -> dios.DictOfSeries:
+    def toDios(self) -> dios.DictOfSeries:
         di = dios.DictOfSeries(columns=self.columns)
 
         for k, v in self._data.items():
@@ -253,14 +268,18 @@ class Flags:
 
         return di.copy()
 
-    def to_frame(self) -> pd.DataFrame:
-        return self.to_dios().to_df()
+    def toFrame(self) -> pd.DataFrame:
+        return self.toDios().to_df()
 
     def __repr__(self) -> str:
-        return str(self.to_dios()).replace('DictOfSeries', type(self).__name__)
+        return str(self.toDios()).replace('DictOfSeries', type(self).__name__)
 
 
-def init_flags_like(reference: Union[pd.Series, DictLike, Flags], initial_value: float = UNFLAGGED) -> Flags:
+def initFlagsLike(
+        reference: Union[pd.Series, DictLike, Flags],
+        initial_value: float = UNFLAGGED,
+        name: str = None,
+) -> Flags:
     """
     Create empty Flags, from an reference data structure.
 
@@ -271,6 +290,12 @@ def init_flags_like(reference: Union[pd.Series, DictLike, Flags], initial_value:
 
     initial_value : float, default 0
         value to initialize the columns with
+
+    name : str, default None
+        Only respected if `reference` is of type ``pd.Series``.
+        The column name that is used for the Flags. If ``None``
+        the name of the series itself is taken, if this is also
+        `None`, a ValueError is raised.
 
     Notes
     -----
@@ -292,7 +317,13 @@ def init_flags_like(reference: Union[pd.Series, DictLike, Flags], initial_value:
         reference = reference._data
 
     if isinstance(reference, pd.Series):
-        reference = reference.to_frame('f0')
+        if name is None:
+            name = reference.name
+        if name is None:
+            raise ValueError("Either the passed series must be named or a name must be passed")
+        if not isinstance(name, str):
+            raise TypeError(f"name must be str not '{type(name).__name__}'")
+        reference = reference.to_frame(name=name)
 
     for k, item in reference.items():
 
@@ -311,3 +342,43 @@ def init_flags_like(reference: Union[pd.Series, DictLike, Flags], initial_value:
 
     return Flags(result)
 
+
+def applyFunctionOnHistory(flags: Flags, column, hist_func, hist_kws, mask_func, mask_kws, last_column=None):
+    """
+    Apply function on history.
+
+    Two functions must be given. Both are called for each column in the History. One on History.hist, the
+    other on History.mask. Both take a pd.Series as first arg, which is the column from hist or mask respectively.
+
+    Parameters
+    ----------
+    flags :
+    column :
+    hist_func :
+    hist_kws :
+    mask_func :
+    mask_kws :
+    last_column :
+
+    Returns
+    -------
+
+    """
+    flags = flags.copy()
+    history = flags.history[column]
+    new_history = History()
+    for pos in history.columns:
+        new_history.hist[pos] = hist_func(history.hist[pos], **hist_kws)
+        new_history.mask[pos] = mask_func(history.mask[pos], **mask_kws)
+
+    if last_column is None:
+        new_history.mask.iloc[:, -1:] = True
+    else:
+        new_history.append(last_column, force=True)
+
+    flags.history[column] = new_history
+    return flags
+
+
+# for now we keep this name
+Flagger = Flags

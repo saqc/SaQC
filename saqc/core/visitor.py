@@ -6,6 +6,7 @@ import ast
 import numpy as np
 import pandas as pd
 
+from saqc.common import *
 from saqc.core.register import FUNC_MAP
 import saqc.lib.ts_operators as ts_ops
 
@@ -39,6 +40,7 @@ ENVIRONMENT = {
     "zLog": ts_ops.zeroLog,
 }
 
+# TODO: how does a user pass flags now
 RESERVED = {"GOOD", "BAD", "UNFLAGGED", "NODATA"}
 
 
@@ -140,9 +142,9 @@ class ConfigFunctionParser(ast.NodeVisitor):
 
         self.kwargs = {}
         self.environment = {
-            "GOOD": flagger.GOOD,
-            "BAD": flagger.BAD,
-            "UNFLAGGED": flagger.UNFLAGGED,
+            "GOOD": GOOD,
+            "BAD": BAD,
+            "UNFLAGGED": UNFLAGGED,
             **ENVIRONMENT,
         }
 

@@ -308,13 +308,12 @@ def isQuoted(string):
     return bool(re.search(r"'.*'|\".*\"", string))
 
 
-def dropper(field, to_drop, flagger, default):
-    drop_mask = pd.Series(False, flagger.getFlags(field).index)
-    if to_drop is None:
-        to_drop = default
-    to_drop = toSequence(to_drop)
-    if len(to_drop) > 0:
-        drop_mask |= flagger.isFlagged(field, flag=to_drop)
+# TODO: GL167
+def getDropMask(field, to_drop, flagger, default):
+    drop_mask = pd.Series(False, index=flagger[field].index)
+    to_drop = toSequence(to_drop, default)
+    for flag in to_drop:
+        drop_mask |= flagger[field] == flag
     return drop_mask
 
 
@@ -441,7 +440,7 @@ def evalFreqStr(freq, check, index):
         if check == 'check':
             f_passed_seconds = pd.Timedelta(f_passed).total_seconds()
             freq_seconds = pd.Timedelta(freq).total_seconds()
-            if (f_passed_seconds != freq_seconds):
+            if f_passed_seconds != freq_seconds:
                 logging.warning(f"Sampling rate estimate ({freq}) missmatches passed frequency ({f_passed}).")
         elif check == 'auto':
             if freq is None:

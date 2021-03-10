@@ -11,17 +11,18 @@ from typing_extensions import Literal
 
 from dios import DictOfSeries
 
+from saqc.common import *
 from saqc.core.register import register
 from saqc.lib.tools import customRoller
+from saqc.flagger import Flagger
 from saqc.lib.types import ColumnName, FreqString, IntegerWindow
-from saqc.flagger.baseflagger import BaseFlagger
 
 logger = logging.getLogger("SaQC")
 
 
 @register(masking='field', module="changepoints")
 def flagChangePoints(
-        data: DictOfSeries, field: str, flagger: BaseFlagger,
+        data: DictOfSeries, field: str, flagger: Flagger,
         stat_func: Callable[[np.ndarray, np.ndarray], float],
         thresh_func: Callable[[np.ndarray, np.ndarray], float],
         bwd_window: FreqString,
@@ -29,11 +30,11 @@ def flagChangePoints(
         fwd_window: Optional[FreqString]=None,
         min_periods_fwd: Optional[IntegerWindow]=None,
         closed: Literal["right", "left", "both", "neither"]="both",
-        try_to_jit: bool=True,
+        try_to_jit: bool=True,  # TODO rm, not a user decision
         reduce_window: FreqString=None,
         reduce_func: Callable[[np.ndarray, np.ndarray], int]=lambda x, _: x.argmax(),
         **kwargs
-) -> Tuple[DictOfSeries, BaseFlagger]:
+) -> Tuple[DictOfSeries, Flagger]:
     """
     Flag datapoints, where the parametrization of the process, the data is assumed to generate by, significantly
     changes.
@@ -98,7 +99,7 @@ def flagChangePoints(
 
 @register(masking='field', module="changepoints")
 def assignChangePointCluster(
-        data: DictOfSeries, field: str, flagger: BaseFlagger,
+        data: DictOfSeries, field: str, flagger: Flagger,
         stat_func: Callable[[np.array, np.array], float],
         thresh_func: Callable[[np.array, np.array], float],
         bwd_window: str,
@@ -106,14 +107,14 @@ def assignChangePointCluster(
         fwd_window: str=None,
         min_periods_fwd: Optional[int]=None,
         closed: Literal["right", "left", "both", "neither"]="both",
-        try_to_jit: bool=True,
+        try_to_jit: bool=True,  # TODO: rm, not a user decision
         reduce_window: str=None,
         reduce_func: Callable[[np.ndarray, np.ndarray], float]=lambda x, _: x.argmax(),
         model_by_resids: bool=False,
         flag_changepoints: bool=False,
         assign_cluster: bool=True,
         **kwargs
-) -> Tuple[DictOfSeries, BaseFlagger]:
+) -> Tuple[DictOfSeries, Flagger]:
 
     """
     Assigns label to the data, aiming to reflect continous regimes of the processes the data is assumed to be
@@ -162,7 +163,7 @@ def assignChangePointCluster(
         reduction window. Second input parameter holds the result from the thresh_func evaluation.
         The default reduction function just selects the value that maximizes the stat_func.
     flag_changepoints : bool, default False
-        If true, the points, where there is a change in data modelling regime detected get flagged bad.
+        If true, the points, where there is a change in data modelling regime detected get flagged BAD.
     model_by_resids : bool, default False
         If True, the data is replaced by the stat_funcs results instead of regime labels.
     assign_cluster : bool, default True
@@ -204,7 +205,7 @@ def assignChangePointCluster(
             stat_func = jit_sf
             thresh_func = jit_tf
             try_to_jit = True
-        except (numba.core.errors.TypingError, numba.core.errors.UnsupportedError, IndexError):
+        except (numba.TypingError, numba.UnsupportedError, IndexError):
             try_to_jit = False
             logging.warning('Could not jit passed statistic - omitting jitting!')
 
@@ -218,7 +219,7 @@ def assignChangePointCluster(
         residues = pd.Series(np.nan, index=data[field].index)
         residues[masked_index] = stat_arr
         data[field] = residues
-        flagger = flagger.setFlags(field, flag=flagger.UNFLAGGED, force=True, **kwargs)
+        flagger[:, field] = UNFLAGGED
         return data, flagger
 
     det_index = masked_index[result_arr]
@@ -238,10 +239,11 @@ def assignChangePointCluster(
         # (better to start cluster labels with number one)
         cluster += 1
         data[field] = cluster
-        flagger = flagger.setFlags(field, flag=flagger.UNFLAGGED, force=True, **kwargs)
+        flagger[:, field] = UNFLAGGED
 
     if flag_changepoints:
-        flagger = flagger.setFlags(field, loc=det_index)
+        # TODO: does not respect kwargs[flag]
+        flagger[det_index, field] = BAD
     return data, flagger
 
 

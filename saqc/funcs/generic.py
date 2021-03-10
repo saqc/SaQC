@@ -10,19 +10,28 @@ import pandas as pd
 
 from dios import DictOfSeries
 
+from saqc.common import *
 from saqc.core.register import register
 from saqc.core.visitor import ENVIRONMENT
-from saqc.flagger.baseflagger import BaseFlagger
+from saqc.flagger import Flagger, initFlagsLike
+
+import operator as op
+
+_OP = {'<': op.lt, '<=': op.le, '==': op.eq, '!=': op.ne, '>': op.gt, '>=': op.ge}
 
 
-def _dslIsFlagged(flagger: BaseFlagger, var: pd.Series, flag: Any=None, comparator: str=">=") -> Union[pd.Series, DictOfSeries]:
+def _dslIsFlagged(
+        flagger: Flagger, var: pd.Series, flag: float = UNFLAGGED, comparator: str = ">"
+) -> Union[pd.Series, DictOfSeries]:
     """
     helper function for `flag`
     """
-    return flagger.isFlagged(var.name, flag=flag, comparator=comparator)
+    comparison = _OP[comparator]
+    return comparison(flagger[var.name], flag)
 
 
-def _execGeneric(flagger: BaseFlagger, data: DictOfSeries, func: Callable[[pd.Series], pd.Series], field: str, nodata: float) -> pd.Series:
+def _execGeneric(flagger: Flagger, data: DictOfSeries, func: Callable[[pd.Series], pd.Series], field: str,
+                 nodata: float) -> pd.Series:
     # TODO:
     # - check series.index compatibility
     # - field is only needed to translate 'this' parameters
@@ -42,9 +51,9 @@ def _execGeneric(flagger: BaseFlagger, data: DictOfSeries, func: Callable[[pd.Se
         "mask": lambda cond: data[cond.name].mask(cond),
         "this": field,
         "NODATA": nodata,
-        "GOOD": flagger.GOOD,
-        "BAD": flagger.BAD,
-        "UNFLAGGED": flagger.UNFLAGGED,
+        "GOOD": GOOD,
+        "BAD": BAD,
+        "UNFLAGGED": UNFLAGGED,
         **ENVIRONMENT,
     }
     func.__globals__.update(globs)
@@ -52,7 +61,8 @@ def _execGeneric(flagger: BaseFlagger, data: DictOfSeries, func: Callable[[pd.Se
 
 
 @register(masking='all', module="generic")
-def process(data: DictOfSeries, field: str, flagger: BaseFlagger, func: Callable[[pd.Series], pd.Series], nodata: float=np.nan, **kwargs) -> Tuple[DictOfSeries, BaseFlagger]:
+def process(data: DictOfSeries, field: str, flagger: Flagger, func: Callable[[pd.Series], pd.Series],
+            nodata: float = np.nan, **kwargs) -> Tuple[DictOfSeries, Flagger]:
     """
     generate/process data with generically defined functions.
 
@@ -73,7 +83,7 @@ def process(data: DictOfSeries, field: str, flagger: BaseFlagger, func: Callable
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the column, where you want the result from the generic expressions processing to be written to.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
     func : Callable
         The data processing function with parameter names that will be
@@ -87,7 +97,7 @@ def process(data: DictOfSeries, field: str, flagger: BaseFlagger, func: Callable
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
         The shape of the data may have changed relatively to the data input.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
         The flags shape may have changed relatively to the input flagger.
 
@@ -104,24 +114,18 @@ def process(data: DictOfSeries, field: str, flagger: BaseFlagger, func: Callable
 
     """
     data[field] = _execGeneric(flagger, data, func, field, nodata).squeeze()
-    # NOTE:
-    # The flags to `field` will be (re-)set to UNFLAGGED
-    # That leads to the following problem:
-    # flagger.merge merges the given flaggers, if
-    # `field` did already exist before the call to `procGeneric`
-    # but with a differing index, we end up with:
-    # len(data[field]) != len(flagger.getFlags(field))
-    # see: test/funcs/test_generic_functions.py::test_procGenericMultiple
 
-    # TODO:
-    # We need a way to simply overwrite a given flagger column, maybe
-    # an optional keyword to merge ?
-    flagger = flagger.merge(flagger.initFlags(data[field]))
+    # TODO: the former comment wished to overwrite the column, but i'm not sure -- palmb
+    if field in flagger:
+        flagger.drop(field)
+
+    flagger[field] = initFlagsLike(data[field])[field]
     return data, flagger
 
 
 @register(masking='all', module="generic")
-def flag(data: DictOfSeries, field: str, flagger: BaseFlagger, func: Callable[[pd.Series], pd.Series], nodata: float=np.nan, **kwargs) -> Tuple[DictOfSeries, BaseFlagger]:
+def flag(data: DictOfSeries, field: str, flagger: Flagger, func: Callable[[pd.Series], pd.Series],
+         nodata: float = np.nan, flag=BAD, **kwargs) -> Tuple[DictOfSeries, Flagger]:
     """
     a function to flag a data column by evaluation of a generic expression.
 
@@ -147,7 +151,7 @@ def flag(data: DictOfSeries, field: str, flagger: BaseFlagger, func: Callable[[p
     field : str
         The fieldname of the column, where you want the result from the generic expressions evaluation to be projected
         to.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
     func : Callable
         The expression that is to be evaluated is passed in form of a callable, with parameter names that will be
@@ -160,7 +164,7 @@ def flag(data: DictOfSeries, field: str, flagger: BaseFlagger, func: Callable[[p
     -------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
         Flags values may have changed relatively to the flagger input.
 
@@ -183,10 +187,11 @@ def flag(data: DictOfSeries, field: str, flagger: BaseFlagger, func: Callable[[p
     >>> lambda level: isflagged(level)
 
     You can furthermore specify a flagging level, you want to compare the flags to. For example, for flagging
-    'temperature', if 'level' is flagged at a level named 'doubtfull' or worse, use:
+    'temperature', if 'level' is flagged at a level named DOUBTFUL or worse, use:
 
-    >>> lambda level: isflagged(level, flag='doubtfull', comparator='<=')
+    >>> lambda level: isflagged(level, flag=DOUBTFUL, comparator='>')
 
+    # TODO : fix text
     If you are unsure about the used flaggers flagging level names, you can use the reserved key words BAD, UNFLAGGED
     and GOOD, to refer to the worst (BAD), best(GOOD) or unflagged (UNFLAGGED) flagging levels. For example.
 
@@ -205,12 +210,12 @@ def flag(data: DictOfSeries, field: str, flagger: BaseFlagger, func: Callable[[p
     if not np.issubdtype(mask.dtype, np.bool_):
         raise TypeError(f"generic expression does not return a boolean array")
 
-    if field not in flagger.getFlags():
-        flagger = flagger.merge(flagger.initFlags(data=pd.Series(index=mask.index, name=field)))
+    if field not in flagger.columns:
+        flagger[field] = pd.Series(UNFLAGGED, index=mask.index, name=field)
 
     # if flagger.getFlags(field).empty:
     #     flagger = flagger.merge(
     #         flagger.initFlags(
     #             data=pd.Series(name=field, index=mask.index, dtype=np.float64)))
-    flagger = flagger.setFlags(field=field, loc=mask, **kwargs)
+    flagger[mask, field] = flag
     return data, flagger

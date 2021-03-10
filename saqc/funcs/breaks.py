@@ -12,6 +12,7 @@ from typing import Tuple
 
 import numpy as np
 import pandas as pd
+import pandas.tseries.frequencies
 
 from dios import DictOfSeries
 
@@ -19,17 +20,17 @@ from saqc.lib.tools import groupConsecutives
 from saqc.lib.types import FreqString, ColumnName, IntegerWindow
 from saqc.funcs.changepoints import assignChangePointCluster
 from saqc.core.register import register
-from saqc.flagger.baseflagger import BaseFlagger
+from saqc.flagger import Flagger
 
 
 @register(masking='field', module="breaks")
 def flagMissing(
         data: DictOfSeries,
         field: ColumnName,
-        flagger: BaseFlagger,
-        nodata: float=np.nan,
+        flagger: Flagger,
+        nodata: float = np.nan,
         **kwargs
-) -> Tuple[DictOfSeries, BaseFlagger]:
+) -> Tuple[DictOfSeries, Flagger]:
     """
     The function flags all values indicating missing data.
 
@@ -39,7 +40,7 @@ def flagMissing(
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the column, holding the data-to-be-flagged.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
     nodata : any, default np.nan
         A value that defines missing data.
@@ -48,7 +49,7 @@ def flagMissing(
     -------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
         Flags values may have changed relatively to the flagger input.
     """
@@ -59,7 +60,7 @@ def flagMissing(
     else:
         mask = datacol == nodata
 
-    flagger = flagger.setFlags(field, loc=mask, **kwargs)
+    flagger[mask, field] = kwargs['flag']
     return data, flagger
 
 
@@ -67,16 +68,16 @@ def flagMissing(
 def flagIsolated(
         data: DictOfSeries,
         field: ColumnName,
-        flagger: BaseFlagger,
+        flagger: Flagger,
         gap_window: FreqString,
         group_window: FreqString,
         **kwargs
-) -> Tuple[DictOfSeries, BaseFlagger]:
+) -> Tuple[DictOfSeries, Flagger]:
     """
     The function flags arbitrary large groups of values, if they are surrounded by sufficiently
     large data gaps.
 
-    A gap is a timespan containing either no data or invalid (usually `nan`) and flagged data only.
+    A gap is a timespan containing either no data or data invalid only (usually `nan`) .
 
     Parameters
     ----------
@@ -84,8 +85,8 @@ def flagIsolated(
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the column, holding the data-to-be-flagged.
-    flagger : saqc.flagger.BaseFlagger
-        A flagger object, holding flags and additional informations related to `data`.
+    flagger : saqc.flagger.Flagger
+        A flagger object
     gap_window : str
         The minimum size of the gap before and after a group of valid values, making this group considered an
         isolated group. See condition (2) and (3)
@@ -97,9 +98,8 @@ def flagIsolated(
     -------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
-    flagger : saqc.flagger.BaseFlagger
-        The flagger object, holding flags and additional Informations related to `data`.
-        Flags values may have changed relatively to the flagger input.
+    flagger : saqc.flagger.Flagger
+        The flagger object, holding flags and additional information related to `data`.
 
     Notes
     -----
@@ -107,8 +107,8 @@ def flagIsolated(
     is considered to be isolated, if:
 
     1. :math:`t_{k+1} - t_n <` `group_window`
-    2. None of the :math:`x_j` with :math:`0 < t_k - t_j <` `gap_window`, is valid or unflagged (preceeding gap).
-    3. None of the :math:`x_j` with :math:`0 < t_j - t_(k+n) <` `gap_window`, is valid or unflagged (succeding gap).
+    2. None of the :math:`x_j` with :math:`0 < t_k - t_j <` `gap_window`, is valid (preceeding gap).
+    3. None of the :math:`x_j` with :math:`0 < t_j - t_(k+n) <` `gap_window`, is valid (succeding gap).
 
     See Also
     --------
@@ -118,10 +118,9 @@ def flagIsolated(
     gap_window = pd.tseries.frequencies.to_offset(gap_window)
     group_window = pd.tseries.frequencies.to_offset(group_window)
 
-    col = data[field].mask(flagger.isFlagged(field))
-    mask = col.isnull()
+    mask = data[field].isna()
 
-    flags = pd.Series(data=0, index=col.index, dtype=bool)
+    flags = pd.Series(data=0, index=mask.index, dtype=bool)
     for srs in groupConsecutives(mask):
         if np.all(~srs):
             start = srs.index[0]
@@ -133,8 +132,7 @@ def flagIsolated(
                     if right.all():
                         flags[start:stop] = True
 
-    flagger = flagger.setFlags(field, flags, **kwargs)
-
+    flagger[mask, field] = kwargs['flag']
     return data, flagger
 
 
@@ -142,12 +140,12 @@ def flagIsolated(
 def flagJumps(
         data: DictOfSeries,
         field: ColumnName,
-        flagger: BaseFlagger,
+        flagger: Flagger,
         thresh: float,
         winsz: FreqString,
-        min_periods: IntegerWindow=1,
+        min_periods: IntegerWindow = 1,
         **kwargs
-) -> Tuple[DictOfSeries, BaseFlagger]:
+) -> Tuple[DictOfSeries, Flagger]:
     """
     Flag datapoints, where the mean of the values significantly changes (where the value course "jumps").
 
@@ -157,7 +155,7 @@ def flagJumps(
         A dictionary of pandas.Series, holding all the data.
     field : str
         The reference variable, the deviation from wich determines the flagging.
-    flagger : saqc.flagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional informations related to `data`.
     thresh : float
         The threshold, the mean of the values have to change by, to trigger flagging.
