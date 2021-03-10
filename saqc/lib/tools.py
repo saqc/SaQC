@@ -311,12 +311,9 @@ def isQuoted(string):
 # TODO: GL167
 def getDropMask(field, to_drop, flagger, default):
     drop_mask = pd.Series(False, index=flagger[field].index)
-    if to_drop is None:
-        to_drop = default
-    to_drop = toSequence(to_drop)
-    if len(to_drop) > 0:
-        # drop_mask |= flagger.isFlagged(field, flag=to_drop)
-        drop_mask |= flagger[field] == to_drop
+    to_drop = toSequence(to_drop, default)
+    for flag in to_drop:
+        drop_mask |= flagger[field] == flag
     return drop_mask
 
 

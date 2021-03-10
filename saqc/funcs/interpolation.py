@@ -166,7 +166,7 @@ def interpolateInvalid(
     return data, flagger
 
 
-@register(masking='field', module="interpolation")
+@register(masking='none', module="interpolation")
 def interpolateIndex(
         data: DictOfSeries,
         field: str,
@@ -176,7 +176,7 @@ def interpolateIndex(
         inter_order: int=2,
         to_drop: Optional[Union[Any, Sequence[Any]]]=None,
         downgrade_interpolation: bool=False,
-        empty_intervals_flag: Any=None,
+        empty_intervals_flag: float = BAD,
         grid_field: str=None,
         inter_limit: int=2,
         freq_check: Optional[Literal["check", "auto"]]=None,  # TODO: rm not a user decision
@@ -249,24 +249,23 @@ def interpolateIndex(
     """
     raise NotImplementedError("currently not available - rewrite needed")
 
-    datcol = data[field]
-    datcol = datcol.copy()
-    flagscol = flagger.getFlags(field)
+    datcol = data[field].copy()
+    flagscol = flagger[field]
     freq = evalFreqStr(freq, freq_check, datcol.index)
 
-    if empty_intervals_flag is None:
-        empty_intervals_flag = BAD
-
-    drop_mask = getDropMask(field, to_drop, flagger, BAD)
-    drop_mask |= flagscol.isna()
-    drop_mask |= datcol.isna()
-    datcol[drop_mask] = np.nan
-    datcol.dropna(inplace=True)
+    # todo: flags are all nans, with @register(masking=field)
+    # drop nans
+    drop_mask = getDropMask(field, to_drop, flagger, BAD) | flagscol.isna() | datcol.isna()
+    datcol = datcol[~drop_mask]
+    flagscol = flagscol[~drop_mask]
 
     if datcol.empty:
-        data[field] = datcol
-        reshaped_flagger = flagger.initFlags(datcol).setFlags(field, flag=flagscol, force=True, inplace=True, **kwargs)
-        flagger = flagger.slice(drop=field).merge(reshaped_flagger, subset=[field], inplace=True)
+        datcol = pd.Series([], index=pd.DatetimeIndex([]), name=field)
+        flagscol = pd.Series([], index=pd.DatetimeIndex([]), name=field)
+
+        # clear the past
+        flagger.history[field] = flagger.history[field].reindex(datcol.index)
+        flagger[field] = flagscol
         return data, flagger
 
     # account for annoying case of subsequent frequency aligned values,
@@ -308,9 +307,6 @@ def interpolateIndex(
     # store interpolated grid
     inter_data = inter_data[grid_index]
     data[field] = inter_data
-
-    # flags reshaping (dropping data drops):
-    flagscol.drop(flagscol[drop_mask].index, inplace=True)
 
     if grid_field is not None:
         # only basic flag propagation supported for custom grids (take worst from preceeding/succeeding)
