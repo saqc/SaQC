@@ -3,13 +3,14 @@ import dios
 import pytest
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_bool_dtype
-from test.common import TESTFLAGGER, initData
-from test.flagger.test_history import (
+
+from saqc.common import *
+from saqc.flagger.flags import Flags
+
+from tests.flagger.test_history import (
     History,
     is_equal as hist_equal,
 )
-from saqc.flagger.flags import Flags
 
 _data = [
 
@@ -121,7 +122,7 @@ def test_get_flags(data: np.array):
 
 
 @pytest.mark.parametrize('data', data)
-def test_set_flags_and_force(data: np.array):
+def test_set_flags(data: np.array):
     flags = Flags(data)
 
     for c in flags.columns:
@@ -138,15 +139,9 @@ def test_set_flags_and_force(data: np.array):
         new[:] = 8888.
         assert all(flags.history[c].max() == 9999.)
 
-        # no overwrite if flag-values are not worse
+        # flags always overwrite former
         flags[c] = new
         assert len(flags.history[c]) == hlen + 2
-        assert all(flags.history[c].max() == 9999.)
-        assert all(flags.history[c].max() == flags[c])
-
-        # but overwrite with force
-        flags.force(c, new)
-        assert len(flags.history[c]) == hlen + 3
         assert all(flags.history[c].max() == 8888.)
         assert all(flags.history[c].max() == flags[c])
 
@@ -156,8 +151,82 @@ def test_set_flags_and_force(data: np.array):
 
 
 @pytest.mark.parametrize('data', data)
-def test_force_flags(data: np.array):
-    pass
+def test_set_flags_with_mask(data: np.array):
+    flags = Flags(data)
+
+    for c in flags.columns:
+        var = flags[c]
+        mask = var == UNFLAGGED
+
+        scalar = 222.
+        flags[mask, c] = scalar
+        assert all(flags[c].loc[mask] == 222.)
+        assert all(flags[c].loc[~mask] != 222.)
+
+        # scalar without mask is not allowed, because
+        # it holds to much potential to set the whole
+        # column unintentionally.
+        with pytest.raises(ValueError):
+            flags[c] = 888.
+
+        vector = var.copy()
+        vector[:] = 333.
+        flags[mask, c] = vector
+        assert all(flags[c].loc[mask] == 333.)
+        assert all(flags[c].loc[~mask] != 333.)
+
+        # works with any that pandas eat, eg with numpy
+        vector[:] = 444.
+        vector = vector.to_numpy()
+        flags[mask, c] = vector
+        assert all(flags[c].loc[mask] == 444.)
+        assert all(flags[c].loc[~mask] != 444.)
+
+        # test length miss-match (mask)
+        if len(mask) > 1:
+            wrong_len = mask[:-1]
+            with pytest.raises(ValueError):
+                flags[wrong_len, c] = vector
+
+        # test length miss-match (value)
+        if len(vector) > 1:
+            wrong_len = vector[:-1]
+            with pytest.raises(ValueError):
+                flags[mask, c] = wrong_len
+
+
+@pytest.mark.parametrize('data', data)
+def test_set_flags_with_index(data: np.array):
+    flags = Flags(data)
+
+    for c in flags.columns:
+        var = flags[c]
+        mask = var == UNFLAGGED
+        index = mask[mask].index
+
+        scalar = 222.
+        flags[index, c] = scalar
+        assert all(flags[c].loc[mask] == 222.)
+        assert all(flags[c].loc[~mask] != 222.)
+
+        vector = var.copy()
+        vector[:] = 333.
+        flags[index, c] = vector
+        assert all(flags[c].loc[mask] == 333.)
+        assert all(flags[c].loc[~mask] != 333.)
+
+        # works with any that pandas eat, eg with numpy
+        vector[:] = 444.
+        vector = vector.to_numpy()
+        flags[index, c] = vector
+        assert all(flags[c].loc[mask] == 444.)
+        assert all(flags[c].loc[~mask] != 444.)
+
+        # test length miss-match (value)
+        if len(vector) > 1:
+            wrong_len = vector[:-1]
+            with pytest.raises(ValueError):
+                flags[index, c] = wrong_len
 
 
 def test_cache():
@@ -181,7 +250,7 @@ def test_cache():
     assert 'a' not in flags._cache
 
     # cache all
-    flags.to_dios()
+    flags.toDios()
     for c in flags.columns:
         assert c in flags._cache
 
@@ -202,7 +271,7 @@ def _validate_flags_equals_frame(flags, df):
 @pytest.mark.parametrize('data', data)
 def test_to_dios(data: np.array):
     flags = Flags(data)
-    df = flags.to_dios()
+    df = flags.toDios()
 
     assert isinstance(df, dios.DictOfSeries)
     _validate_flags_equals_frame(flags, df)
@@ -211,7 +280,7 @@ def test_to_dios(data: np.array):
 @pytest.mark.parametrize('data', data)
 def test_to_frame(data: np.array):
     flags = Flags(data)
-    df = flags.to_frame()
+    df = flags.toFrame()
 
     assert isinstance(df, pd.DataFrame)
     _validate_flags_equals_frame(flags, df)

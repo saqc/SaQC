@@ -1,9 +1,23 @@
 #!/usr/bin/env python
 
-from numpy import nan as _nan
+__all__ = [
+    "UNTOUCHED",
+    "UNFLAGGED",
+    "DOUBTFUL",
+    "BAD",
+    "GOOD",
+    "DOUBT",
+]
 
-UNTOUCHED = _nan
-UNFLAGGED = 0
-DOUBTFUL = 25
-BAD = 255
+import numpy as np
+
+UNTOUCHED = np.nan
+UNFLAGGED = -np.inf
+GOOD = 0
+DOUBTFUL = 25.
+BAD = 255.
+
+# aliases
+DOUBT = DOUBTFUL
+
 

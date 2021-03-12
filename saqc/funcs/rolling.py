@@ -9,7 +9,7 @@ import pandas as pd
 from dios import DictOfSeries
 
 from saqc.core.register import register
-from saqc.flagger.baseflagger import BaseFlagger
+from saqc.flagger import Flagger
 from saqc.lib.tools import getFreqDelta
 
 
@@ -17,7 +17,7 @@ from saqc.lib.tools import getFreqDelta
 def roll(
         data: DictOfSeries,
         field: str,
-        flagger: BaseFlagger,
+        flagger: Flagger,
         winsz: Union[str, int],
         func: Callable[[pd.Series], float]=np.mean,
         eval_flags: bool=True,
@@ -38,7 +38,7 @@ def roll(
             A dictionary of pandas.Series, holding all the data.
         field : str
             The fieldname of the column, holding the data-to-be-modelled.
-        flagger : saqc.flagger.BaseFlagger
+        flagger : saqc.flagger.Flagger
             A flagger object, holding flags and additional Informations related to `data`.
         winsz : {int, str}
             The size of the window you want to roll with. If an integer is passed, the size
@@ -65,14 +65,13 @@ def roll(
         data : dios.DictOfSeries
             A dictionary of pandas.Series, holding all the data.
             Data values may have changed relatively to the data input.
-        flagger : saqc.flagger.BaseFlagger
+        flagger : saqc.flagger.Flagger
             The flagger object, holding flags and additional Informations related to `data`.
             Flags values may have changed relatively to the flagger input.
         """
 
     data = data.copy()
     to_fit = data[field]
-    flags = flagger.getFlags(field)
     if to_fit.empty:
         return data, flagger
 
@@ -123,13 +122,11 @@ def roll(
 
     data[field] = means
     if eval_flags:
-        num_cats, codes = flags.factorize()
-        num_cats = pd.Series(num_cats, index=flags.index).rolling(winsz, center=True, min_periods=min_periods).max()
-        nan_samples = num_cats[num_cats.isna()]
-        num_cats.drop(nan_samples.index, inplace=True)
-        to_flag = pd.Series(codes[num_cats.astype(int)], index=num_cats.index)
-        to_flag = to_flag.align(nan_samples)[0]
-        to_flag[nan_samples.index] = flags[nan_samples.index]
-        flagger = flagger.setFlags(field, to_flag.values, **kwargs)
+        # with the new flagger we dont have to care
+        # about to set NaNs to the original flags anymore
+        
+        # TODO: we does not get any flags here, because of masking=field
+        worst = flagger[field].rolling(winsz, center=True, min_periods=min_periods).max()
+        flagger[field] = worst
 
     return data, flagger

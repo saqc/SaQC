@@ -8,13 +8,14 @@ import numpy as np
 
 from dios import DictOfSeries
 
+from saqc.common import *
 from saqc.core.register import register
-from saqc.flagger.baseflagger import BaseFlagger
+from saqc.flagger import Flagger
 from saqc.lib.tools import periodicMask
 
 
 @register(masking='none', module="tools")
-def copy(data: DictOfSeries, field: str, flagger: BaseFlagger, new_field: str, **kwargs) -> Tuple[DictOfSeries, BaseFlagger]:
+def copy(data: DictOfSeries, field: str, flagger: Flagger, new_field: str, **kwargs) -> Tuple[DictOfSeries, Flagger]:
     """
     The function generates a copy of the data "field" and inserts it under the name field + suffix into the existing
     data.
@@ -25,7 +26,7 @@ def copy(data: DictOfSeries, field: str, flagger: BaseFlagger, new_field: str, *
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the data column, you want to fork (copy).
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
     new_field: str
         Target name.
@@ -35,23 +36,20 @@ def copy(data: DictOfSeries, field: str, flagger: BaseFlagger, new_field: str, *
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
         data shape may have changed relatively to the flagger input.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
         Flags shape may have changed relatively to the flagger input.
     """
-
-    if new_field in flagger.flags.columns.union(data.columns):
+    if new_field in flagger.columns.union(data.columns):
         raise ValueError(f"{field}: field already exist")
 
-    flags, extras = flagger.getFlags(field, full=True)
-    newflagger = flagger.replaceField(new_field, flags=flags, **extras)
-    newdata = data.copy()
-    newdata[new_field] = data[field].copy()
-    return newdata, newflagger
+    data[new_field] = data[field].copy()
+    flagger.history[new_field] = flagger.history[field]
+    return data, flagger
 
 
 @register(masking='none', module="tools")
-def drop(data: DictOfSeries, field: str, flagger: BaseFlagger, **kwargs) -> Tuple[DictOfSeries, BaseFlagger]:
+def drop(data: DictOfSeries, field: str, flagger: Flagger, **kwargs) -> Tuple[DictOfSeries, Flagger]:
     """
     The function drops field from the data dios and the flagger.
 
@@ -61,7 +59,7 @@ def drop(data: DictOfSeries, field: str, flagger: BaseFlagger, **kwargs) -> Tupl
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the data column, you want to drop.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
 
     Returns
@@ -69,19 +67,17 @@ def drop(data: DictOfSeries, field: str, flagger: BaseFlagger, **kwargs) -> Tupl
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
         data shape may have changed relatively to the flagger input.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
         Flags shape may have changed relatively to the flagger input.
     """
-
-    data = data.copy()
     del data[field]
-    flagger = flagger.replaceField(field, flags=None)
+    del flagger[field]
     return data, flagger
 
 
 @register(masking='none', module="tools")
-def rename(data: DictOfSeries, field: str, flagger: BaseFlagger, new_name: str, **kwargs) -> Tuple[DictOfSeries, BaseFlagger]:
+def rename(data: DictOfSeries, field: str, flagger: Flagger, new_name: str, **kwargs) -> Tuple[DictOfSeries, Flagger]:
     """
     The function renames field to new name (in both, the flagger and the data).
 
@@ -91,7 +87,7 @@ def rename(data: DictOfSeries, field: str, flagger: BaseFlagger, new_name: str, 
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the data column, you want to rename.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
     new_name : str
         String, field is to be replaced with.
@@ -100,22 +96,13 @@ def rename(data: DictOfSeries, field: str, flagger: BaseFlagger, new_name: str, 
     -------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
     """
-    # store
-    s = data[field]
-    f, e = flagger.getFlags(field, full=True)
-
-    # delete
-    data = data.copy()
+    data[new_name] = data[field]
+    flagger.history[new_name] = flagger.history[field]
     del data[field]
-    flagger = flagger.replaceField(field, flags=None)
-
-    # insert
-    data[new_name] = s
-    flagger = flagger.replaceField(new_name, inplace=True, flags=f, **e)
-
+    del flagger[field]
     return data, flagger
 
 
@@ -123,29 +110,30 @@ def rename(data: DictOfSeries, field: str, flagger: BaseFlagger, new_name: str, 
 def mask(
         data: DictOfSeries,
         field: str,
-        flagger: BaseFlagger,
+        flagger: Flagger,
         mode: Literal["periodic", "mask_var"],
         mask_var: Optional[str]=None,
         period_start: Optional[str]=None,
         period_end: Optional[str]=None,
-        include_bounds: bool=True
-) -> Tuple[DictOfSeries, BaseFlagger]:
+        include_bounds: bool=True,
+        **kwargs,
+) -> Tuple[DictOfSeries, Flagger]:
     """
     This function realizes masking within saqc.
 
     Due to some inner saqc mechanics, it is not straight forwardly possible to exclude
-    values or datachunks from flagging routines. This function replaces flags with np.nan
+    values or datachunks from flagging routines. This function replaces flags with UNFLAGGED
     value, wherever values are to get masked. Furthermore, the masked values get replaced by
     np.nan, so that they dont effect calculations.
 
     Here comes a recipe on how to apply a flagging function only on a masked chunk of the variable field:
 
-    1. dublicate "field" in the input data (proc_copy)
-    2. mask the dublicated data (modelling_mask)
+    1. dublicate "field" in the input data (copy)
+    2. mask the dublicated data (mask)
     3. apply the tests you only want to be applied onto the masked data chunks (saqc_tests)
     4. project the flags, calculated on the dublicated and masked data onto the original field data
-        (proc_projectFlags or flagGeneric)
-    5. drop the dublicated data (proc_drop)
+        (projectFlags or flagGeneric)
+    5. drop the dublicated data (drop)
 
     To see an implemented example, checkout flagSeasonalRange in the saqc.functions module
 
@@ -155,7 +143,7 @@ def mask(
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the column, holding the data-to-be-masked.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
     mode : {"periodic", "mask_var"}
         The masking mode.
@@ -184,7 +172,7 @@ def mask(
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
         Data values may have changed relatively to the data input.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
         Flags values may have changed relatively to the flagger input.
 
@@ -239,6 +227,5 @@ def mask(
         raise ValueError("Keyword passed as masking mode is unknown ({})!".format(mode))
 
     data.aloc[to_mask, field] = np.nan
-    flagger = flagger.setFlags(field, loc=to_mask, flag=np.nan, force=True)
-
+    flagger[to_mask, field] = UNFLAGGED
     return data, flagger

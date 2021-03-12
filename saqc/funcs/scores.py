@@ -8,8 +8,9 @@ import pandas as pd
 
 from dios import DictOfSeries
 
+from saqc.common import *
 from saqc.core.register import register
-from saqc.flagger.baseflagger import BaseFlagger
+from saqc.flagger import Flagger
 from saqc.lib import ts_operators as ts_ops
 from saqc.lib.tools import toSequence
 
@@ -18,7 +19,7 @@ from saqc.lib.tools import toSequence
 def assignKNNScore(
         data: DictOfSeries,
         field: str,
-        flagger: BaseFlagger,
+        flagger: Flagger,
         fields: Sequence[str],
         n_neighbors: int=10,
         trafo: Callable[[pd.Series], pd.Series]=lambda x: x,
@@ -31,7 +32,7 @@ def assignKNNScore(
         metric: str='minkowski',
         p: int=2,
         **kwargs
-) -> Tuple[DictOfSeries, BaseFlagger]:
+) -> Tuple[DictOfSeries, Flagger]:
     """
     Score datapoints by an aggregation of the dictances to their k nearest neighbors.
 
@@ -108,17 +109,18 @@ def assignKNNScore(
 
     References
     ----------
-
     [1] https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.NearestNeighbors.html
-
     """
     data = data.copy()
     fields = toSequence(fields)
+
     val_frame = data[fields]
     score_index = val_frame.index_of("shared")
     score_ser = pd.Series(np.nan, index=score_index, name=target_field)
+
     val_frame = val_frame.loc[val_frame.index_of("shared")].to_df()
     val_frame.dropna(inplace=True)
+
     if not trafo_on_partition:
         val_frame = val_frame.transform(trafo)
 
@@ -154,11 +156,10 @@ def assignKNNScore(
 
         score_ser[partition.index] = resids
 
-    score_flagger = flagger.initFlags(score_ser)
+    # TODO: this unconditionally overwrite a column, may we should fire a warning ? -- palmb
+    if target_field in flagger.columns:
+        flagger.drop(target_field)
+    flagger[target_field] = pd.Series(UNFLAGGED, index=score_ser.index, dtype=float)
 
-    if target_field in flagger._flags.columns:
-        flagger = flagger.slice(drop=target_field)
-
-    flagger = flagger.merge(score_flagger)
     data[target_field] = score_ser
     return data, flagger

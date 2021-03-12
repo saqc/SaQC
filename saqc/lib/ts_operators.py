@@ -279,8 +279,8 @@ def aggregate2Freq(
     }
 
     # filter data for invalid patterns (since filtering is expensive we pre-check if it is demanded)
-    if (max_invalid_total is not None) | (max_invalid_consec is not None):
-        if pd.isnull(fill_value):
+    if max_invalid_total is not None or max_invalid_consec is not None:
+        if pd.isna(fill_value):
             temp_mask = data.isna()
         else:
             temp_mask = data == fill_value
@@ -296,7 +296,7 @@ def aggregate2Freq(
     # In the following, we check for empty intervals outside resample.apply, because:
     # - resample AND groupBy do insert value zero for empty intervals if resampling with any kind of "sum" application -
     #   we want "fill_value" to be inserted
-    # - we are aggregating data and flags with this function and empty intervals usually would get assigned flagger.BAD
+    # - we are aggregating data and flags with this function and empty intervals usually would get assigned BAD
     #   flag (where resample inserts np.nan or 0)
 
     data_resampler = data.resample(f"{seconds_total:.0f}s", base=base, closed=closed, label=label)
@@ -313,8 +313,8 @@ def aggregate2Freq(
     except AttributeError:
         data = data_resampler.apply(agg_func)
 
-    # since loffset keyword of pandas.resample "discharges" after one use of the resampler (pandas logic) - we correct the
-    # resampled labels offset manually, if necessary.
+    # since loffset keyword of pandas.resample "discharges" after one use of the resampler (pandas logic),
+    # we correct the resampled labels offset manually, if necessary.
     if method == "nagg":
         data.index = data.index.shift(freq=pd.Timedelta(freq) / 2)
         empty_intervals.index = empty_intervals.index.shift(freq=pd.Timedelta(freq) / 2)

@@ -1,12 +1,11 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 
-import io
-from typing import get_type_hints
 
+import numbers
+import dios
 import numpy as np
 import pandas as pd
-import dios
+from typing import get_type_hints
 
 from hypothesis.strategies import (
     lists,
@@ -22,55 +21,14 @@ from hypothesis.strategies import (
 from hypothesis.extra.numpy import arrays, from_dtype
 from hypothesis.strategies._internal.types import _global_type_lookup
 
-from dios import DictOfSeries
-
+from saqc.common import *
 from saqc.core.register import FUNC_MAP
 from saqc.core.lib import SaQCFunction
 from saqc.lib.types import FreqString, ColumnName, IntegerWindow
-from saqc.flagger import (
-    CategoricalFlagger,
-    SimpleFlagger,
-    DmpFlagger,
-)
+from saqc.flagger import Flagger, initFlagsLike
 
-
-TESTNODATA = (np.nan, -9999)
-
-
-TESTFLAGGER = (
-    CategoricalFlagger(["NIL", "GOOD", "BAD"]),
-    SimpleFlagger(),
-    DmpFlagger(),
-)
-
-
-def flagAll(data, field, flagger, **kwargs):
-    # NOTE: remember to rename flag -> flag_values
-    return data, flagger.setFlags(field=field, flag=flagger.BAD)
-
-
-def initData(cols=2, start_date="2017-01-01", end_date="2017-12-31", freq=None, rows=None):
-    if rows is None:
-        freq = freq or "1h"
-
-    di = dios.DictOfSeries(itype=dios.DtItype)
-    dates = pd.date_range(start=start_date, end=end_date, freq=freq, periods=rows)
-    dummy = np.arange(len(dates))
-
-    for col in range(1, cols + 1):
-        di[f"var{col}"] = pd.Series(data=dummy * col, index=dates)
-
-    return di
-
-
-def writeIO(content):
-    f = io.StringIO()
-    f.write(content)
-    f.seek(0)
-    return f
-
-
-MAX_EXAMPLES = 50 #100000
+MAX_EXAMPLES = 50
+# MAX_EXAMPLES = 100000
 
 
 @composite
@@ -90,9 +48,8 @@ def dioses(draw, min_cols=1):
         c: draw(dataSeries(min_size=3))
         for c in cols
     }
-    return DictOfSeries(columns)
+    return dios.DictOfSeries(columns)
 
-import numbers
 
 @composite
 def dataSeries(draw, min_size=0, max_size=100, dtypes=("float32", "float64", "int32", "int64")):
@@ -107,7 +64,7 @@ def dataSeries(draw, min_size=0, max_size=100, dtypes=("float32", "float64", "in
     else:
         raise ValueError("only numerical dtypes are supported")
     # we don't want to fail just because of overflows
-    elements = from_dtype(dtype, min_value=info.min+1, max_value=info.max-1)
+    elements = from_dtype(dtype, min_value=info.min + 1, max_value=info.max - 1)
 
     index = draw(daterangeIndexes(min_size=min_size, max_size=max_size))
     values = draw(arrays(dtype=dtype, elements=elements, shape=len(index)))
@@ -124,16 +81,15 @@ def flaggers(draw, data):
     """
     initialize a flagger and set some flags
     """
-    # flagger = draw(sampled_from(TESTFLAGGER)).initFlags(data)
-    flagger = draw(sampled_from([SimpleFlagger()])).initFlags(data)
+    flagger = initFlagsLike(data)
     for col, srs in data.items():
-        loc_st = lists(sampled_from(sorted(srs.index)), unique=True, max_size=len(srs)-1)
-        flagger = flagger.setFlags(field=col, loc=draw(loc_st))
+        loc_st = lists(sampled_from(sorted(srs.index)), unique=True, max_size=len(srs) - 1)
+        flagger[draw(loc_st), col] = BAD
     return flagger
 
 
 @composite
-def functions(draw, module: str=None):
+def functions(draw, module: str = None):
     samples = tuple(FUNC_MAP.values())
     if module:
         samples = tuple(f for f in samples if f.name.startswith(module))
@@ -158,6 +114,7 @@ def frequencyStrings(draw, _):
     value = f"{mult}{freq}"
     return value
 
+
 @composite
 def dataFieldFlagger(draw):
     data = draw(dioses())
@@ -167,7 +124,7 @@ def dataFieldFlagger(draw):
 
 
 @composite
-def functionCalls(draw, module: str=None):
+def functionCalls(draw, module: str = None):
     func = draw(functions(module))
     kwargs = draw(functionKwargs(func))
     return func, kwargs

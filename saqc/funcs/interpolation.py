@@ -1,6 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import warnings
 from typing import Tuple, Union, Optional, Any, Callable, Sequence
 from typing_extensions import Literal
 
@@ -9,23 +9,24 @@ import pandas as pd
 
 from dios import DictOfSeries
 
+from saqc.common import *
 from saqc.core.register import register
-from saqc.flagger.baseflagger import BaseFlagger
+from saqc.flagger import Flagger
 
-from saqc.lib.tools import toSequence, evalFreqStr, dropper
+from saqc.lib.tools import toSequence, evalFreqStr, getDropMask
 from saqc.lib.ts_operators import interpolateNANs
 
 
 @register(masking='field', module="interpolation")
 def interpolateByRolling(
-        data: DictOfSeries, field: str, flagger: BaseFlagger,
+        data: DictOfSeries, field: str, flagger: Flagger,
         winsz: Union[str, int],
         func: Callable[[pd.Series], float]=np.median,
         center: bool=True,
         min_periods: int=0,
-        interpol_flag=Any,
+        flag: float = UNFLAGGED,
         **kwargs
-) -> Tuple[DictOfSeries, BaseFlagger]:
+) -> Tuple[DictOfSeries, Flagger]:
     """
     Interpolates missing values (nan values present in the data) by assigning them the aggregation result of
     a window surrounding them.
@@ -39,7 +40,7 @@ def interpolateByRolling(
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the column, holding the data-to-be-interpolated.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
     winsz : int, str
         The size of the window, the aggregation is computed from. Either counted in periods number (Integer passed),
@@ -51,16 +52,15 @@ def interpolateByRolling(
     min_periods : int
         Minimum number of valid (not np.nan) values that have to be available in a window for its aggregation to be
         computed.
-    interpol_flag : {'GOOD', 'BAD', 'UNFLAGGED', str}, default 'UNFLAGGED'
-        Flag that is to be inserted for the interpolated values. You can either pass one of the three major flag-classes
-        or specify directly a certain flag from the passed flagger.
+    flag : float, default UNFLAGGED
+        Flag that is to be inserted for the interpolated values. If ``None`` no flags are set.
 
     Returns
     -------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
         Data values may have changed relatively to the data input.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
         Flags values may have changed relatively to the flagger input.
     """
@@ -81,27 +81,25 @@ def interpolateByRolling(
     datcol[na_mask] = rolled[na_mask]
     data[field] = datcol
 
-    if interpol_flag:
-        if interpol_flag in ["BAD", "UNFLAGGED", "GOOD"]:
-            interpol_flag = getattr(flagger, interpol_flag)
-        flagger = flagger.setFlags(field, loc=interpolated, force=True, flag=interpol_flag, **kwargs)
+    if flag is not None:
+        flagger[interpolated, field] = flag
 
     return data, flagger
 
 
 @register(masking='field', module="interpolation")
 def interpolateInvalid(
-    data: DictOfSeries,
-    field: str,
-    flagger: BaseFlagger,
-    method: Literal["linear", "time", "nearest", "zero", "slinear", "quadratic", "cubic", "spline", "barycentric", "polynomial", "krogh", "piecewise_polynomial", "spline", "pchip", "akima"],
-    inter_order: int=2,
-    inter_limit: int=2,
-    interpol_flag: Any="UNFLAGGED",
-    downgrade_interpolation: bool=False,
-    not_interpol_flags: Optional[Union[Any, Sequence[Any]]]=None,
-    **kwargs
-) -> Tuple[DictOfSeries, BaseFlagger]:
+        data: DictOfSeries,
+        field: str,
+        flagger: Flagger,
+        method: Literal["linear", "time", "nearest", "zero", "slinear", "quadratic", "cubic", "spline", "barycentric", "polynomial", "krogh", "piecewise_polynomial", "spline", "pchip", "akima"],
+        inter_order: int=2,
+        inter_limit: int=2,
+        downgrade_interpolation: bool=False,
+        not_interpol_flags=None,
+        flag: float = UNFLAGGED,
+        **kwargs
+) -> Tuple[DictOfSeries, Flagger]:
 
     """
     Function to interpolate nan values in the data.
@@ -112,16 +110,13 @@ def interpolateInvalid(
     Note, that the `inter_limit` keyword really restricts the interpolation to chunks, not containing more than
     `inter_limit` successive nan entries.
 
-    Note, that the function differs from ``proc_interpolateGrid``, in its behaviour to ONLY interpolate nan values that
-    were already present in the data passed.
-
     Parameters
     ----------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the column, holding the data-to-be-interpolated.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
     method : {"linear", "time", "nearest", "zero", "slinear", "quadratic", "cubic", "spline", "barycentric",
         "polynomial", "krogh", "piecewise_polynomial", "spline", "pchip", "akima"}: string
@@ -131,21 +126,20 @@ def interpolateInvalid(
         order.
     inter_limit : int, default 2
         Maximum number of consecutive 'nan' values allowed for a gap to be interpolated.
-    interpol_flag : {'GOOD', 'BAD', 'UNFLAGGED', str}, default 'UNFLAGGED'
-        Flag that is to be inserted for the interpolated values. You can either pass one of the three major flag-classes
-        or specify directly a certain flag from the passed flagger.
+    flag : float or None, default UNFLAGGED
+        Flag that is to be inserted for the interpolated values. If ``None`` no flags are set.
     downgrade_interpolation : bool, default False
-        If interpolation can not be performed at `inter_order` - (not enough values or not implemented at this order) -
-        automaticalyy try to interpolate at order `inter_order` :math:`- 1`.
-    not_interpol_flags : {None, str, List[str]}, default None
-        A list of flags or a single Flag, marking values, you want NOT to be interpolated.
+        If interpolation can not be performed at `inter_order`, because not enough values are present or the order
+        is not implemented for the passed method, automatically try to interpolate at ``inter_order-1``.
+    not_interpol_flags : None
+        deprecated
 
     Returns
     -------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
         Data values may have changed relatively to the data input.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
         Flags values may have changed relatively to the flagger input.
     """
@@ -161,19 +155,12 @@ def interpolateInvalid(
     )
     interpolated = data[field].isna() & inter_data.notna()
 
-    if not_interpol_flags:
-        for f in toSequence(not_interpol_flags):
-            if f in ["BAD", "UNFLAGGED", "GOOD"]:
-                f = getattr(flagger, interpol_flag)
-            is_flagged = flagger.isFlagged(flag=f)[field]
-            cond = is_flagged & interpolated
-            inter_data.mask(cond, np.nan, inplace=True)
-        interpolated &= inter_data.notna()
+    # TODO: remove with version 2.0
+    if not_interpol_flags is not None:
+        raise ValueError("'not_interpol_flags' is deprecated")
 
-    if interpol_flag:
-        if interpol_flag in ["BAD", "UNFLAGGED", "GOOD"]:
-            interpol_flag = getattr(flagger, interpol_flag)
-        flagger = flagger.setFlags(field, loc=interpolated, force=True, flag=interpol_flag, **kwargs)
+    if flag is not None:
+        flagger[interpolated, field] = flag
 
     data[field] = inter_data
     return data, flagger
@@ -183,7 +170,7 @@ def interpolateInvalid(
 def interpolateIndex(
         data: DictOfSeries,
         field: str,
-        flagger: BaseFlagger,
+        flagger: Flagger,
         freq: str,
         method: Literal["linear", "time", "nearest", "zero", "slinear", "quadratic", "cubic", "spline", "barycentric", "polynomial", "krogh", "piecewise_polynomial", "spline", "pchip", "akima"],
         inter_order: int=2,
@@ -192,9 +179,9 @@ def interpolateIndex(
         empty_intervals_flag: Any=None,
         grid_field: str=None,
         inter_limit: int=2,
-        freq_check: Optional[Literal["check", "auto"]]=None,
+        freq_check: Optional[Literal["check", "auto"]]=None,  # TODO: rm not a user decision
         **kwargs
-) -> Tuple[DictOfSeries, BaseFlagger]:
+) -> Tuple[DictOfSeries, Flagger]:
 
     """
     Function to interpolate the data at regular (equidistant) timestamps (or Grid points).
@@ -216,7 +203,7 @@ def interpolateIndex(
         A dictionary of pandas.Series, holding all the data.
     field : str
         The fieldname of the column, holding the data-to-be-interpolated.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         A flagger object, holding flags and additional Informations related to `data`.
     freq : str
         An Offset String, interpreted as the frequency of
@@ -237,7 +224,7 @@ def interpolateIndex(
     empty_intervals_flag : str, default None
         A Flag, that you want to assign to those values in the resulting equidistant sample grid, that were not
         surrounded by valid data in the original dataset, and thus were not interpolated. Default automatically assigns
-        ``flagger.BAD`` flag to those values.
+        ``BAD`` flag to those values.
     grid_field : String, default None
         Use the timestamp of another variable as (not necessarily regular) "grid" to be interpolated.
     inter_limit : Integer, default 2
@@ -256,31 +243,34 @@ def interpolateIndex(
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
         Data values and shape may have changed relatively to the data input.
-    flagger : saqc.flagger.BaseFlagger
+    flagger : saqc.flagger.Flagger
         The flagger object, holding flags and additional Informations related to `data`.
         Flags values and shape may have changed relatively to the flagger input.
     """
+    raise NotImplementedError("currently not available - rewrite needed")
 
     datcol = data[field]
     datcol = datcol.copy()
     flagscol = flagger.getFlags(field)
     freq = evalFreqStr(freq, freq_check, datcol.index)
-    if empty_intervals_flag is None:
-        empty_intervals_flag = flagger.BAD
 
-    drop_mask = dropper(field, to_drop, flagger, flagger.BAD)
+    if empty_intervals_flag is None:
+        empty_intervals_flag = BAD
+
+    drop_mask = getDropMask(field, to_drop, flagger, BAD)
     drop_mask |= flagscol.isna()
     drop_mask |= datcol.isna()
     datcol[drop_mask] = np.nan
     datcol.dropna(inplace=True)
-    freq = evalFreqStr(freq, freq_check, datcol.index)
+
     if datcol.empty:
         data[field] = datcol
         reshaped_flagger = flagger.initFlags(datcol).setFlags(field, flag=flagscol, force=True, inplace=True, **kwargs)
         flagger = flagger.slice(drop=field).merge(reshaped_flagger, subset=[field], inplace=True)
         return data, flagger
-    # account for annoying case of subsequent frequency aligned values, differing exactly by the margin
-    # 2*freq:
+
+    # account for annoying case of subsequent frequency aligned values,
+    # which differ exactly by the margin of 2*freq
     spec_case_mask = datcol.index.to_series()
     spec_case_mask = spec_case_mask - spec_case_mask.shift(1)
     spec_case_mask = spec_case_mask == 2 * pd.Timedelta(freq)
@@ -292,11 +282,10 @@ def interpolateIndex(
 
     # prepare grid interpolation:
     if grid_field is None:
-        grid_index = pd.date_range(start=datcol.index[0].floor(freq), end=datcol.index[-1].ceil(freq), freq=freq,
-                                   name=datcol.index.name)
+        start, end = datcol.index[0].floor(freq), datcol.index[-1].ceil(freq)
+        grid_index = pd.date_range(start=start, end=end, freq=freq, name=datcol.index.name)
     else:
         grid_index = data[grid_field].index
-
 
     aligned_start = datcol.index[0] == grid_index[0]
     aligned_end = datcol.index[-1] == grid_index[-1]
@@ -304,12 +293,16 @@ def interpolateIndex(
 
     # do the interpolation
     inter_data, chunk_bounds = interpolateNANs(
-        datcol, method, order=inter_order, inter_limit=inter_limit, downgrade_interpolation=downgrade_interpolation,
+        data=datcol,
+        method=method,
+        order=inter_order,
+        inter_limit=inter_limit,
+        downgrade_interpolation=downgrade_interpolation,
         return_chunk_bounds=True
     )
 
+    # override falsely interpolated values:
     if grid_field is None:
-        # override falsely interpolated values:
         inter_data[spec_case_mask.index] = np.nan
 
     # store interpolated grid
@@ -351,7 +344,6 @@ def interpolateIndex(
     cats_dict = {num: key for (key, num) in cats_dict.items()}
     flagscol = flagscol.astype(int, errors="ignore").replace(cats_dict)
     flagscol[flagscol.isna()] = empty_intervals_flag
-    # ...hack done
 
     # we might miss the flag for interpolated data grids last entry (if we miss it - the datapoint is always nan
     # - just settling a convention here(resulting GRID should start BEFORE first valid data entry and range to AFTER
