@@ -38,22 +38,28 @@ testLib:
 
 # fuzzy testing saqc
 fuzzy:
+  allow_failure: true
   stage: test
   script:
     - pytest tests/fuzzy
-  allow_failure: true
 
 
 # make (visual) coverage in gitlab merge request diff's
 coverage:
+  allow_failure: true
   stage: test
+
   script:
     - pip install pytest-cov coverage
     - pytest --cov=saqc tests/core tests/flagger tests/funcs
+  after_script:
     - coverage xml
+
   # regex to find the coverage percentage in the job output
   coverage: '/^TOTAL.+?(\d+\%)$/'
+
   artifacts:
+    when: always
     reports:
       cobertura: coverage.xml
 
