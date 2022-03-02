@@ -21,6 +21,7 @@ from saqc.core.modules.residuals import Residuals
 from saqc.core.modules.rolling import Rolling
 from saqc.core.modules.scores import Scores
 from saqc.core.modules.tools import Tools
+from saqc.core.modules.xgb import Xgb
 from saqc.core.modules.transformation import Transformation
 from saqc.core.register import FUNC_MAP
 
