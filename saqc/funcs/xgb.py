@@ -86,7 +86,7 @@ def trainXGB(
         freq = getFreqDelta(x_data.index)
         if not freq:
             raise IndexError("XGB training with irregularly sampled data not supported")
-        window = int(freq / pd.Timedelta(window))
+        window = int(pd.Timedelta(window) / freq)
 
     if target_i in ["center", "forward"]:
         target_i = window // 2 if target_i == "center" else window - 1
@@ -117,7 +117,7 @@ def trainXGB(
         X=field, Y=target, sub_len=window, data=data_in, target_i=target_i, x_mask=x_mask
     )
 
-    if predict != 'values':
+    if predict != 'value':
         train_kwargs.update(train_kwargs.pop('objective', {'objective':"binary:logistic"}))
         model = XGBClassifier(**train_kwargs)
 

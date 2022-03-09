@@ -6,6 +6,8 @@
 
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+from typing import Optional, Union
+from typing_extensions import Literal
 
 from saqc.constants import BAD, FILTER_ALL
 import saqc
@@ -17,9 +19,7 @@ class Xgb:
     @doc(saqc.funcs.xgb.trainXGB.__doc__)
     def trainXGB(
         self,
-        data: DictOfSeries,
         field: str,
-        flags: Flags,
         target: str,
         window: Union[str, int],
         target_i: Union[int, list[int], Literal["center", "forward"]],
