@@ -78,7 +78,7 @@ def trainXGB(
     **kwargs
 ):
     """
-    Function
+
     """
     x_data = data[field]
 
