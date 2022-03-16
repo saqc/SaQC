@@ -44,7 +44,7 @@ class FunctionsMixin(
     Scores,
     Tools,
     Transformation,
-    Xgb
+    Xgb,
 ):
     def _defer(self, fname, flocals):
         flocals.pop("self", None)

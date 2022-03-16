@@ -24,8 +24,20 @@ class Xgb:
         window: Union[str, int],
         target_i: Union[int, list[int], Literal["center", "forward"]],
         predict: Union[Literal["flag", "value"], str],
+        model_dir: str,
+        id: Optional[str] = None,
         mask_target: bool = True,
         training_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> saqc.SaQC:
         return self._defer("trainXGB", locals())
+
+    @doc(saqc.funcs.xgb.predictXGB.__doc__)
+    def predictXGB(
+        self,
+        field: str,
+        model_dir: str,
+        id: Optional[str] = None,
+        **kwargs,
+    ) -> saqc.SaQC:
+        return self._defer("predictXGB", locals())
