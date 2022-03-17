@@ -22,6 +22,7 @@ from dios import DictOfSeries
 from saqc.lib.tools import toSequence, getFreqDelta
 from xgboost import XGBClassifier, XGBRegressor
 from saqc.core import register, Flags
+from sklearn.multioutput import RegressorChain
 
 # TODO: k-fold CV
 # TODO: meta CV
@@ -33,6 +34,7 @@ from saqc.core import register, Flags
 # TODO: multi-var-prediction (?)
 # TODO: target must not contain NaN (!) / i-Filter
 # TODO: Train/Validation and Test split
+# TODO: more than 1 target index :-(
 
 
 def _getSamplerParams(
@@ -44,7 +46,7 @@ def _getSamplerParams(
     target_i: Union[int, list, Literal["center", "forward"]],
     predict: Union[Literal["flag", "value"], str],
     mask_target: bool = True,
-    **kwargs
+    **kwargs,
 ):
     x_data = data[predictors].to_df()
 
@@ -56,6 +58,8 @@ def _getSamplerParams(
 
     if target_i in ["center", "forward"]:
         target_i = window // 2 if target_i == "center" else window - 1
+
+    target_i.sort()
 
     if mask_target:
         x_mask = target
@@ -93,6 +97,7 @@ def _generateSamples(
     data: pd.DataFrame,
     target_i: Union[list, int],
     x_mask: str = [],
+    na_filter: bool = True,
 ):
 
     X = toSequence(X)
@@ -113,7 +118,12 @@ def _generateSamples(
     )
 
     y_split = np.lib.stride_tricks.sliding_window_view(y_data, (sub_len, y_cols))
-    y_samples = y_split.reshape(x_split.shape[0], y_split.shape[2], y_split.shape[3])
+    y_samples = y_split.reshape(y_split.shape[0], y_split.shape[2], y_split.shape[3])
+
+    map_split = np.lib.stride_tricks.sliding_window_view(
+        np.arange(len(y_data)), sub_len
+    )
+    map_samples = map_split.reshape(map_split.shape[0], map_split.shape[1])
 
     target_i = toSequence(target_i)
     y_mask = [y for y in x_mask if y in X]
@@ -126,9 +136,16 @@ def _generateSamples(
 
     x_samples = x_samples[:, selector]
     y_samples = y_samples[:, target_i, :]
+    map_samples = map_samples[:, target_i]
     # currently only support for 1-d y (i guess)
     y_samples = np.squeeze(y_samples, axis=2)
-    return x_samples, y_samples
+
+    na_samples = np.any(np.isnan(y_samples), axis=1)
+    if na_filter:
+        na_s = np.any(np.isnan(x_samples), axis=1)
+        na_samples |= na_s
+
+    return x_samples[~na_samples], y_samples[~na_samples], map_samples[~na_samples]
 
 
 @register(mask=[], demask=[], squeeze=[], multivariate=True, handles_target=True)
@@ -148,17 +165,21 @@ def trainXGB(
 ):
     """
     Dummy Strings.
+    * [field target] has to be harmed (or field > target)
+    * MultiVarRegressionOnly works with no-Na input
     """
 
-    id = id or ''
+    id = id or ""
     train_kwargs = train_kwargs or {}
 
-    sampler_config = {'predictors': field,
-              'window': window,
-              'predict': predict,
-              'target_i': target_i,
-              'mask_target': mask_target,
-              'target': target}
+    sampler_config = {
+        "predictors": field,
+        "window": window,
+        "predict": predict,
+        "target_i": target_i,
+        "mask_target": mask_target,
+        "target": target,
+    }
 
     window, data_in, x_mask, target, target_i = _getSamplerParams(
         data, flags, **sampler_config
@@ -183,6 +204,9 @@ def trainXGB(
     else:
         model = XGBRegressor(**train_kwargs)
 
+    if len(target_i) > 1:
+        model = RegressorChain(model)
+
     fitted = model.fit(samples[0], samples[1])
 
     if not os.path.exists(model_dir):
@@ -193,12 +217,11 @@ def trainXGB(
     if not os.path.exists(var_dir):
         os.makedirs(var_dir)
 
-    fitted.save_model(os.path.join(var_dir, "model" + id + ".txt"))
-    
-    config_ser = pd.Series(sampler_config.values(), index=sampler_config.keys(), name=target[0])
-    with open(os.path.join(var_dir, "config" + id + ".pkl"), 'wb') as f:
+    with open(os.path.join(var_dir, "config" + id + ".pkl"), "wb") as f:
         pickle.dump(sampler_config, f)
-    #config_ser.to_csv(os.path.join(var_dir, "config" + id + ".csv"))
+
+    with open(os.path.join(var_dir, "model" + id + ".pkl"), "wb") as f:
+        pickle.dump(fitted, f)
 
     return data, flags
 
@@ -212,36 +235,50 @@ def predictXGB(
     id: Optional[str] = None,
     model_var: Optional[str] = None,
     **kwargs,
-    ):
+):
     """
     Dummy Strings.
     """
 
     model_var = model_var or field[0]
-    id = id or ''
+    id = id or ""
 
     model_folder = os.path.join(model_dir, model_var)
 
-    with open(os.path.join(model_folder, 'config' + id + '.pkl'), 'rb') as f:
+    with open(os.path.join(model_folder, "config" + id + ".pkl"), "rb") as f:
         sampler_config = pickle.load(f)
-    if sampler_config['predict'] == 'value':
-        model = xgboost.XGBRegressor()
-    else:
-        model = xgboost.XGBClassifier()
 
-    model.load_model(os.path.join(model_folder, 'model' + id + '.txt'))
+    with open(os.path.join(model_folder, "model" + id + ".pkl"), "rb") as f:
+        model = pickle.load(f)
 
     window, data_in, x_mask, target, target_i = _getSamplerParams(
         data, flags, **sampler_config
     )
 
     samples = _generateSamples(
-        X=sampler_config['predictors'],
+        X=sampler_config["predictors"],
         Y=target,
         sub_len=window,
         data=data_in,
         target_i=target_i,
         x_mask=x_mask,
     )
+
+    y_pred = model.predict(samples[0])
+    if target_i > 1:
+        # generate array that has in any row, the predictions for the associated data index row from all prediction
+        # windows and apply prediction aggregation function on that window
+        win_arr = np.empty((data_in.shape[0], len(target_i)))
+        win_arr[:] = np.nan
+        win_arr[samples[2][:, 0], :] = y_pred
+        pred_arr = np.empty((samples[2][-1, -1] - samples[2][0, 0], len(target_i)))
+        pred_arr[:] = np.nan
+        # col0 blueprint:
+        col0 = win_arr[:: len(target_i), :]
+        col0 = col0.reshape(col0.shape[0] * col0.shape[1])
+
+    pred_ser = pd.Series(np.nan, data_in.index)
+    # pred_ser[]
+    # data[field] =
 
     return data, flags
