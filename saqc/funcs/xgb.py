@@ -34,7 +34,7 @@ from sklearn.multioutput import RegressorChain
 # TODO: multi-var-prediction (?)
 # TODO: target must not contain NaN (!) / i-Filter
 # TODO: Train/Validation and Test split
-# TODO: more than 1 target index :-(
+# TODO: Imputation Mod
 
 
 def _getSamplerParams(
@@ -59,6 +59,7 @@ def _getSamplerParams(
     if target_i in ["center", "forward"]:
         target_i = window // 2 if target_i == "center" else window - 1
 
+    target_i = toSequence(target_i)
     target_i.sort()
 
     if mask_target:
@@ -125,7 +126,6 @@ def _generateSamples(
     )
     map_samples = map_split.reshape(map_split.shape[0], map_split.shape[1])
 
-    target_i = toSequence(target_i)
     y_mask = [y for y in x_mask if y in X]
     y_mask = [X.index(y) for y in y_mask]
 
@@ -232,6 +232,7 @@ def predictXGB(
     field: str,
     flags: Flags,
     model_dir: str,
+    pred_agg: Optional[callable] = None,
     id: Optional[str] = None,
     model_var: Optional[str] = None,
     **kwargs,
@@ -265,20 +266,21 @@ def predictXGB(
     )
 
     y_pred = model.predict(samples[0])
-    if target_i > 1:
+    if len(target_i) > 1:
         # generate array that has in any row, the predictions for the associated data index row from all prediction
         # windows and apply prediction aggregation function on that window
         win_arr = np.empty((data_in.shape[0], len(target_i)))
         win_arr[:] = np.nan
         win_arr[samples[2][:, 0], :] = y_pred
-        pred_arr = np.empty((samples[2][-1, -1] - samples[2][0, 0], len(target_i)))
-        pred_arr[:] = np.nan
-        # col0 blueprint:
-        col0 = win_arr[:: len(target_i), :]
-        col0 = col0.reshape(col0.shape[0] * col0.shape[1])
+        for k in range(len(target_i)):
+            win_arr[:, k] = np.roll(win_arr[:, k], shift=k)
+            win_arr[:k, k] = np.nan
+        y_pred = np.apply_along_axis(pred_agg, 1, win_arr)
+        pred_ser = pd.Series(y_pred, index=data_in.index)
+    else:
+        pred_ser = pd.Series(np.nan, index=data_in.index)
+        pred_ser.iloc[samples[2][:, 0]] = y_pred
 
-    pred_ser = pd.Series(np.nan, data_in.index)
-    # pred_ser[]
-    # data[field] =
+    data[field] = pred_ser
 
     return data, flags
