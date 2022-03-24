@@ -13,7 +13,7 @@ from saqc.constants import BAD, FILTER_ALL
 import saqc
 from saqc.lib.docurator import doc
 import saqc.funcs
-
+import numpy as np
 
 class Xgb:
     @doc(saqc.funcs.xgb.trainXGB.__doc__)
@@ -26,7 +26,8 @@ class Xgb:
         predict: Union[Literal["flag", "value"], str],
         model_dir: str,
         id: Optional[str] = None,
-        mask_target: bool = True,
+        mask_target: Optional[bool] = None,
+        filter_predictors: Optional[bool] = None,
         training_kwargs: Optional[dict] = None,
         **kwargs,
     ) -> saqc.SaQC:
@@ -37,7 +38,10 @@ class Xgb:
         self,
         field: str,
         model_dir: str,
+        pred_agg: callable = np.nanmean,
         id: Optional[str] = None,
+        model_var: Optional[str] = None,
+        filter_predictors: Optional[bool] = None,
         **kwargs,
     ) -> saqc.SaQC:
         return self._defer("predictXGB", locals())

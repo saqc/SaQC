@@ -9,6 +9,7 @@ from __future__ import annotations
 import uuid
 from typing import Optional, Union, Tuple, Sequence, Callable
 
+import sklearn.multioutput
 import xgboost
 from typing_extensions import Literal
 
@@ -31,11 +32,16 @@ from sklearn.multioutput import RegressorChain
 # TODO: geo-frame (?)
 # TODO: opt nTrees (nTreeLimit) (?)
 # TODO: auto-ML (?)
-# TODO: multi-var-prediction (?)
-# TODO: target must not contain NaN (!) / i-Filter
+# TODO: flag Filter (value prediction vs flag prediction)
 # TODO: Train/Validation and Test split
-# TODO: Imputation Mod
+# TODO: Imputation Wrap/Fill Wrap
+# TODO: Include Predictor isFlagged (np.nan, False True)? (!)
+# TODO: Chain Regression/Classification Order
 
+MULTI_TARGET_MODELS = {'chain_reg': sklearn.multioutput.RegressorChain,
+                       'multi_reg': sklearn.multioutput.MultiOutputRegressor,
+                       'chain_class': sklearn.multioutput.ClassifierChain,
+                       'multi_class': sklearn.multioutput.MultiOutputRegressor}
 
 def _getSamplerParams(
     data: DictOfSeries,
@@ -46,6 +52,7 @@ def _getSamplerParams(
     target_i: Union[int, list, Literal["center", "forward"]],
     predict: Union[Literal["flag", "value"], str],
     mask_target: bool = True,
+    filter_predictors: Optional[bool] = None,
     **kwargs,
 ):
     x_data = data[predictors].to_df()
@@ -61,7 +68,7 @@ def _getSamplerParams(
 
     target_i = toSequence(target_i)
     target_i.sort()
-
+    x_mask = []
     if mask_target:
         x_mask = target
 
@@ -69,7 +76,7 @@ def _getSamplerParams(
         data_in = pd.concat([x_data, data[target].to_df()], axis=1)
         data_in = data_in.loc[:, ~data_in.columns.duplicated()]
     elif predict == "flag":
-        y_data = pd.concat([flags[t] for t in target], axis=1)
+        y_data = pd.concat([flags[t] > -np.inf for t in target], axis=1)
         target = [t + "_flag" for t in toSequence(target)]
         y_data.columns = target
         data_in = pd.concat([x_data, y_data], axis=1)
@@ -88,7 +95,12 @@ def _getSamplerParams(
         y_data.columns = target
         data_in = pd.concat([x_data, y_data], axis=1)
 
-    return window, data_in, x_mask, target, target_i
+    if len(target_i) > 1:
+        na_filter_x = True
+    else:
+        na_filter_x = filter_predictors or False
+
+    return window, data_in, x_mask, target, target_i, na_filter_x
 
 
 def _generateSamples(
@@ -98,7 +110,8 @@ def _generateSamples(
     data: pd.DataFrame,
     target_i: Union[list, int],
     x_mask: str = [],
-    na_filter: bool = True,
+    na_filter_x: bool = True,
+    na_filter_y: bool = True
 ):
 
     X = toSequence(X)
@@ -140,12 +153,28 @@ def _generateSamples(
     # currently only support for 1-d y (i guess)
     y_samples = np.squeeze(y_samples, axis=2)
 
-    na_samples = np.any(np.isnan(y_samples), axis=1)
-    if na_filter:
+    na_samples = np.full(y_samples.shape[0], False)
+    if na_filter_y:
+        na_samples = np.any(np.isnan(y_samples), axis=1)
+
+    if na_filter_x:
         na_s = np.any(np.isnan(x_samples), axis=1)
         na_samples |= na_s
 
     return x_samples[~na_samples], y_samples[~na_samples], map_samples[~na_samples]
+
+def _mergePredictions(prediction_index, target_length, predictions, prediction_map, pred_agg):
+    # generate array that holds in any row, the predictions for the associated data index row from all prediction
+    # windows and apply prediction aggregation function on that window
+    win_arr = np.empty((prediction_index.shape[0], target_length))
+    win_arr[:] = np.nan
+    win_arr[prediction_map[:, 0], :] = predictions
+    for k in range(target_length):
+        win_arr[:, k] = np.roll(win_arr[:, k], shift=k)
+        win_arr[:k, k] = np.nan
+    y_pred = np.apply_along_axis(pred_agg, 1, win_arr)
+    pred_ser = pd.Series(y_pred, index=prediction_index)
+    return pred_ser
 
 
 @register(mask=[], demask=[], squeeze=[], multivariate=True, handles_target=True)
@@ -159,8 +188,10 @@ def trainXGB(
     predict: Union[Literal["flag", "value"], str],
     model_dir: str,
     id: Optional[str] = None,
-    mask_target: bool = True,
+    mask_target: Optional[bool] = None,
+    filter_predictors: Optional[bool] = None,
     train_kwargs: Optional[dict] = None,
+    multi_target_model: Optional[Literal['Chain', 'Multi']] = None,
     **kwargs,
 ):
     """
@@ -169,8 +200,18 @@ def trainXGB(
     * MultiVarRegressionOnly works with no-Na input
     """
 
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    var_dir = os.path.join(model_dir, target[0])
+
+    if not os.path.exists(var_dir):
+        os.makedirs(var_dir)
+
     id = id or ""
     train_kwargs = train_kwargs or {}
+    if not mask_target:
+        mask_target = True if predict == 'value' else False
 
     sampler_config = {
         "predictors": field,
@@ -181,8 +222,8 @@ def trainXGB(
         "target": target,
     }
 
-    window, data_in, x_mask, target, target_i = _getSamplerParams(
-        data, flags, **sampler_config
+    window, data_in, x_mask, target, target_i, na_filter_x = _getSamplerParams(
+        data, flags, filter_predictors=filter_predictors, **sampler_config
     )
 
     samples = _generateSamples(
@@ -192,30 +233,23 @@ def trainXGB(
         data=data_in,
         target_i=target_i,
         x_mask=x_mask,
+        na_filter_x=na_filter_x,
+        na_filter_y=True
     )
 
     if predict != "value":
         # TODO: scale_pos_weight
-        scale_pos_weight = 1
-        train_kwargs.update(
-            train_kwargs.pop("objective", {"objective": "binary:logistic"})
-        )
+        # scale_pos_weight = 1
+        train_kwargs.update({'use_label_encoder': False})
         model = XGBClassifier(**train_kwargs)
+        if len(target_i) > 1:
+            model = MULTI_TARGET_MODELS[multi_target_model + '_class'](model)
+        fitted = model.fit(samples[0], samples[1].astype(int))
     else:
         model = XGBRegressor(**train_kwargs)
-
-    if len(target_i) > 1:
-        model = RegressorChain(model)
-
-    fitted = model.fit(samples[0], samples[1])
-
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-
-    var_dir = os.path.join(model_dir, target[0])
-
-    if not os.path.exists(var_dir):
-        os.makedirs(var_dir)
+        if len(target_i) > 1:
+            model = MULTI_TARGET_MODELS[multi_target_model + '_reg'](model)
+        fitted = model.fit(samples[0], samples[1])
 
     with open(os.path.join(var_dir, "config" + id + ".pkl"), "wb") as f:
         pickle.dump(sampler_config, f)
@@ -232,9 +266,10 @@ def predictXGB(
     field: str,
     flags: Flags,
     model_dir: str,
-    pred_agg: Optional[callable] = None,
+    pred_agg: callable = np.nanmean,
     id: Optional[str] = None,
     model_var: Optional[str] = None,
+    filter_predictors: Optional[bool] = None,
     **kwargs,
 ):
     """
@@ -252,8 +287,8 @@ def predictXGB(
     with open(os.path.join(model_folder, "model" + id + ".pkl"), "rb") as f:
         model = pickle.load(f)
 
-    window, data_in, x_mask, target, target_i = _getSamplerParams(
-        data, flags, **sampler_config
+    window, data_in, x_mask, target, target_i, na_filter_x = _getSamplerParams(
+        data, flags, filter_predictors=filter_predictors, **sampler_config
     )
 
     samples = _generateSamples(
@@ -263,11 +298,14 @@ def predictXGB(
         data=data_in,
         target_i=target_i,
         x_mask=x_mask,
+        na_filter_x=na_filter_x,
+        na_filter_y=False
     )
 
     y_pred = model.predict(samples[0])
     if len(target_i) > 1:
-        # generate array that has in any row, the predictions for the associated data index row from all prediction
+        pred_ser = _mergePredictions(data_in.index, len(target_i), y_pred, samples[2], pred_agg)
+        # generate array that holds in any row, the predictions for the associated data index row from all prediction
         # windows and apply prediction aggregation function on that window
         win_arr = np.empty((data_in.shape[0], len(target_i)))
         win_arr[:] = np.nan
@@ -281,6 +319,7 @@ def predictXGB(
         pred_ser = pd.Series(np.nan, index=data_in.index)
         pred_ser.iloc[samples[2][:, 0]] = y_pred
 
-    data[field] = pred_ser
-
+    data[field] = pred_ser.to_frame()
     return data, flags
+
+
