@@ -12,6 +12,7 @@ from typing import Optional, Union, Tuple, Sequence, Callable
 import sklearn.multioutput
 import xgboost
 from typing_extensions import Literal
+from supervised.automl import AutoML
 
 import numba
 import numpy as np
@@ -23,25 +24,29 @@ from dios import DictOfSeries
 from saqc.lib.tools import toSequence, getFreqDelta
 from xgboost import XGBClassifier, XGBRegressor
 from saqc.core import register, Flags
-from sklearn.multioutput import RegressorChain
+from saqc.constants import BAD, UNFLAGGED, FILTER_NONE
+from sklearn.model_selection import train_test_split
+from sklearn import metrics
 
-# TODO: k-fold CV
-# TODO: meta CV
-# TODO: early-stopping (?)
-# TODO: best-model-selection
+# TODO: train-test split
 # TODO: geo-frame (?)
-# TODO: opt nTrees (nTreeLimit) (?)
-# TODO: auto-ML (?)
 # TODO: flag Filter (value prediction vs flag prediction)
-# TODO: Train/Validation and Test split
 # TODO: Imputation Wrap/Fill Wrap
 # TODO: Include Predictor isFlagged (np.nan, False True)? (!)
-# TODO: Chain Regression/Classification Order
+# TODO: dfilter - like in plot
+# TODO: chain regression/report
+# TODO: sample filter
 
-MULTI_TARGET_MODELS = {'chain_reg': sklearn.multioutput.RegressorChain,
-                       'multi_reg': sklearn.multioutput.MultiOutputRegressor,
-                       'chain_class': sklearn.multioutput.ClassifierChain,
-                       'multi_class': sklearn.multioutput.MultiOutputRegressor}
+MULTI_TARGET_MODELS = {
+    "chain_reg": sklearn.multioutput.RegressorChain,
+    "multi_reg": sklearn.multioutput.MultiOutputRegressor,
+    "chain_class": sklearn.multioutput.ClassifierChain,
+    "multi_class": sklearn.multioutput.MultiOutputRegressor,
+}
+
+AUTO_ML_DEFAULT = {"algorithms": ["Xgboost"],
+                   "mode": "Perform"}
+
 
 def _getSamplerParams(
     data: DictOfSeries,
@@ -60,7 +65,7 @@ def _getSamplerParams(
     if isinstance(window, str):
         freq = getFreqDelta(x_data.index)
         if not freq:
-            raise IndexError("XGB training with irregularly sampled data not supported")
+            raise IndexError("Training with irregularly sampled data not supported")
         window = int(pd.Timedelta(window) / freq)
 
     if target_i in ["center", "forward"]:
@@ -85,13 +90,13 @@ def _getSamplerParams(
         for y in toSequence(target):
             hist_col = [
                 ix
-                for ix, m in enumerate(flags.history[target].meta)
+                for ix, m in enumerate(flags.history[y].meta)
                 if m["kwargs"].get("label", None) == predict
             ]
             flags_col = flags.history[y].hist[hist_col[0]]
             flags_col = flags_col.notna() & (flags_col != -np.inf)
             y_data = pd.concat([y_data, flags_col], axis=1)
-        target = [t + predict for t in toSequence(target)]
+        target = [t + "_" + predict for t in toSequence(target)]
         y_data.columns = target
         data_in = pd.concat([x_data, y_data], axis=1)
 
@@ -111,7 +116,7 @@ def _generateSamples(
     target_i: Union[list, int],
     x_mask: str = [],
     na_filter_x: bool = True,
-    na_filter_y: bool = True
+    na_filter_y: bool = True,
 ):
 
     X = toSequence(X)
@@ -124,6 +129,14 @@ def _generateSamples(
     x_data = data[X].values
     y_data = data[Y].values
 
+    x_map = np.empty((sub_len, len(X)), dtype='object')
+    for var in enumerate(X):
+        x_map[:, var[0]] = [var[1] + f'_{k}' for k in range(sub_len)]
+
+    y_map = np.empty((sub_len, len(Y)), dtype='object')
+    for var in enumerate(Y):
+        y_map[:, var[0]] = [var[1] + f'_{k}' for k in range(sub_len)]
+
     x_split = np.lib.stride_tricks.sliding_window_view(x_data, (sub_len, x_cols))
     x_samples = x_split.reshape(x_split.shape[0], x_split.shape[2], x_split.shape[3])
     # flatten mode (results in [row0, row1, row2, ..., rowSubLen]
@@ -131,13 +144,23 @@ def _generateSamples(
         x_samples.shape[0], x_samples.shape[1] * x_samples.shape[2]
     )
 
+    x_map_split = np.lib.stride_tricks.sliding_window_view(x_map, (sub_len, x_cols))
+    x_map_samples = x_map_split.reshape(x_map_split.shape[0], x_map_split.shape[2], x_map_split.shape[3])
+    x_map_samples = x_map_samples.reshape(
+        x_map_samples.shape[0], x_map_samples.shape[1] * x_map_samples.shape[2]
+    )
+
     y_split = np.lib.stride_tricks.sliding_window_view(y_data, (sub_len, y_cols))
     y_samples = y_split.reshape(y_split.shape[0], y_split.shape[2], y_split.shape[3])
 
-    map_split = np.lib.stride_tricks.sliding_window_view(
+    y_map_split = np.lib.stride_tricks.sliding_window_view(y_map, (sub_len, y_cols))
+    y_map_samples = y_map_split.reshape(y_map_split.shape[0], y_map_split.shape[2], y_map_split.shape[3])
+
+
+    i_map_split = np.lib.stride_tricks.sliding_window_view(
         np.arange(len(y_data)), sub_len
     )
-    map_samples = map_split.reshape(map_split.shape[0], map_split.shape[1])
+    i_map_samples = i_map_split.reshape(i_map_split.shape[0], i_map_split.shape[1])
 
     y_mask = [y for y in x_mask if y in X]
     y_mask = [X.index(y) for y in y_mask]
@@ -148,10 +171,13 @@ def _generateSamples(
     selector = [s for s in selector if s not in drop]
 
     x_samples = x_samples[:, selector]
+    x_map_samples = x_map_samples[:, selector]
     y_samples = y_samples[:, target_i, :]
-    map_samples = map_samples[:, target_i]
+    y_map_samples = y_map_samples[:, target_i, :]
+    i_map_samples = i_map_samples[:, target_i]
     # currently only support for 1-d y (i guess)
     y_samples = np.squeeze(y_samples, axis=2)
+    y_map_samples = np.squeeze(y_map_samples, axis=2)
 
     na_samples = np.full(y_samples.shape[0], False)
     if na_filter_y:
@@ -161,9 +187,16 @@ def _generateSamples(
         na_s = np.any(np.isnan(x_samples), axis=1)
         na_samples |= na_s
 
-    return x_samples[~na_samples], y_samples[~na_samples], map_samples[~na_samples]
+    return x_samples[~na_samples], y_samples[~na_samples], i_map_samples[~na_samples], x_map_samples, y_map_samples
 
-def _mergePredictions(prediction_index, target_length, predictions, prediction_map, pred_agg):
+
+def _mergePredictions(
+    prediction_index,
+    target_length: int,
+    predictions: np.array,
+    prediction_map: np.array,
+    pred_agg: Callable,
+):
     # generate array that holds in any row, the predictions for the associated data index row from all prediction
     # windows and apply prediction aggregation function on that window
     win_arr = np.empty((prediction_index.shape[0], target_length))
@@ -177,91 +210,7 @@ def _mergePredictions(prediction_index, target_length, predictions, prediction_m
     return pred_ser
 
 
-@register(mask=[], demask=[], squeeze=[], multivariate=True, handles_target=True)
-def trainXGB(
-    data: DictOfSeries,
-    field: str,
-    flags: Flags,
-    target: str,
-    window: Union[str, int],
-    target_i: Union[int, list, Literal["center", "forward"]],
-    predict: Union[Literal["flag", "value"], str],
-    model_dir: str,
-    id: Optional[str] = None,
-    mask_target: Optional[bool] = None,
-    filter_predictors: Optional[bool] = None,
-    train_kwargs: Optional[dict] = None,
-    multi_target_model: Optional[Literal['Chain', 'Multi']] = None,
-    **kwargs,
-):
-    """
-    Dummy Strings.
-    * [field target] has to be harmed (or field > target)
-    * MultiVarRegressionOnly works with no-Na input
-    """
-
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
-
-    var_dir = os.path.join(model_dir, target[0])
-
-    if not os.path.exists(var_dir):
-        os.makedirs(var_dir)
-
-    id = id or ""
-    train_kwargs = train_kwargs or {}
-    if not mask_target:
-        mask_target = True if predict == 'value' else False
-
-    sampler_config = {
-        "predictors": field,
-        "window": window,
-        "predict": predict,
-        "target_i": target_i,
-        "mask_target": mask_target,
-        "target": target,
-    }
-
-    window, data_in, x_mask, target, target_i, na_filter_x = _getSamplerParams(
-        data, flags, filter_predictors=filter_predictors, **sampler_config
-    )
-
-    samples = _generateSamples(
-        X=field,
-        Y=target,
-        sub_len=window,
-        data=data_in,
-        target_i=target_i,
-        x_mask=x_mask,
-        na_filter_x=na_filter_x,
-        na_filter_y=True
-    )
-
-    if predict != "value":
-        # TODO: scale_pos_weight
-        # scale_pos_weight = 1
-        train_kwargs.update({'use_label_encoder': False})
-        model = XGBClassifier(**train_kwargs)
-        if len(target_i) > 1:
-            model = MULTI_TARGET_MODELS[multi_target_model + '_class'](model)
-        fitted = model.fit(samples[0], samples[1].astype(int))
-    else:
-        model = XGBRegressor(**train_kwargs)
-        if len(target_i) > 1:
-            model = MULTI_TARGET_MODELS[multi_target_model + '_reg'](model)
-        fitted = model.fit(samples[0], samples[1])
-
-    with open(os.path.join(var_dir, "config" + id + ".pkl"), "wb") as f:
-        pickle.dump(sampler_config, f)
-
-    with open(os.path.join(var_dir, "model" + id + ".pkl"), "wb") as f:
-        pickle.dump(fitted, f)
-
-    return data, flags
-
-
-@register(mask=[], demask=[], squeeze=[], multivariate=True)
-def predictXGB(
+def _predictionBody(
     data: DictOfSeries,
     field: str,
     flags: Flags,
@@ -270,12 +219,7 @@ def predictXGB(
     id: Optional[str] = None,
     model_var: Optional[str] = None,
     filter_predictors: Optional[bool] = None,
-    **kwargs,
 ):
-    """
-    Dummy Strings.
-    """
-
     model_var = model_var or field[0]
     id = id or ""
 
@@ -299,27 +243,198 @@ def predictXGB(
         target_i=target_i,
         x_mask=x_mask,
         na_filter_x=na_filter_x,
-        na_filter_y=False
+        na_filter_y=False,
     )
 
     y_pred = model.predict(samples[0])
     if len(target_i) > 1:
-        pred_ser = _mergePredictions(data_in.index, len(target_i), y_pred, samples[2], pred_agg)
-        # generate array that holds in any row, the predictions for the associated data index row from all prediction
-        # windows and apply prediction aggregation function on that window
-        win_arr = np.empty((data_in.shape[0], len(target_i)))
-        win_arr[:] = np.nan
-        win_arr[samples[2][:, 0], :] = y_pred
-        for k in range(len(target_i)):
-            win_arr[:, k] = np.roll(win_arr[:, k], shift=k)
-            win_arr[:k, k] = np.nan
-        y_pred = np.apply_along_axis(pred_agg, 1, win_arr)
-        pred_ser = pd.Series(y_pred, index=data_in.index)
+        pred_ser = _mergePredictions(
+            data_in.index, len(target_i), y_pred, samples[2], pred_agg
+        )
     else:
         pred_ser = pd.Series(np.nan, index=data_in.index)
         pred_ser.iloc[samples[2][:, 0]] = y_pred
 
-    data[field] = pred_ser.to_frame()
+    return pred_ser
+
+def _tt_split(d_index, samples, tt_split):
+    s_i = samples[2][:, 0]
+    index_en = pd.Series(range(len(d_index)), d_index)
+    if isinstance(tt_split, str):
+        split_point = index_en[:tt_split].values[-1]
+        split_i = np.searchsorted(s_i, split_point)
+        x_train, x_test = samples[0][:split_i, :], samples[0][split_i:, :]
+        y_train, y_test = samples[1][:split_i, :], samples[1][split_i:, :]
+    elif isinstance(tt_split, float):
+        x_train, x_test, y_train, y_test = train_test_split(samples[0], samples[1], test_size=tt_split, shuffle=True)
+    return x_train, x_test, y_train, y_test
+
+
+
+@register(mask=[], demask=[], squeeze=[], multivariate=True, handles_target=True)
+def trainXGB(
+    data: DictOfSeries,
+    field: str,
+    flags: Flags,
+    target: str,
+    window: Union[str, int],
+    target_i: Union[int, list, Literal["center", "forward"]],
+    predict: Union[Literal["flag", "value"], str],
+    model_dir: str,
+    tt_split: Union[slice, int, str] = None,
+    id: Optional[str] = None,
+    mask_target: Optional[bool] = None,
+    filter_predictors: Optional[bool] = None,
+    train_kwargs: Optional[dict] = None,
+    multi_target_model: Optional[Literal["chain", "multi"]] = None,
+    base_estimater: Optional[callable] = None,
+    **kwargs,
+):
+    """
+    Dummy Strings.
+    * [field target] has to be harmed (or field > target)
+    * MultiVarRegressionOnly works with no-Na input
+    * auto mode only supports MultiOutputRegression (not classification)
+    """
+
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    var_dir = os.path.join(model_dir, target[0])
+
+    if not os.path.exists(var_dir):
+        os.makedirs(var_dir)
+
+    id = id or ""
+    train_kwargs = train_kwargs or {}
+    multi_target_model = multi_target_model or 'chain'
+    if not mask_target:
+        mask_target = True if predict == "value" else False
+
+    model_type = 'binary_classifier' if predict != 'value' else 'regressor'
+
+    sampler_config = {
+        "predictors": field,
+        "window": window,
+        "predict": predict,
+        "target_i": target_i,
+        "mask_target": mask_target,
+        "target": target,
+    }
+
+    window, data_in, x_mask, target, target_i, na_filter_x = _getSamplerParams(
+        data, flags, filter_predictors=filter_predictors, **sampler_config
+    )
+
+    samples = _generateSamples(
+        X=field,
+        Y=target,
+        sub_len=window,
+        data=data_in,
+        target_i=target_i,
+        x_mask=x_mask,
+        na_filter_x=na_filter_x,
+        na_filter_y=True,
+    )
+
+    x_train, x_test, y_train, y_test = _tt_split(data_in.index, samples, tt_split)
+
+    order = train_kwargs.pop('order', None)
+    if not base_estimater:
+        for k in AUTO_ML_DEFAULT:
+            train_kwargs.setdefault(k, AUTO_ML_DEFAULT[k])
+            train_kwargs.update({'results_path': var_dir})
+        if len(target_i) > 1:
+            train_kwargs.pop('results_path', None)
+        model = AutoML(**train_kwargs)
+    else:
+        model = base_estimater(**train_kwargs)
+
+    if len(target_i) > 1:
+        if predict != "value":
+            model = MULTI_TARGET_MODELS[multi_target_model + "_class"](model, order=order)
+        else:
+            model = MULTI_TARGET_MODELS[multi_target_model + "_reg"](model, order=order)
+
+    if model_type == 'regressor':
+        fitted = model.fit(x_train, y_train.squeeze())
+    else:
+        fitted = model.fit(x_train, y_train.squeeze().astype(int))
+
+    y_pred_test = model.predict(x_test)
+    y_pred_train = model.predict(x_train)
+    score_book = {}
+    classification_report = {}
+    if model_type == 'regressor':
+        score_book.update({
+         'score': [model.score(x_train, y_train.squeeze()), model.score(x_test, y_test.squeeze())],
+         'mse': [metrics.mean_squared_error(y_pred_train, y_train), metrics.mean_squared_error(y_pred_test, y_test)],
+         'mae': [metrics.mean_absolute_error(y_pred_train, y_train), metrics.mean_absolute_error(y_pred_test, y_test)],
+         'explained_var': [metrics.explained_variance_score(y_train, y_pred_train), metrics.explained_variance_score(y_test, y_pred_test)],
+         'r2_score': [metrics.r2_score(y_train, y_pred_train), metrics.r2_score(y_test, y_pred_test)]})
+    elif model_type == 'binary_classifier':
+        score_book.update({
+            'score': [model.score(x_train, y_train.squeeze()), model.score(x_test, y_test.squeeze())]})
+        confusion_test = sklearn.metrics.confusion_matrix(y_pred_test,y_test)
+        confusion_train = sklearn.metrics.confusion_matrix(y_pred_test, y_test)
+        for i in range(confusion_train.shape[0]):
+            for j in range(confusion_train.shape[1]):
+                score_book.update({f'confusion_{i}_{j}': [confusion_train[i, j], confusion_test[i, j]]})
+        classification_report.update(metrics.classification_report(y_train, y_pred_train, output_dict=True))
+
+    with open(os.path.join(var_dir, "config" + id + ".pkl"), "wb") as f:
+        pickle.dump(sampler_config, f)
+
+    with open(os.path.join(var_dir, "model" + id + ".pkl"), "wb") as f:
+        pickle.dump(fitted, f)
+
+    pd.Series(samples[3].squeeze()).to_csv(os.path.join(var_dir, f"x_feature_map_{id}.csv"))
+    pd.Series(samples[4].squeeze()).to_csv(os.path.join(var_dir, f"y_feature_map_{id}.csv"))
+    pd.DataFrame(score_book).to_csv(os.path.join(var_dir, f"scores_{id}.csv"))
+    pd.DataFrame(classification_report).to_csv(os.path.join(var_dir, f"classification_report_{id}.csv"))
+
     return data, flags
 
 
+@register(mask=[], demask=[], squeeze=[])
+def xgbRegressor(
+    data: DictOfSeries,
+    field: str,
+    flags: Flags,
+    model_dir: str,
+    pred_agg: callable = np.nanmean,
+    id: Optional[str] = None,
+    model_var: Optional[str] = None,
+    filter_predictors: Optional[bool] = None,
+    **kwargs,
+):
+    """
+    Dummy Strings.
+    """
+
+    pred_ser = _predictionBody(data, toSequence(field), flags, model_dir, pred_agg, id, model_var, filter_predictors)
+
+    data[field] = pred_ser
+    return data, flags
+
+
+@register(mask=[], demask=[], squeeze=[])
+def xgbClassifier(
+    data: DictOfSeries,
+    field: str,
+    flags: Flags,
+    model_dir: str,
+    pred_agg: callable = np.nanmean,
+    id: Optional[str] = None,
+    model_var: Optional[str] = None,
+    filter_predictors: Optional[bool] = None,
+    flag: float = BAD,
+    **kwargs,
+):
+    """
+    Dummy Strings.
+    """
+
+    pred_ser = _predictionBody(data, toSequence(field), flags, model_dir, pred_agg, id, model_var, filter_predictors)
+    flags[(pred_ser>0).values, field] = flag
+    return data, flags

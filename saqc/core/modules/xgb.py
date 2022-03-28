@@ -15,6 +15,7 @@ from saqc.lib.docurator import doc
 import saqc.funcs
 import numpy as np
 
+
 class Xgb:
     @doc(saqc.funcs.xgb.trainXGB.__doc__)
     def trainXGB(
@@ -25,16 +26,18 @@ class Xgb:
         target_i: Union[int, list[int], Literal["center", "forward"]],
         predict: Union[Literal["flag", "value"], str],
         model_dir: str,
+        tt_split: Union[slice, float] = .2,
         id: Optional[str] = None,
         mask_target: Optional[bool] = None,
         filter_predictors: Optional[bool] = None,
         training_kwargs: Optional[dict] = None,
+        base_estimater: Optional[callable] = None,
         **kwargs,
     ) -> saqc.SaQC:
         return self._defer("trainXGB", locals())
 
-    @doc(saqc.funcs.xgb.predictXGB.__doc__)
-    def predictXGB(
+    @doc(saqc.funcs.xgb.xgbRegressor.__doc__)
+    def xgbRegressor(
         self,
         field: str,
         model_dir: str,
@@ -42,6 +45,21 @@ class Xgb:
         id: Optional[str] = None,
         model_var: Optional[str] = None,
         filter_predictors: Optional[bool] = None,
+        flag: float = BAD,
         **kwargs,
     ) -> saqc.SaQC:
-        return self._defer("predictXGB", locals())
+        return self._defer("xgbRegressor", locals())
+
+    @doc(saqc.funcs.xgb.xgbRegressor.__doc__)
+    def xgbClassifier(
+            self,
+            field: str,
+            model_dir: str,
+            pred_agg: callable = np.nanmean,
+            id: Optional[str] = None,
+            model_var: Optional[str] = None,
+            filter_predictors: Optional[bool] = None,
+            flag: float = BAD,
+            **kwargs,
+    ) -> saqc.SaQC:
+        return self._defer("xgbClassifier", locals())
