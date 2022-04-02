@@ -37,21 +37,18 @@ from saqc.funcs.tools import dropField
 from saqc.funcs.generic import flagGeneric, processGeneric
 from saqc.funcs.breaks import flagMissing
 
-# TODO: train-test split
 # TODO: geo-frame (?)
 # TODO: flag Filter (value prediction vs flag prediction)
-# TODO: Imputation Wrap/Fill Wrap
 # TODO: Include Predictor isFlagged (np.nan, False True)? (!)
-# TODO: dfilter - like in plot
-# TODO: chain regression/report
 # TODO: sample filter
-# TODO: target-handling in regressor
+# TODO: reassign vals
+# TODO: transparent mask-target control
 
 MULTI_TARGET_MODELS = {
     "chain_reg": sklearn.multioutput.RegressorChain,
     "multi_reg": sklearn.multioutput.MultiOutputRegressor,
     "chain_class": sklearn.multioutput.ClassifierChain,
-    "multi_class": sklearn.multioutput.MultiOutputRegressor,
+    "multi_class": sklearn.multioutput.MultiOutputClassifier,
 }
 
 AUTO_ML_DEFAULT = {"algorithms": ["Xgboost"],
@@ -209,6 +206,7 @@ def _mergePredictions(
     prediction_map: np.array,
     pred_agg: Callable,
 ):
+
     # generate array that holds in any row, the predictions for the associated data index row from all prediction
     # windows and apply prediction aggregation function on that window
     win_arr = np.empty((prediction_index.shape[0], target_length))
@@ -257,11 +255,67 @@ def trainModel(
     override: bool = False,
     **kwargs,
 ):
-    """
-    Dummy Strings.
+    """Fits a machine learning model to the target time series or its flags.
+
+    Parameters
+    ----------
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+    field : str
+        The fieldnames of the column, holding the Predictor time series.
+    flags : saqc.Flags
+        Container to store flags of the data.
+    target : str
+        The fieldname of the column, holding the Target time series
+    window : {int, str}
+        Window size of predictor series.
+    target_i : {List[int], "center", "Forward"}
+        Index of the target values relatively to the window of predictors.
+    mode : {"Regressor", "Classifier", "Flagger",  str}
+        Type of model to be trained.
+        * "Flagger" trains a binary classifier on the flags value of `target`.
+        * If another string is passed, a binary classifier gets trained on the flags column labeled `mode`.
+    results_path : str
+        File path for the training results parent folder.
+    model_folder : str, default None
+        Folder to write the training results to. If None is passed, the model folder will be named `target`.
+        The folder will contain:
+
+        * the pickled model fit: ``model.pkl``
+        * the pickled configuration dictionary: ``config.pkl``
+        * a csv file listing model fit scores for training and test data: ``scores.csv``
+        * mapping of timeseries indices to feature indices: ``x_feature_map.csv``, ``y_feature_map.csv``
+        * If trained model is a mlyar.AutoML model, its report path will also point to `model_folder` and the
+          report is written to it as well.
+
+        If None is passed, the model folder will be named `target`.
+    tt_split: {float, str}, default None
+        Rule for splitting data up, into training and testing data.
+
+        * If `None` is passed, no test data will be set aside.
+        * If a float is passed, it will be interpreted as the proportion of randomly selected data, that is to be
+          set aside for test score calculation (0 <= `tt_split <= 1)`.
+        * If a string is passed, it will be interpreted as split date time point: Any data collected before tt_split
+          will be the training data set, the rest will be used for testing.
+
+        Test data scores are written to the `score.csv` file in the `model_folder` after model fit.
+
+    mask_target: Optional[bool] = None,
+        Wheather or not to include target values in the predictors. This only makes sence, if t
+
+    filter_predictors: Optional[bool] = None,
+    train_kwargs: Optional[dict] = None,
+    multi_target_model: Optional[Literal["chain", "multi"]] = None,
+    base_estimator: Optional[BaseEstimator] = None,
+    dfilter: float = BAD,
+    override: bool = False,
+
+
     * [field target] has to be harmed (or field > target)
     * MultiVarRegressionOnly works with no-Na input
     * auto mode only supports MultiOutputRegression (not classification)
+
+
     """
 
     if not os.path.exists(results_path):
@@ -323,7 +377,10 @@ def trainModel(
         x_test = np.zeros_like(samples[3])
         y_test = np.zeros_like(samples[4])
 
-    order = train_kwargs.pop('order', None)
+    if multi_target_model == 'chain':
+        multi_train_kwargs = {'order': train_kwargs.pop('order', None)}
+    else:
+        multi_train_kwargs = {}
 
     if not base_estimator:
         for k in AUTO_ML_DEFAULT:
@@ -337,9 +394,9 @@ def trainModel(
 
     if len(target_i) > 1:
         if mode == "Regressor":
-            model = MULTI_TARGET_MODELS[multi_target_model + "_reg"](model, order=order)
+            model = MULTI_TARGET_MODELS[multi_target_model + "_reg"](model, **multi_train_kwargs)
         else:
-            model = MULTI_TARGET_MODELS[multi_target_model + "_class"](model, order=order)
+            model = MULTI_TARGET_MODELS[multi_target_model + "_class"](model, **multi_train_kwargs)
 
     if mode == 'Regressor':
         fitted = model.fit(x_train, y_train.squeeze())
