@@ -51,8 +51,8 @@ MULTI_TARGET_MODELS = {
     "multi_class": sklearn.multioutput.MultiOutputClassifier,
 }
 
-AUTO_ML_DEFAULT = {"algorithms": ["Xgboost"],
-                   "mode": "Perform"}
+AUTO_ML_DEFAULT = {"algorithms": ["Xgboost"], "mode": "Perform"}
+
 
 def _getSamplerParams(
     data: DictOfSeries,
@@ -62,7 +62,7 @@ def _getSamplerParams(
     window: Union[str, int],
     target_i: Union[int, list, Literal["center", "forward"]],
     predict: Union[Literal["flag", "value"], str],
-    mask_target: bool = True,
+    predictors_mask: bool = True,
     filter_predictors: Optional[bool] = None,
     **kwargs,
 ):
@@ -79,9 +79,20 @@ def _getSamplerParams(
 
     target_i = toSequence(target_i)
     target_i.sort()
-    x_mask = []
-    if mask_target:
-        x_mask = target
+
+    mask_frame = pd.DataFrame(True, columns=predictors, index=range(window))
+    if isinstance(predictors_mask, str):
+        if predictors_mask == 'target':
+            mask_frame.loc[target_i, target] = False
+        else:
+            raise ValueError(f'"{predictors_mask}" not a thing.')
+    elif isinstance(predictors_mask, dict):
+        for key in predictors_mask:
+            mask_frame.loc[predictors_mask[key], key] = False
+    elif isinstance(predictors_mask, pd.DataFrame):
+            mask_frame[predictors_mask.columns] = predictors_mask
+    elif isinstance(predictors_mask, np.array):
+            mask_frame[:] = predictors_mask
 
     if predict in ["Regressor", "Classifier"]:
         data_in = pd.concat([x_data, data[target].to_df()], axis=1)
@@ -96,12 +107,14 @@ def _getSamplerParams(
         for y in toSequence(target):
             try:
                 hist_col = [
-                ix
-                for ix, m in enumerate(flags.history[y].meta)
-                if m["kwargs"].get("label", None) == predict
+                    ix
+                    for ix, m in enumerate(flags.history[y].meta)
+                    if m["kwargs"].get("label", None) == predict
                 ][0]
             except IndexError:
-                raise IndexError(f'Cant find data to train on: no flags labeled: "{predict}", for target variable {y}.')
+                raise IndexError(
+                    f'Cant find nno data to train on: no flags labeled: "{predict}", for target variable {y}.'
+                )
             flags_col = flags.history[y].hist[hist_col]
             flags_col = flags_col.notna() & (flags_col != -np.inf)
             y_data = pd.concat([y_data, flags_col], axis=1)
@@ -114,7 +127,7 @@ def _getSamplerParams(
     else:
         na_filter_x = filter_predictors or True
 
-    return window, data_in, x_mask, target, target_i, na_filter_x
+    return window, data_in, mask_frame, target, target_i, na_filter_x
 
 
 def _generateSamples(
@@ -130,7 +143,7 @@ def _generateSamples(
 
     X = toSequence(X)
     Y = toSequence(Y)
-    x_mask = toSequence(x_mask)
+    x_mask = x_mask.values
 
     x_cols = len(X)
     y_cols = len(Y)
@@ -138,13 +151,13 @@ def _generateSamples(
     x_data = data[X].values
     y_data = data[Y].values
 
-    x_map = np.empty((sub_len, len(X)), dtype='object')
+    x_map = np.empty((sub_len, len(X)), dtype="object")
     for var in enumerate(X):
-        x_map[:, var[0]] = [var[1] + f'_{k}' for k in range(sub_len)]
+        x_map[:, var[0]] = [var[1] + f"_{k}" for k in range(sub_len)]
 
-    y_map = np.empty((sub_len, len(Y)), dtype='object')
+    y_map = np.empty((sub_len, len(Y)), dtype="object")
     for var in enumerate(Y):
-        y_map[:, var[0]] = [var[1] + f'_{k}' for k in range(sub_len)]
+        y_map[:, var[0]] = [var[1] + f"_{k}" for k in range(sub_len)]
 
     x_split = np.lib.stride_tricks.sliding_window_view(x_data, (sub_len, x_cols))
     x_samples = x_split.reshape(x_split.shape[0], x_split.shape[2], x_split.shape[3])
@@ -154,7 +167,9 @@ def _generateSamples(
     )
 
     x_map_split = np.lib.stride_tricks.sliding_window_view(x_map, (sub_len, x_cols))
-    x_map_samples = x_map_split.reshape(x_map_split.shape[0], x_map_split.shape[2], x_map_split.shape[3])
+    x_map_samples = x_map_split.reshape(
+        x_map_split.shape[0], x_map_split.shape[2], x_map_split.shape[3]
+    )
     x_map_samples = x_map_samples.reshape(
         x_map_samples.shape[0], x_map_samples.shape[1] * x_map_samples.shape[2]
     )
@@ -163,22 +178,24 @@ def _generateSamples(
     y_samples = y_split.reshape(y_split.shape[0], y_split.shape[2], y_split.shape[3])
 
     y_map_split = np.lib.stride_tricks.sliding_window_view(y_map, (sub_len, y_cols))
-    y_map_samples = y_map_split.reshape(y_map_split.shape[0], y_map_split.shape[2], y_map_split.shape[3])
-
+    y_map_samples = y_map_split.reshape(
+        y_map_split.shape[0], y_map_split.shape[2], y_map_split.shape[3]
+    )
 
     i_map_split = np.lib.stride_tricks.sliding_window_view(
         np.arange(len(y_data)), sub_len
     )
     i_map_samples = i_map_split.reshape(i_map_split.shape[0], i_map_split.shape[1])
 
-    y_mask = [y for y in x_mask if y in X]
-    y_mask = [X.index(y) for y in y_mask]
+    x_mask_split = np.lib.stride_tricks.sliding_window_view(x_mask, (sub_len, x_cols))
+    x_mask_samples = x_mask_split.reshape(
+        x_mask_split.shape[0], x_mask_split.shape[2], x_mask_split.shape[3]
+    )
+    x_mask_samples = x_mask_samples.reshape(
+        x_mask_samples.shape[0], x_mask_samples.shape[1] * x_mask_samples.shape[2]
+    )
 
-    selector = list(range(x_samples.shape[1]))
-    # indices to drop from selector = allCombinations(t in target_i,y in y_mask, t*y)
-    drop = [x * x_cols + y for x in target_i for y in y_mask]
-    selector = [s for s in selector if s not in drop]
-
+    selector = x_mask_samples.squeeze(axis=0)
     x_samples = x_samples[:, selector]
     x_map_samples = x_map_samples[:, selector]
     y_samples = y_samples[:, target_i, :]
@@ -196,7 +213,13 @@ def _generateSamples(
         na_s = np.any(np.isnan(x_samples), axis=1)
         na_samples |= na_s
 
-    return x_samples[~na_samples], y_samples[~na_samples], i_map_samples[~na_samples], x_map_samples, y_map_samples
+    return (
+        x_samples[~na_samples],
+        y_samples[~na_samples],
+        i_map_samples[~na_samples],
+        x_map_samples,
+        y_map_samples,
+    )
 
 
 def _mergePredictions(
@@ -219,18 +242,26 @@ def _mergePredictions(
     pred_ser = pd.Series(y_pred, index=prediction_index)
     return pred_ser
 
+
 def _tt_split(d_index, samples, tt_split):
     s_i = samples[2][:, 0]
     index_en = pd.Series(range(len(d_index)), d_index)
     if tt_split is None:
-        x_train, y_train, x_test, y_test = samples[0], samples[1], np.empty((0,) + samples[0].shape[1:]), np.empty((0,) + samples[1].shape[1:])
+        x_train, y_train, x_test, y_test = (
+            samples[0],
+            samples[1],
+            np.empty((0,) + samples[0].shape[1:]),
+            np.empty((0,) + samples[1].shape[1:]),
+        )
     if isinstance(tt_split, str):
         split_point = index_en[:tt_split].values[-1]
         split_i = np.searchsorted(s_i, split_point)
         x_train, x_test = samples[0][:split_i, :], samples[0][split_i:, :]
         y_train, y_test = samples[1][:split_i, :], samples[1][split_i:, :]
     elif isinstance(tt_split, float):
-        x_train, x_test, y_train, y_test = train_test_split(samples[0], samples[1], test_size=tt_split, shuffle=True)
+        x_train, x_test, y_train, y_test = train_test_split(
+            samples[0], samples[1], test_size=tt_split, shuffle=True
+        )
     return x_train, x_test, y_train, y_test
 
 
@@ -246,7 +277,7 @@ def trainModel(
     results_path: str,
     model_folder: Optional[str] = None,
     tt_split: Optional[Union[float, str]] = None,
-    mask_target: Optional[bool] = None,
+    predictors_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
     filter_predictors: Optional[bool] = None,
     train_kwargs: Optional[dict] = None,
     multi_target_model: Optional[Literal["chain", "multi"]] = None,
@@ -335,22 +366,22 @@ def trainModel(
     if not dfilter:
         dfilter = BAD if mode in ["Regressor", "Classifier"] else FILTER_NONE
     train_kwargs = train_kwargs or {}
-    multi_target_model = multi_target_model or 'chain'
-    if mask_target is None:
-        mask_target = True if mode in ["Classifier", "Regressor"] else False
+    multi_target_model = multi_target_model or "chain"
+    if predictors_mask is None:
+        predictors_mask = 'target' if mode in ["Classifier", "Regressor"] else None
 
     sampler_config = {
         "predictors": field,
         "window": window,
         "predict": mode,
         "target_i": target_i,
-        "mask_target": mask_target,
+        "predictors_mask": predictors_mask,
         "target": target,
     }
 
     mode = "Classifier" if mode != "Regressor" else "Regressor"
 
-    window, data_in, x_mask, target, target_i, na_filter_x = _getSamplerParams(
+    window, data_in, predictors_mask, target, target_i, na_filter_x = _getSamplerParams(
         data, flags, filter_predictors=filter_predictors, **sampler_config
     )
 
@@ -365,7 +396,7 @@ def trainModel(
         sub_len=window,
         data=data_in,
         target_i=target_i,
-        x_mask=x_mask,
+        x_mask=predictors_mask,
         na_filter_x=na_filter_x,
         na_filter_y=True,
     )
@@ -377,28 +408,35 @@ def trainModel(
         x_test = np.zeros_like(samples[3])
         y_test = np.zeros_like(samples[4])
 
-    if multi_target_model == 'chain':
-        multi_train_kwargs = {'order': train_kwargs.pop('order', None)}
+    if multi_target_model == "chain":
+        multi_train_kwargs = {"order": train_kwargs.pop("order", None)}
     else:
         multi_train_kwargs = {}
 
     if not base_estimator:
         for k in AUTO_ML_DEFAULT:
             train_kwargs.setdefault(k, AUTO_ML_DEFAULT[k])
-            train_kwargs.update({'results_path': model_folder})
+            train_kwargs.update({"results_path": model_folder})
         if len(target_i) > 1:
-            train_kwargs.pop('results_path', None)
+            train_kwargs.pop("results_path", None)
         model = AutoML(**train_kwargs)
     else:
         model = base_estimator(**train_kwargs)
 
+    if y_train.max() == y_train.min():
+        model = getattr(sklearn.dummy, f'Dummy{mode}')(strategy='constant', constant=y_train[0, 0])
+
     if len(target_i) > 1:
         if mode == "Regressor":
-            model = MULTI_TARGET_MODELS[multi_target_model + "_reg"](model, **multi_train_kwargs)
+            model = MULTI_TARGET_MODELS[multi_target_model + "_reg"](
+                model, **multi_train_kwargs
+            )
         else:
-            model = MULTI_TARGET_MODELS[multi_target_model + "_class"](model, **multi_train_kwargs)
+            model = MULTI_TARGET_MODELS[multi_target_model + "_class"](
+                model, **multi_train_kwargs
+            )
 
-    if mode == 'Regressor':
+    if mode == "Regressor":
         fitted = model.fit(x_train, y_train.squeeze())
     else:
         fitted = model.fit(x_train, y_train.squeeze().astype(int))
@@ -407,24 +445,64 @@ def trainModel(
     y_pred_train = model.predict(x_train)
     score_book = {}
     classification_report = {}
-    if mode == 'Regressor':
-        score_book.update({
-         'score': [model.score(x_train, y_train.squeeze(axis=1)), model.score(x_test, y_test.squeeze(axis=1))],
-         'mse': [metrics.mean_squared_error(y_pred_train, y_train), metrics.mean_squared_error(y_pred_test, y_test)],
-         'mae': [metrics.mean_absolute_error(y_pred_train, y_train), metrics.mean_absolute_error(y_pred_test, y_test)],
-         'explained_var': [metrics.explained_variance_score(y_train, y_pred_train), metrics.explained_variance_score(y_test, y_pred_test)],
-         'r2_score': [metrics.r2_score(y_train, y_pred_train), metrics.r2_score(y_test, y_pred_test)]})
-    elif mode == 'Classifier':
-        y_test, y_pred_test, y_train, y_pred_train = y_test.astype(int), y_pred_test.astype(int), y_train.astype(int), y_pred_train.astype(int)
-        score_book.update({
-            'score': [model.score(x_train, y_train.squeeze(axis=1)), model.score(x_test, y_test.squeeze(axis=1))]})
-        confusion_test = sklearn.metrics.confusion_matrix(y_pred_test,y_test)
+    if mode == "Regressor":
+        score_book.update(
+            {
+                "score": [
+                    model.score(x_train, y_train.squeeze(axis=1)),
+                    model.score(x_test, y_test.squeeze(axis=1)),
+                ],
+                "mse": [
+                    metrics.mean_squared_error(y_pred_train, y_train),
+                    metrics.mean_squared_error(y_pred_test, y_test),
+                ],
+                "mae": [
+                    metrics.mean_absolute_error(y_pred_train, y_train),
+                    metrics.mean_absolute_error(y_pred_test, y_test),
+                ],
+                "explained_var": [
+                    metrics.explained_variance_score(y_train, y_pred_train),
+                    metrics.explained_variance_score(y_test, y_pred_test),
+                ],
+                "r2_score": [
+                    metrics.r2_score(y_train, y_pred_train),
+                    metrics.r2_score(y_test, y_pred_test),
+                ],
+            }
+        )
+    elif mode == "Classifier":
+        y_test, y_pred_test, y_train, y_pred_train = (
+            y_test.astype(int),
+            y_pred_test.astype(int),
+            y_train.astype(int),
+            y_pred_train.astype(int),
+        )
+        score_book.update(
+            {
+                "score": [
+                    model.score(x_train, y_train.squeeze(axis=1)),
+                    model.score(x_test, y_test.squeeze(axis=1)),
+                ]
+            }
+        )
+        confusion_test = sklearn.metrics.confusion_matrix(y_pred_test, y_test)
         confusion_train = sklearn.metrics.confusion_matrix(y_pred_train, y_train)
-        c_selector = lambda x, i, j: x[i, j] if (i < x.shape[0] and j < x.shape[1]) else np.nan
+        c_selector = (
+            lambda x, i, j: x[i, j] if (i < x.shape[0] and j < x.shape[1]) else np.nan
+        )
         for i in range(confusion_train.shape[0]):
             for j in range(confusion_train.shape[1]):
-                score_book.update({f'confusion_{i}_{j}': [confusion_train[i, j], c_selector(confusion_test, i, j)]})
-        classification_report.update(metrics.classification_report(y_train, y_pred_train, output_dict=True))
+                score_book.update(
+                    {
+                        f"confusion_{i}_{j}": [
+                            confusion_train[i, j],
+                            c_selector(confusion_test, i, j),
+                        ]
+                    }
+                )
+        classification_report.update(
+            metrics.classification_report(y_train, y_pred_train, output_dict=True)
+        )
 
     with open(os.path.join(model_folder, "config.pkl"), "wb") as f:
         pickle.dump(sampler_config, f)
@@ -433,10 +511,16 @@ def trainModel(
         pickle.dump(fitted, f)
 
     pd.Series().to_csv(os.path.join(model_folder, "saqc_model_dir.csv"))
-    pd.Series(samples[3].squeeze()).to_csv(os.path.join(model_folder, f"x_feature_map.csv"))
-    pd.Series(samples[4].squeeze()).to_csv(os.path.join(model_folder, f"y_feature_map.csv"))
+    pd.Series(samples[3].squeeze()).to_csv(
+        os.path.join(model_folder, f"x_feature_map.csv")
+    )
+    pd.Series(samples[4].squeeze()).to_csv(
+        os.path.join(model_folder, f"y_feature_map.csv")
+    )
     pd.DataFrame(score_book).to_csv(os.path.join(model_folder, f"scores.csv"))
-    pd.DataFrame(classification_report).to_csv(os.path.join(model_folder, f"classification_report.csv"))
+    pd.DataFrame(classification_report).to_csv(
+        os.path.join(model_folder, f"classification_report.csv")
+    )
 
     return data, flags
 
@@ -516,10 +600,23 @@ def modelFlag(
     Dummy Strings.
     """
 
-    temp_trg = field + str(datetime.now()).replace(' ','') + np.random.random(1)[0].astype(str)
+    temp_trg = (
+        field
+        + str(datetime.now()).replace(" ", "")
+        + np.random.random(1)[0].astype(str)
+    )
     data, flags = copyField(data, field, flags, target=temp_trg, **kwargs)
-    data, flags = modelPredict(data, temp_trg, flags, results_path=results_path, pred_agg=pred_agg,
-                       model_folder=model_folder, filter_predictors=filter_predictors, dfilter=dfilter, **kwargs)
+    data, flags = modelPredict(
+        data,
+        temp_trg,
+        flags,
+        results_path=results_path,
+        pred_agg=pred_agg,
+        model_folder=model_folder,
+        filter_predictors=filter_predictors,
+        dfilter=dfilter,
+        **kwargs,
+    )
     data, flags = clearFlags(data, temp_trg, flags, **kwargs)
     data, flags = flagRange(data, temp_trg, flags, max=0, **kwargs)
     data, flags = transferFlags(data, temp_trg, flags, target=field, **kwargs)
@@ -544,12 +641,27 @@ def modelImpute(
     Dummy Strings.
     """
 
-    temp_trg = field + str(datetime.now()).replace(' ', '') + np.random.random(1)[0].astype(str)
+    temp_trg = (
+        field
+        + str(datetime.now()).replace(" ", "")
+        + np.random.random(1)[0].astype(str)
+    )
     data, flags = copyField(data, field, flags, target=temp_trg, **kwargs)
-    data, flags = modelPredict(data, temp_trg, flags, results_path=results_path, pred_agg=pred_agg,
-                       model_folder=model_folder, filter_predictors=filter_predictors, dfilter=dfilter, **kwargs)
+    data, flags = modelPredict(
+        data,
+        temp_trg,
+        flags,
+        results_path=results_path,
+        pred_agg=pred_agg,
+        model_folder=model_folder,
+        filter_predictors=filter_predictors,
+        dfilter=dfilter,
+        **kwargs,
+    )
 
-    imputation_index = (data[field].isna() | (flags[field] > -np.inf)) & data[temp_trg].notna()
+    imputation_index = (data[field].isna() | (flags[field] > -np.inf)) & data[
+        temp_trg
+    ].notna()
     data.loc[imputation_index, field] = data[temp_trg][imputation_index]
     new_vals = data.loc[imputation_index, field].notna()
     new_flags = pd.Series(np.nan, index=flags[field].index)
@@ -558,5 +670,3 @@ def modelImpute(
         new_flags, {"func": "modelImpute", "args": (), "kwargs": kwargs}
     )
     return data, flags
-
-

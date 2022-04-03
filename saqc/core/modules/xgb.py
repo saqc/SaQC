@@ -54,26 +54,26 @@ class Xgb:
 
     @doc(saqc.funcs.xgb.modelFlag.__doc__)
     def modelFlag(
-            self,
-            field: str,
-            results_path: str,
-            pred_agg: callable = np.nanmean,
-            model_folder: Optional[str] = None,
-            filter_predictors: Optional[bool] = None,
-            dfilter: float = FILTER_NONE,
-            **kwargs,
+        self,
+        field: str,
+        results_path: str,
+        pred_agg: callable = np.nanmean,
+        model_folder: Optional[str] = None,
+        filter_predictors: Optional[bool] = None,
+        dfilter: float = FILTER_NONE,
+        **kwargs,
     ) -> saqc.SaQC:
         return self._defer("modelFlag", locals())
 
     @doc(saqc.funcs.xgb.modelImpute.__doc__)
     def modelImpute(
-            self,
-            field: str,
-            results_path: str,
-            pred_agg: callable = np.nanmean,
-            model_folder: Optional[str] = None,
-            filter_predictors: Optional[bool] = None,
-            dfilter: float = FILTER_NONE,
-            **kwargs,
+        self,
+        field: str,
+        results_path: str,
+        pred_agg: callable = np.nanmean,
+        model_folder: Optional[str] = None,
+        filter_predictors: Optional[bool] = None,
+        dfilter: float = FILTER_NONE,
+        **kwargs,
     ) -> saqc.SaQC:
         return self._defer("modelImpute", locals())
