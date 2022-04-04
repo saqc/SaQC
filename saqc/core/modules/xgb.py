@@ -14,6 +14,7 @@ import saqc
 from saqc.lib.docurator import doc
 import saqc.funcs
 import numpy as np
+import pandas as pd
 
 
 class Xgb:
@@ -28,9 +29,10 @@ class Xgb:
         results_path: str,
         model_folder: Optional[str] = None,
         tt_split: Optional[Union[float, str]] = None,
-        mask_target: Optional[bool] = None,
-        filter_predictors: Optional[bool] = None,
+        feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
+        drop_na_samples: bool = True,
         training_kwargs: Optional[dict] = None,
+        multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
         base_estimater: Optional[callable] = None,
         dfilter: float = BAD,
         override: bool = False,

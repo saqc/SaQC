@@ -34,15 +34,7 @@ import shutil
 from saqc.funcs.outliers import flagRange
 from saqc.funcs.flagtools import clearFlags, transferFlags
 from saqc.funcs.tools import dropField
-from saqc.funcs.generic import flagGeneric, processGeneric
-from saqc.funcs.breaks import flagMissing
 
-# TODO: geo-frame (?)
-# TODO: flag Filter (value prediction vs flag prediction)
-# TODO: Include Predictor isFlagged (np.nan, False True)? (!)
-# TODO: sample filter
-# TODO: reassign vals
-# TODO: transparent mask-target control
 
 MULTI_TARGET_MODELS = {
     "chain_reg": sklearn.multioutput.RegressorChain,
@@ -63,7 +55,7 @@ def _getSamplerParams(
     target_i: Union[int, list, Literal["center", "forward"]],
     predict: Union[Literal["flag", "value"], str],
     predictors_mask: bool = True,
-    filter_predictors: Optional[bool] = None,
+    filter_predictors: bool = True,
     **kwargs,
 ):
     x_data = data[predictors].to_df()
@@ -82,7 +74,7 @@ def _getSamplerParams(
 
     mask_frame = pd.DataFrame(True, columns=predictors, index=range(window))
     if isinstance(predictors_mask, str):
-        if predictors_mask == 'target':
+        if predictors_mask == "target":
             mask_frame.loc[target_i, target] = False
         else:
             raise ValueError(f'"{predictors_mask}" not a thing.')
@@ -90,9 +82,9 @@ def _getSamplerParams(
         for key in predictors_mask:
             mask_frame.loc[predictors_mask[key], key] = False
     elif isinstance(predictors_mask, pd.DataFrame):
-            mask_frame[predictors_mask.columns] = predictors_mask
+        mask_frame[predictors_mask.columns] = predictors_mask
     elif isinstance(predictors_mask, np.array):
-            mask_frame[:] = predictors_mask
+        mask_frame[:] = predictors_mask
 
     if predict in ["Regressor", "Classifier"]:
         data_in = pd.concat([x_data, data[target].to_df()], axis=1)
@@ -125,7 +117,7 @@ def _getSamplerParams(
     if len(target_i) > 1:
         na_filter_x = True
     else:
-        na_filter_x = filter_predictors or True
+        na_filter_x = filter_predictors
 
     return window, data_in, mask_frame, target, target_i, na_filter_x
 
@@ -277,10 +269,10 @@ def trainModel(
     results_path: str,
     model_folder: Optional[str] = None,
     tt_split: Optional[Union[float, str]] = None,
-    predictors_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
-    filter_predictors: Optional[bool] = None,
+    feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
+    drop_na_samples: bool = True,
     train_kwargs: Optional[dict] = None,
-    multi_target_model: Optional[Literal["chain", "multi"]] = None,
+    multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
     base_estimator: Optional[BaseEstimator] = None,
     dfilter: float = BAD,
     override: bool = False,
@@ -292,22 +284,30 @@ def trainModel(
     ----------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
+
     field : str
         The fieldnames of the column, holding the Predictor time series.
+
     flags : saqc.Flags
         Container to store flags of the data.
+
     target : str
         The fieldname of the column, holding the Target time series
+
     window : {int, str}
         Window size of predictor series.
+
     target_i : {List[int], "center", "Forward"}
         Index of the target values relatively to the window of predictors.
+
     mode : {"Regressor", "Classifier", "Flagger",  str}
         Type of model to be trained.
         * "Flagger" trains a binary classifier on the flags value of `target`.
         * If another string is passed, a binary classifier gets trained on the flags column labeled `mode`.
+
     results_path : str
         File path for the training results parent folder.
+
     model_folder : str, default None
         Folder to write the training results to. If None is passed, the model folder will be named `target`.
         The folder will contain:
@@ -316,30 +316,46 @@ def trainModel(
         * the pickled configuration dictionary: ``config.pkl``
         * a csv file listing model fit scores for training and test data: ``scores.csv``
         * mapping of timeseries indices to feature indices: ``x_feature_map.csv``, ``y_feature_map.csv``
-        * If trained model is a mlyar.AutoML model, its report path will also point to `model_folder` and the
+        * If trained model is a `mlyar.AutoML` model, its report path will also point to `model_folder` and the
           report is written to it as well.
 
         If None is passed, the model folder will be named `target`.
+
     tt_split: {float, str}, default None
         Rule for splitting data up, into training and testing data.
 
-        * If `None` is passed, no test data will be set aside.
+        * If ``None`` is passed, no test data will be set aside.
         * If a float is passed, it will be interpreted as the proportion of randomly selected data, that is to be
-          set aside for test score calculation (0 <= `tt_split <= 1)`.
+          set aside for test score calculation (0 <= ``tt_split`` <= 1).
         * If a string is passed, it will be interpreted as split date time point: Any data collected before tt_split
           will be the training data set, the rest will be used for testing.
 
         Test data scores are written to the `score.csv` file in the `model_folder` after model fit.
 
-    mask_target: Optional[bool] = None,
-        Wheather or not to include target values in the predictors. This only makes sence, if t
+    feature_mask: {"target", pd.DataFrame, dict, np.array} = None,
 
-    filter_predictors: Optional[bool] = None,
+    drop_na_samples: bool = True,
+        Drop samples that contain NaN values.
+        In case of a multi target model, fitting with NaN containing samples is not supported.
+
     train_kwargs: Optional[dict] = None,
-    multi_target_model: Optional[Literal["chain", "multi"]] = None,
-    base_estimator: Optional[BaseEstimator] = None,
-    dfilter: float = BAD,
-    override: bool = False,
+        Keywords to be passed on to the base estimators instantiation method.
+        If the base estimator is an ``AutoML`` model (default), the train kwargs default to training an `Xgboost` model
+        in "perform" mode. (``Algorithms=["Xgboost"]``, ``mode="Perform"``)
+        If multiple features get fitted, one can control the wrappers fitting order by passing the ``train_kwargs``
+        an "order" keyword. (If the wrapper is a Chain Model (default))
+
+    multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
+        Which multi target wrapper to use for fitting multiple features.
+        To alter order in case of chain wrapper (default), add an "order" keyword to the ``train_kwargs``.
+        The wrappers instantiated are the ``sklearn.multioutput`` models.
+
+    base_estimator: Optional[BaseEstimator] = None
+        The base estimator to be fitted to the data. If ``None`` (default), the base estimator
+        is an AutoML (mljar-supervised) model.
+    override: bool = False
+        Override the ``results_path``/``model_folder`` directory, if it already exists.
+        Fitting a ``mljar.AutoML`` model with not-empty target folder will fail, if ``override`` is ``False``
 
 
     * [field target] has to be harmed (or field > target)
@@ -366,23 +382,22 @@ def trainModel(
     if not dfilter:
         dfilter = BAD if mode in ["Regressor", "Classifier"] else FILTER_NONE
     train_kwargs = train_kwargs or {}
-    multi_target_model = multi_target_model or "chain"
-    if predictors_mask is None:
-        predictors_mask = 'target' if mode in ["Classifier", "Regressor"] else None
+    if feature_mask is None:
+        feature_mask = "target" if mode in ["Classifier", "Regressor"] else None
 
     sampler_config = {
         "predictors": field,
         "window": window,
         "predict": mode,
         "target_i": target_i,
-        "predictors_mask": predictors_mask,
+        "feature_mask": feature_mask,
         "target": target,
     }
 
     mode = "Classifier" if mode != "Regressor" else "Regressor"
 
-    window, data_in, predictors_mask, target, target_i, na_filter_x = _getSamplerParams(
-        data, flags, filter_predictors=filter_predictors, **sampler_config
+    window, data_in, feature_mask, target, target_i, na_filter_x = _getSamplerParams(
+        data, flags, filter_predictors=drop_na_samples, **sampler_config
     )
 
     if dfilter < np.inf:
@@ -396,7 +411,7 @@ def trainModel(
         sub_len=window,
         data=data_in,
         target_i=target_i,
-        x_mask=predictors_mask,
+        x_mask=feature_mask,
         na_filter_x=na_filter_x,
         na_filter_y=True,
     )
@@ -424,7 +439,9 @@ def trainModel(
         model = base_estimator(**train_kwargs)
 
     if y_train.max() == y_train.min():
-        model = getattr(sklearn.dummy, f'Dummy{mode}')(strategy='constant', constant=y_train[0, 0])
+        model = getattr(sklearn.dummy, f"Dummy{mode}")(
+            strategy="constant", constant=y_train[0, 0]
+        )
 
     if len(target_i) > 1:
         if mode == "Regressor":
@@ -535,6 +552,7 @@ def modelPredict(
     model_folder: Optional[str] = None,
     filter_predictors: Optional[bool] = None,
     dfilter: float = FILTER_NONE,
+    assign_features: Optional[dict] = None,
     **kwargs,
 ):
     """
@@ -559,6 +577,8 @@ def modelPredict(
     if dfilter < np.inf:
         for f in sampler_config["predictors"]:
             data_in.loc[flags[f] >= dfilter, field] = np.nan
+
+    sampler_config['predictors'] = [p if p not in assign_features.keys() else assign_features[p] for p in sampler_config['predictors']]
 
     samples = _generateSamples(
         X=sampler_config["predictors"],
