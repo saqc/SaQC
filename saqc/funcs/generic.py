@@ -239,7 +239,7 @@ def flagGeneric(
         Flags values may have changed relatively to the flags input.
 
     Note
-    -----
+    ----
     All the numpy functions are available within the generic expressions.
 
     Examples

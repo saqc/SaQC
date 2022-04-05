@@ -8,7 +8,7 @@
 
 # imports needed to make the functions register themself
 from saqc.core.register import register
-from saqc.funcs.xgb import *
+from saqc.funcs.ml import *
 from saqc.funcs.breaks import *
 from saqc.funcs.changepoints import *
 from saqc.funcs.constants import *

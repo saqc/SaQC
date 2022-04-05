@@ -55,7 +55,7 @@ def _getSamplerParams(
     target_i: Union[int, list, Literal["center", "forward"]],
     predict: Union[Literal["flag", "value"], str],
     predictors_mask: bool = True,
-    filter_predictors: bool = True,
+    drop_na_samples: bool = True,
     **kwargs,
 ):
     x_data = data[predictors].to_df()
@@ -105,7 +105,7 @@ def _getSamplerParams(
                 ][0]
             except IndexError:
                 raise IndexError(
-                    f'Cant find nno data to train on: no flags labeled: "{predict}", for target variable {y}.'
+                    f'Cant find no data to train on: no flags labeled: "{predict}", for target variable {y}.'
                 )
             flags_col = flags.history[y].hist[hist_col]
             flags_col = flags_col.notna() & (flags_col != -np.inf)
@@ -117,7 +117,7 @@ def _getSamplerParams(
     if len(target_i) > 1:
         na_filter_x = True
     else:
-        na_filter_x = filter_predictors
+        na_filter_x = drop_na_samples
 
     return window, data_in, mask_frame, target, target_i, na_filter_x
 
@@ -319,7 +319,7 @@ def trainModel(
         * If trained model is a `mlyar.AutoML` model, its report path will also point to `model_folder` and the
           report is written to it as well.
 
-        If None is passed, the model folder will be named `target`.
+        If ``None`` is passed, the model folder will be named `target`.
 
     tt_split: {float, str}, default None
         Rule for splitting data up, into training and testing data.
@@ -327,8 +327,8 @@ def trainModel(
         * If ``None`` is passed, no test data will be set aside.
         * If a float is passed, it will be interpreted as the proportion of randomly selected data, that is to be
           set aside for test score calculation (0 <= ``tt_split`` <= 1).
-        * If a string is passed, it will be interpreted as split date time point: Any data collected before tt_split
-          will be the training data set, the rest will be used for testing.
+        * If a string is passed, it will be interpreted as split date time point: Any data sampled before ``tt_split``
+          will be comprised in the training data set, the rest will be used for testing.
 
         Test data scores are written to the `score.csv` file in the `model_folder` after model fit.
 
@@ -352,17 +352,34 @@ def trainModel(
 
     base_estimator: Optional[BaseEstimator] = None
         The base estimator to be fitted to the data. If ``None`` (default), the base estimator
-        is an AutoML (mljar-supervised) model.
+        is an ``AutoML`` (mljar-supervised) instance.
+
     override: bool = False
         Override the ``results_path``/``model_folder`` directory, if it already exists.
-        Fitting a ``mljar.AutoML`` model with not-empty target folder will fail, if ``override`` is ``False``
+        Fitting a ``mljar.AutoML`` model with not-empty target folder will fail, if ``override`` is ``False``.
 
+    Returns
+    -------
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+    flags : saqc.Flags
+        The quality flags of data
 
-    * [field target] has to be harmed (or field > target)
-    * MultiVarRegressionOnly works with no-Na input
-    * auto mode only supports MultiOutputRegression (not classification)
+    Notes
+    -----
+    * ``field`` and ``target`` data has to be sampled at the same frequency for the training to
+      work as expected.
 
+    * Multi Output Models cant be trained on samples containing NaN values. So those will
+      get filtered outomatically.
 
+    * Currently Multi Output Classification is not supported for ``AutoML`` models.
+
+    See Also
+    --------
+    * :py:meth:`saqc.SaQC.modelPredict
+    * :py:meth:`saqc.SaQC.modelImpute
+    * :py:meth:`saqc.SaQC.modelFlag
     """
 
     if not os.path.exists(results_path):
@@ -392,12 +409,13 @@ def trainModel(
         "target_i": target_i,
         "feature_mask": feature_mask,
         "target": target,
+        "drop_na_samples": drop_na_samples
     }
 
     mode = "Classifier" if mode != "Regressor" else "Regressor"
 
     window, data_in, feature_mask, target, target_i, na_filter_x = _getSamplerParams(
-        data, flags, filter_predictors=drop_na_samples, **sampler_config
+        data, flags, drop_na_samples=drop_na_samples, **sampler_config
     )
 
     if dfilter < np.inf:
@@ -550,14 +568,90 @@ def modelPredict(
     results_path: str,
     pred_agg: callable = np.nanmean,
     model_folder: Optional[str] = None,
-    filter_predictors: Optional[bool] = None,
-    dfilter: float = FILTER_NONE,
+    drop_na_samples: Optional[bool] = None,
     assign_features: Optional[dict] = None,
+    dfilter: float = FILTER_NONE,
     **kwargs,
 ):
     """
-    Dummy Strings.
+    Use a trained model for predictions.
+
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+
+    field : str
+        The fieldnames of the variable to be predicted. Will get overriden with the prediction results,
+        if ``target`` is not set.
+
+    flags : saqc.Flags
+        Container to store flags of the data.
+
+    results_path: str
+        Path to the models parent folder.
+
+    pred_agg: callable, default np.nanmean
+        Function for aggregation of multiple predictions associated with the same timestep.
+
+    model_folder: str, None
+        Folder containing the model data.
+        If ``None`` (default), a folder named ``field`` is searched.
+        The folder must contain:
+        * the pickled model object, ``model.pkl`` (A sklearn-style model object, implementing
+          a ``predict`` method
+        * the pickled configuration dictionary, ``config.pkl``.
+
+    drop_na_samples: bool, default None
+        Calculate predictions for input samples containing invalid (flagged or NaN)
+        values. Defaults to the value the prediction model has been trained with.
+
+    assign_features: dict, default None
+        By default, input features to the model have to be (named) the same, as the
+        model has been trained with.
+        To repplace input variable names, pass a dictionary of the form:
+        * {`old_variable_name`:`new_variable_name`}
+
+    dfilter: float, default FILTER_NONE
+        Filter applied to the loaded models predictors (not on ``field``).
+
+    Returns
+    -------
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+    flags : saqc.Flags
+        The quality flags of data
+
+    Notes
+    -----
+    The process of prediction works as follows:
+
+    1. The model stored to ``results_path``\``field``(default) or ``results_path``\``model_folder`` is
+       loaded.
+
+    2. Input data to the model is prepared in the same way as it got prepared when training the model.
+       This means, that `variable fields` the model has been trained on, have to be present in the data.
+       To replace/rename input variables for a certain model, use the ``assign_features`` parameter.
+
+    3. Variable ``field`` gets overridden with the predictions results, if `target`` is not passed. Otherwise
+       results are stored to ``target``.
+
+    Note, If a MultiOutput model was trained, it is likely to get multiple predictions for the same timestamps.
+       In this case, ``pred_agg`` is applied to aggregate the predictions or select one of them.
+       Predictions are generated in a rolling window. Multiple predictions for the same value are ordered
+       according to the order of the prediction window they were covered by.
+    Note, that your data must be sampled the way, it was sampled when training the model.
+
+    * Multi Output Models cant be trained on samples containing NaN values. So those will
+      get filtered outomatically.
+
+    * Currently Multi Output Classification is not supported for ``AutoML`` models.
+
+    See Also
+    --------
+    * :py:meth:`saqc.SaQC.modelPredict
+    * :py:meth:`saqc.SaQC.modelImpute
+    * :py:meth:`saqc.SaQC.modelFlag
     """
+
 
     if model_folder is None:
         model_folder = os.path.join(results_path, field)
@@ -570,15 +664,18 @@ def modelPredict(
     with open(os.path.join(model_folder, "model.pkl"), "rb") as f:
         model = pickle.load(f)
 
+    sampler_config['predictors'] = [p if p not in assign_features.keys() else assign_features[p] for p in
+                                    sampler_config['predictors']]
+
+    sampler_config['drop_na_samples'] = drop_na_samples or sampler_config['drop_na_samples']
+
     window, data_in, x_mask, target, target_i, na_filter_x = _getSamplerParams(
-        data, flags, filter_predictors=filter_predictors, **sampler_config
+        data, flags, drop_na_samples=drop_na_samples, **sampler_config
     )
 
     if dfilter < np.inf:
         for f in sampler_config["predictors"]:
             data_in.loc[flags[f] >= dfilter, field] = np.nan
-
-    sampler_config['predictors'] = [p if p not in assign_features.keys() else assign_features[p] for p in sampler_config['predictors']]
 
     samples = _generateSamples(
         X=sampler_config["predictors"],
@@ -633,7 +730,7 @@ def modelFlag(
         results_path=results_path,
         pred_agg=pred_agg,
         model_folder=model_folder,
-        filter_predictors=filter_predictors,
+        drop_na_samples=filter_predictors,
         dfilter=dfilter,
         **kwargs,
     )
@@ -674,7 +771,7 @@ def modelImpute(
         results_path=results_path,
         pred_agg=pred_agg,
         model_folder=model_folder,
-        filter_predictors=filter_predictors,
+        drop_na_samples=filter_predictors,
         dfilter=dfilter,
         **kwargs,
     )

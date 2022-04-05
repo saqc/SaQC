@@ -17,7 +17,7 @@ import numpy as np
 import pandas as pd
 
 
-class Xgb:
+class Ml:
     @doc(saqc.funcs.xgb.trainModel.__doc__)
     def trainModel(
         self,
