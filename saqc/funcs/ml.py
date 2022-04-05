@@ -72,7 +72,7 @@ def _getSamplerParams(
     mask_frame = pd.DataFrame(True, columns=predictors, index=range(window))
     if isinstance(feature_mask, str):
         if feature_mask == "target":
-            if target in mask_frame.columns:
+            if toSequence(target)[0] in mask_frame.columns:
                 mask_frame.loc[target_i, target] = False
         else:
             raise ValueError(f'"{feature_mask}" not a thing.')
