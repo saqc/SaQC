@@ -644,7 +644,7 @@ def modelPredict(
     -----
     The process of prediction works as follows:
 
-    1. The model stored to ``results_path``\``field``(default) or ``results_path``\``model_folder`` is
+    1. The model stored to ``results_path``/``field``(default) or ``results_path``/``model_folder`` is
        loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
@@ -792,7 +792,7 @@ def modelFlag(
     -----
     The process of flags prediction works as follows:
 
-    1. The model stored to ``results_path``\``field``(default) or ``results_path``\``model_folder`` is
+    1. The model stored to ``results_path``/``field``(default) or ``results_path``/``model_folder`` is
        loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
@@ -912,7 +912,7 @@ def modelImpute(
     -----
     The process of imputation works as follows:
 
-    1. The model stored to ``results_path``\``field``(default) or ``results_path``\``model_folder`` is
+    1. The model stored to ``results_path``/``field``(default) or ``results_path``/``model_folder`` is
        loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
