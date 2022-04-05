@@ -275,8 +275,9 @@ def trainModel(
     dfilter: float = BAD,
     override: bool = False,
     **kwargs,
-):
-    """Fits a machine learning model to the target time series or its flags.
+) -> Tuple[DictOfSeries, Flags]:
+    """
+    Fits a machine learning model to the target time series or its flags.
 
     Parameters
     ----------
@@ -290,7 +291,7 @@ def trainModel(
         Container to store flags of the data.
 
     target : str
-        The fieldname of the column, holding the Target time series
+        The fieldname of the column, holding the Target time series.
 
     window : {int, str}
         Window size of predictor series.
@@ -300,6 +301,7 @@ def trainModel(
 
     mode : {"Regressor", "Classifier", "Flagger",  str}
         Type of model to be trained.
+
         * "Flagger" trains a binary classifier on the flags value of `target`.
         * If another string is passed, a binary classifier gets trained on the flags column labeled `mode`.
 
@@ -307,7 +309,7 @@ def trainModel(
         File path for the training results parent folder.
 
     model_folder : str, default None
-        Folder to write the training results to. If None is passed, the model folder will be named `target`.
+        Folder to write the training results to. If ``None`` is passed, the model folder will be named `target`.
         The folder will contain:
 
         * the pickled model fit: ``model.pkl``
@@ -330,29 +332,42 @@ def trainModel(
 
         Test data scores are written to the `score.csv` file in the `model_folder` after model fit.
 
-    feature_mask: {"target", pd.DataFrame, dict, np.array} = None,
+    feature_mask: {"target", pd.DataFrame, dict, np.ndarray}, default None
+        Controlls wich indices from the input variables are to be hidden (=dropped) while training.
+        When ``None`` is passed (default), and a ``mode`` is either `"Classifier"` or `"Regressor"`, the target
+        indices of the target variable are dropped, if the target variable is part of the predictors set. If mode is
+        `"Flagger"`, no features get hidden by the default ``feature_mask``.
 
-    drop_na_samples: bool = True,
+        * "target" - Drop the target indices of the target variable
+        * `dict`: A dictionary with variable names as keys and integer lists as items, denoting the indices to be
+          dropped.
+        * `pd.DataFrame`: A boolean Dataframe, with column named as the variables to be masked, and rows according to
+          the number of indices in the feature window.
+
+    drop_na_samples: bool, default True
         Drop samples that contain NaN values.
         In case of a multi target model, fitting with NaN containing samples is not supported.
 
-    train_kwargs: Optional[dict] = None,
+    train_kwargs : dict, default None
         Keywords to be passed on to the base estimators instantiation method.
         If the base estimator is an ``AutoML`` model (default), the train kwargs default to training an `Xgboost` model
         in "perform" mode. (``Algorithms=["Xgboost"]``, ``mode="Perform"``)
         If multiple features get fitted, one can control the wrappers fitting order by passing the ``train_kwargs``
         an "order" keyword. (If the wrapper is a Chain Model (default))
 
-    multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
+    multi_target_model : {"chain", "multi"}, default "chain"
         Which multi target wrapper to use for fitting multiple features.
         To alter order in case of chain wrapper (default), add an "order" keyword to the ``train_kwargs``.
         The wrappers instantiated are the ``sklearn.multioutput`` models.
 
-    base_estimator: Optional[BaseEstimator] = None
+    base_estimator : BaseEstimator, default None
         The base estimator to be fitted to the data. If ``None`` (default), the base estimator
         is an ``AutoML`` (mljar-supervised) instance.
 
-    override: bool = False
+    dfilter : float, default BAD
+        Filter Field and Target variables.
+
+    override : bool, default False
         Override the ``results_path``/``model_folder`` directory, if it already exists.
         Fitting a ``mljar.AutoML`` model with not-empty target folder will fail, if ``override`` is ``False``.
 
@@ -360,6 +375,7 @@ def trainModel(
     -------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
+
     flags : saqc.Flags
         The quality flags of data
 
@@ -367,10 +383,8 @@ def trainModel(
     -----
     * ``field`` and ``target`` data has to be sampled at the same frequency for the training to
       work as expected.
-
     * Multi Output Models cant be trained on samples containing NaN values. So those will
       get filtered outomatically.
-
     * Currently Multi Output Classification is not supported for ``AutoML`` models.
 
     See Also
@@ -396,7 +410,9 @@ def trainModel(
 
     if not dfilter:
         dfilter = BAD if mode in ["Regressor", "Classifier"] else FILTER_NONE
+
     train_kwargs = train_kwargs or {}
+
     if feature_mask is None:
         feature_mask = "target" if mode in ["Classifier", "Regressor"] else None
 
@@ -407,7 +423,7 @@ def trainModel(
         "target_i": target_i,
         "feature_mask": feature_mask,
         "target": target,
-        "drop_na_samples": drop_na_samples
+        "drop_na_samples": drop_na_samples,
     }
 
     mode = "Classifier" if mode != "Regressor" else "Regressor"
@@ -416,7 +432,7 @@ def trainModel(
         data, flags, **sampler_config
     )
 
-    sampler_config['freq'] = getFreqDelta(data_in.index)
+    sampler_config["freq"] = getFreqDelta(data_in.index)
 
     if dfilter < np.inf:
         for f in data_in.columns:
@@ -573,11 +589,11 @@ def modelPredict(
     dfilter: float = FILTER_NONE,
     **kwargs,
 ):
-    """Use a trained model for predictions.
+    """
+    Use a trained model for predictions.
 
     Parameters
     ----------
-
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
 
@@ -598,6 +614,7 @@ def modelPredict(
         Folder containing the model data.
         If ``None`` (default), a folder named ``field`` is searched.
         The folder must contain:
+
         * the pickled model object, ``model.pkl`` (A sklearn-style model object, implementing
           a ``predict`` method
         * the pickled configuration dictionary, ``config.pkl``.
@@ -619,6 +636,7 @@ def modelPredict(
     -------
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
+
     flags : saqc.Flags
         The quality flags of data
 
@@ -661,18 +679,24 @@ def modelPredict(
     with open(os.path.join(model_folder, "model.pkl"), "rb") as f:
         model = pickle.load(f)
 
-    sampler_config['predictors'] = [p if p not in assign_features.keys() else assign_features[p] for p in
-                                    sampler_config['predictors']]
+    sampler_config["predictors"] = [
+        p if p not in assign_features.keys() else assign_features[p]
+        for p in sampler_config["predictors"]
+    ]
 
-    sampler_config['drop_na_samples'] = drop_na_samples or sampler_config['drop_na_samples']
+    sampler_config["drop_na_samples"] = (
+        drop_na_samples or sampler_config["drop_na_samples"]
+    )
 
     window, data_in, x_mask, target, target_i, na_filter_x = _getSamplerParams(
         data, flags, **sampler_config
     )
 
-    if sampler_config['freq']:
-        if not getFreqDelta(data_in.index)==sampler_config['freq']:
-            raise IndexError(f'Prediction data not sampled at the same rate, the model was trained at: {sampler_config["freq"]}')
+    if sampler_config["freq"]:
+        if not getFreqDelta(data_in.index) == sampler_config["freq"]:
+            raise IndexError(
+                f'Prediction data not sampled at the same rate, the model was trained at: {sampler_config["freq"]}'
+            )
 
     if dfilter < np.inf:
         for f in sampler_config["predictors"]:
@@ -715,7 +739,8 @@ def modelFlag(
     dfilter: float = BAD,
     **kwargs,
 ):
-    """Use a trained (binary classifier) model for data flagging.
+    """
+    Use a trained (binary classifier) model for data flagging.
 
     Parameters
     ----------
@@ -729,13 +754,13 @@ def modelFlag(
     flags : saqc.Flags
         Container to store flags of the data.
 
-    results_path: str
+    results_path : str
         Path to the models parent folder.
 
-    pred_agg: callable, default np.nanmean
+    pred_agg : callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
 
-    model_folder: str, None
+    model_folder : str, default None
         Folder containing the model data.
         If ``None`` (default), a folder named ``field`` is searched.
         The folder must contain:
@@ -743,17 +768,17 @@ def modelFlag(
           a ``predict`` method
         * the pickled configuration dictionary, ``config.pkl``.
 
-    drop_na_samples: bool, default None
+    drop_na_samples : bool, default None
         Calculate predictions for input samples containing invalid (flagged or NaN)
         values. Defaults to the value the prediction model has been trained with.
 
-    assign_features: dict, default None
+    assign_features : dict, default None
         By default, input features to the model have to be (named) the same, as the
         model has been trained with.
         To repplace input variable names, pass a dictionary of the form:
         * {`old_variable_name`:`new_variable_name`}
 
-    dfilter: float, default BAD
+    dfilter : float, default BAD
         Filter applied to the loaded models predictors (not on ``field``).
 
     Returns
@@ -829,7 +854,8 @@ def modelImpute(
     flag: float = UNFLAGGED,
     **kwargs,
 ):
-    """Use a trained model for data imputation.
+    """
+    Use a trained model for data imputation.
 
     Imputation is tried to be performed for missing as well as flagged data in field.
 
@@ -845,13 +871,13 @@ def modelImpute(
     flags : saqc.Flags
         Container to store flags of the data.
 
-    results_path: str
+    results_path : str
         Path to the models parent folder.
 
-    pred_agg: callable, default np.nanmean
+    pred_agg : callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
 
-    model_folder: str, None
+    model_folder : str, None
         Folder containing the model data.
         If ``None`` (default), a folder named ``field`` is searched.
         The folder must contain:
@@ -859,20 +885,20 @@ def modelImpute(
           a ``predict`` method
         * the pickled configuration dictionary, ``config.pkl``.
 
-    drop_na_samples: bool, default None
+    drop_na_samples : bool, default None
         Calculate predictions for input samples containing invalid (flagged or NaN)
         values. Defaults to the value the prediction model has been trained with.
 
-    assign_features: dict, default None
+    assign_features : dict, default None
         By default, input features to the model have to be (named) the same, as the
         model has been trained with.
         To repplace input variable names, pass a dictionary of the form:
         * {`old_variable_name`:`new_variable_name`}
 
-    dfilter: float, default BAD
+    dfilter : float, default BAD
         Filter applied to the loaded models predictors (not on ``field``!).
 
-    flag: float, default UNFLAGGED
+    flag : float, default UNFLAGGED
         The flag level to be assigned to imputed values.
 
     Returns

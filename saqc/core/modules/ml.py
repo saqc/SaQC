@@ -47,8 +47,8 @@ class Ml:
         results_path: str,
         pred_agg: callable = np.nanmean,
         model_folder: Optional[str] = None,
-        filter_predictors: Optional[bool] = None,
-        flag: float = BAD,
+        drop_na_samples: Optional[bool] = None,
+        assign_features: Optional[dict] = None,
         dfilter: float = FILTER_NONE,
         **kwargs,
     ) -> saqc.SaQC:
@@ -61,7 +61,8 @@ class Ml:
         results_path: str,
         pred_agg: callable = np.nanmean,
         model_folder: Optional[str] = None,
-        filter_predictors: Optional[bool] = None,
+        drop_na_samples: Optional[bool] = None,
+        assign_features: Optional[dict] = None,
         dfilter: float = FILTER_NONE,
         **kwargs,
     ) -> saqc.SaQC:
@@ -74,7 +75,8 @@ class Ml:
         results_path: str,
         pred_agg: callable = np.nanmean,
         model_folder: Optional[str] = None,
-        filter_predictors: Optional[bool] = None,
+        drop_na_samples: Optional[bool] = None,
+        assign_features: Optional[dict] = None,
         dfilter: float = FILTER_NONE,
         **kwargs,
     ) -> saqc.SaQC:
