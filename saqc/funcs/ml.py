@@ -10,7 +10,6 @@ import uuid
 from typing import Optional, Union, Tuple, Sequence, Callable
 
 import sklearn.multioutput
-import xgboost
 from typing_extensions import Literal
 from supervised.automl import AutoML
 from datetime import datetime
