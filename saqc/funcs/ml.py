@@ -72,7 +72,8 @@ def _getSamplerParams(
     mask_frame = pd.DataFrame(True, columns=predictors, index=range(window))
     if isinstance(feature_mask, str):
         if feature_mask == "target":
-            mask_frame.loc[target_i, target] = False
+            if target in mask_frame.columns:
+                mask_frame.loc[target_i, target] = False
         else:
             raise ValueError(f'"{feature_mask}" not a thing.')
     elif isinstance(feature_mask, dict):
@@ -667,6 +668,7 @@ def modelPredict(
     * :py:meth:`saqc.SaQC.modelFlag`
     """
 
+    assign_features = assign_features or {}
     if model_folder is None:
         model_folder = os.path.join(results_path, field)
     else:
