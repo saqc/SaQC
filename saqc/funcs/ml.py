@@ -15,16 +15,14 @@ from typing_extensions import Literal
 from supervised.automl import AutoML
 from datetime import datetime
 
-import numba
+
 import numpy as np
-import numpy.polynomial.polynomial as poly
 import pandas as pd
 import os
 import pickle
 from dios import DictOfSeries
 from saqc.lib.tools import toSequence, getFreqDelta
 from saqc.funcs.tools import copyField
-from xgboost import XGBClassifier, XGBRegressor
 from saqc.core import register, Flags
 from saqc.constants import BAD, UNFLAGGED, FILTER_NONE, FILTER_ALL
 from sklearn.model_selection import train_test_split
@@ -54,7 +52,7 @@ def _getSamplerParams(
     window: Union[str, int],
     target_i: Union[int, list, Literal["center", "forward"]],
     predict: Union[Literal["flag", "value"], str],
-    predictors_mask: bool = True,
+    feature_mask: bool = True,
     drop_na_samples: bool = True,
     **kwargs,
 ):
@@ -73,18 +71,18 @@ def _getSamplerParams(
     target_i.sort()
 
     mask_frame = pd.DataFrame(True, columns=predictors, index=range(window))
-    if isinstance(predictors_mask, str):
-        if predictors_mask == "target":
+    if isinstance(feature_mask, str):
+        if feature_mask == "target":
             mask_frame.loc[target_i, target] = False
         else:
-            raise ValueError(f'"{predictors_mask}" not a thing.')
-    elif isinstance(predictors_mask, dict):
-        for key in predictors_mask:
-            mask_frame.loc[predictors_mask[key], key] = False
-    elif isinstance(predictors_mask, pd.DataFrame):
-        mask_frame[predictors_mask.columns] = predictors_mask
-    elif isinstance(predictors_mask, np.array):
-        mask_frame[:] = predictors_mask
+            raise ValueError(f'"{feature_mask}" not a thing.')
+    elif isinstance(feature_mask, dict):
+        for key in feature_mask:
+            mask_frame.loc[feature_mask[key], key] = False
+    elif isinstance(feature_mask, pd.DataFrame):
+        mask_frame[feature_mask.columns] = feature_mask
+    elif isinstance(feature_mask, np.ndarray):
+        mask_frame[:] = feature_mask
 
     if predict in ["Regressor", "Classifier"]:
         data_in = pd.concat([x_data, data[target].to_df()], axis=1)
@@ -377,9 +375,9 @@ def trainModel(
 
     See Also
     --------
-    * :py:meth:`saqc.SaQC.modelPredict
-    * :py:meth:`saqc.SaQC.modelImpute
-    * :py:meth:`saqc.SaQC.modelFlag
+    * :py:meth:`saqc.SaQC.modelPredict`
+    * :py:meth:`saqc.SaQC.modelImpute`
+    * :py:meth:`saqc.SaQC.modelFlag`
     """
 
     if not os.path.exists(results_path):
@@ -415,8 +413,10 @@ def trainModel(
     mode = "Classifier" if mode != "Regressor" else "Regressor"
 
     window, data_in, feature_mask, target, target_i, na_filter_x = _getSamplerParams(
-        data, flags, drop_na_samples=drop_na_samples, **sampler_config
+        data, flags, **sampler_config
     )
+
+    sampler_config['freq'] = getFreqDelta(data_in.index)
 
     if dfilter < np.inf:
         for f in data_in.columns:
@@ -573,8 +573,10 @@ def modelPredict(
     dfilter: float = FILTER_NONE,
     **kwargs,
 ):
-    """
-    Use a trained model for predictions.
+    """Use a trained model for predictions.
+
+    Parameters
+    ----------
 
     data : dios.DictOfSeries
         A dictionary of pandas.Series, holding all the data.
@@ -638,20 +640,15 @@ def modelPredict(
        In this case, ``pred_agg`` is applied to aggregate the predictions or select one of them.
        Predictions are generated in a rolling window. Multiple predictions for the same value are ordered
        according to the order of the prediction window they were covered by.
+
     Note, that your data must be sampled the way, it was sampled when training the model.
-
-    * Multi Output Models cant be trained on samples containing NaN values. So those will
-      get filtered outomatically.
-
-    * Currently Multi Output Classification is not supported for ``AutoML`` models.
 
     See Also
     --------
-    * :py:meth:`saqc.SaQC.modelPredict
-    * :py:meth:`saqc.SaQC.modelImpute
-    * :py:meth:`saqc.SaQC.modelFlag
+    * :py:meth:`saqc.SaQC.trainModel`
+    * :py:meth:`saqc.SaQC.modelImpute`
+    * :py:meth:`saqc.SaQC.modelFlag`
     """
-
 
     if model_folder is None:
         model_folder = os.path.join(results_path, field)
@@ -670,8 +667,12 @@ def modelPredict(
     sampler_config['drop_na_samples'] = drop_na_samples or sampler_config['drop_na_samples']
 
     window, data_in, x_mask, target, target_i, na_filter_x = _getSamplerParams(
-        data, flags, drop_na_samples=drop_na_samples, **sampler_config
+        data, flags, **sampler_config
     )
+
+    if sampler_config['freq']:
+        if not getFreqDelta(data_in.index)==sampler_config['freq']:
+            raise IndexError(f'Prediction data not sampled at the same rate, the model was trained at: {sampler_config["freq"]}')
 
     if dfilter < np.inf:
         for f in sampler_config["predictors"]:
@@ -709,12 +710,84 @@ def modelFlag(
     results_path: str,
     pred_agg: callable = np.nanmean,
     model_folder: Optional[str] = None,
-    filter_predictors: Optional[bool] = None,
+    drop_na_samples: Optional[bool] = None,
+    assign_features: Optional[dict] = None,
     dfilter: float = BAD,
     **kwargs,
 ):
-    """
-    Dummy Strings.
+    """Use a trained (binary classifier) model for data flagging.
+
+    Parameters
+    ----------
+
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+
+    field : str
+        The fieldnames of the variable to be flagged.
+
+    flags : saqc.Flags
+        Container to store flags of the data.
+
+    results_path: str
+        Path to the models parent folder.
+
+    pred_agg: callable, default np.nanmean
+        Function for aggregation of multiple predictions associated with the same timestep.
+
+    model_folder: str, None
+        Folder containing the model data.
+        If ``None`` (default), a folder named ``field`` is searched.
+        The folder must contain:
+        * the pickled model object, ``model.pkl`` (A sklearn-style model object, implementing
+          a ``predict`` method
+        * the pickled configuration dictionary, ``config.pkl``.
+
+    drop_na_samples: bool, default None
+        Calculate predictions for input samples containing invalid (flagged or NaN)
+        values. Defaults to the value the prediction model has been trained with.
+
+    assign_features: dict, default None
+        By default, input features to the model have to be (named) the same, as the
+        model has been trained with.
+        To repplace input variable names, pass a dictionary of the form:
+        * {`old_variable_name`:`new_variable_name`}
+
+    dfilter: float, default BAD
+        Filter applied to the loaded models predictors (not on ``field``).
+
+    Returns
+    -------
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+    flags : saqc.Flags
+        The quality flags of data
+
+    Notes
+    -----
+    The process of flags prediction works as follows:
+
+    1. The model stored to ``results_path``\``field``(default) or ``results_path``\``model_folder`` is
+       loaded.
+
+    2. Input data to the model is prepared in the same way as it got prepared when training the model.
+       This means, that `variable fields` the model has been trained on, have to be present in the data.
+       To replace/rename input variables for a certain model, use the ``assign_features`` parameter.
+
+    3. Variable ``field`` gets flagged, where the model predicts the positive class.
+
+    Note, If a MultiOutput model was trained, it is likely to get multiple predictions for the same timestamps.
+       In this case, ``pred_agg`` is applied to aggregate the predictions or select one of them.
+       Predictions are generated in a rolling window. Multiple predictions for the same value are ordered
+       according to the order of the prediction window they were covered by.
+
+    Note, that the model applied must be a binary classification model.
+
+    See Also
+    --------
+    * :py:meth:`saqc.SaQC.trainModel`
+    * :py:meth:`saqc.SaQC.modelImpute`
+    * :py:meth:`saqc.SaQC.modelPredict`
     """
 
     temp_trg = (
@@ -730,8 +803,9 @@ def modelFlag(
         results_path=results_path,
         pred_agg=pred_agg,
         model_folder=model_folder,
-        drop_na_samples=filter_predictors,
+        drop_na_samples=drop_na_samples,
         dfilter=dfilter,
+        assign_features=assign_features,
         **kwargs,
     )
     data, flags = clearFlags(data, temp_trg, flags, **kwargs)
@@ -749,15 +823,89 @@ def modelImpute(
     results_path: str,
     pred_agg: callable = np.nanmean,
     model_folder: Optional[str] = None,
-    filter_predictors: Optional[bool] = None,
+    drop_na_samples: Optional[bool] = None,
+    assign_features: Optional[dict] = None,
     dfilter: float = BAD,
     flag: float = UNFLAGGED,
     **kwargs,
 ):
-    """
-    Dummy Strings.
-    """
+    """Use a trained model for data imputation.
 
+    Imputation is tried to be performed for missing as well as flagged data in field.
+
+    Parameters
+    ----------
+
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+
+    field : str
+        The fieldnames of the variable to impute.
+
+    flags : saqc.Flags
+        Container to store flags of the data.
+
+    results_path: str
+        Path to the models parent folder.
+
+    pred_agg: callable, default np.nanmean
+        Function for aggregation of multiple predictions associated with the same timestep.
+
+    model_folder: str, None
+        Folder containing the model data.
+        If ``None`` (default), a folder named ``field`` is searched.
+        The folder must contain:
+        * the pickled model object, ``model.pkl`` (A sklearn-style model object, implementing
+          a ``predict`` method
+        * the pickled configuration dictionary, ``config.pkl``.
+
+    drop_na_samples: bool, default None
+        Calculate predictions for input samples containing invalid (flagged or NaN)
+        values. Defaults to the value the prediction model has been trained with.
+
+    assign_features: dict, default None
+        By default, input features to the model have to be (named) the same, as the
+        model has been trained with.
+        To repplace input variable names, pass a dictionary of the form:
+        * {`old_variable_name`:`new_variable_name`}
+
+    dfilter: float, default BAD
+        Filter applied to the loaded models predictors (not on ``field``!).
+
+    flag: float, default UNFLAGGED
+        The flag level to be assigned to imputed values.
+
+    Returns
+    -------
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+    flags : saqc.Flags
+        The quality flags of data
+
+    Notes
+    -----
+    The process of imputation works as follows:
+
+    1. The model stored to ``results_path``\``field``(default) or ``results_path``\``model_folder`` is
+       loaded.
+
+    2. Input data to the model is prepared in the same way as it got prepared when training the model.
+       This means, that `variable fields` the model has been trained on, have to be present in the data.
+       To replace/rename input variables for a certain model, use the ``assign_features`` parameter.
+
+    3. Imputation: Missing and Flagged Values in ``field`` get replaced by model predictions, if one can be calculated.
+
+    Note, if a MultiOutput model was trained, it is likely to get multiple predictions for the same timestamps.
+       In this case, ``pred_agg`` is applied to aggregate the predictions or select one of them.
+       Predictions are generated in a rolling window. Multiple predictions for the same value are ordered
+       according to the order of the prediction window they were covered by.
+
+    See Also
+    --------
+    * :py:meth:`saqc.SaQC.trainModel`
+    * :py:meth:`saqc.SaQC.modelFlag`
+    * :py:meth:`saqc.SaQC.modelPredict`
+    """
     temp_trg = (
         field
         + str(datetime.now()).replace(" ", "")
@@ -771,7 +919,8 @@ def modelImpute(
         results_path=results_path,
         pred_agg=pred_agg,
         model_folder=model_folder,
-        drop_na_samples=filter_predictors,
+        drop_na_samples=drop_na_samples,
+        assign_features=assign_features,
         dfilter=dfilter,
         **kwargs,
     )

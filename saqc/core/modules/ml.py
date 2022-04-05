@@ -18,7 +18,7 @@ import pandas as pd
 
 
 class Ml:
-    @doc(saqc.funcs.xgb.trainModel.__doc__)
+    @doc(saqc.funcs.ml.trainModel.__doc__)
     def trainModel(
         self,
         field: str,
@@ -40,7 +40,7 @@ class Ml:
     ) -> saqc.SaQC:
         return self._defer("trainModel", locals())
 
-    @doc(saqc.funcs.xgb.modelPredict.__doc__)
+    @doc(saqc.funcs.ml.modelPredict.__doc__)
     def modelPredict(
         self,
         field: str,
@@ -54,7 +54,7 @@ class Ml:
     ) -> saqc.SaQC:
         return self._defer("modelPredict", locals())
 
-    @doc(saqc.funcs.xgb.modelFlag.__doc__)
+    @doc(saqc.funcs.ml.modelFlag.__doc__)
     def modelFlag(
         self,
         field: str,
@@ -67,7 +67,7 @@ class Ml:
     ) -> saqc.SaQC:
         return self._defer("modelFlag", locals())
 
-    @doc(saqc.funcs.xgb.modelImpute.__doc__)
+    @doc(saqc.funcs.ml.modelImpute.__doc__)
     def modelImpute(
         self,
         field: str,
