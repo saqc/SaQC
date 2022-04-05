@@ -68,6 +68,7 @@ Getting Started
    transformation <funcSummaries/transformation>
    noise <funcSummaries/noise>
    pattern <funcSummaries/pattern>
+   ml <funcSummaries/ml>
 
 
 .. toctree::
