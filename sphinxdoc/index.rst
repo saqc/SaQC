@@ -32,6 +32,7 @@ Getting Started
    cook_books/DataRegularisation
    cook_books/OutlierDetection
    cook_books/MultivariateFlagging
+   cook_books/ModelTrainingAndApplication
 
 .. toctree::
    :caption: Documentation

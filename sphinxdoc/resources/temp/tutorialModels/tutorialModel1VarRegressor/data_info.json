@@ -1,0 +1,22 @@
+{
+    "columns": [
+        "feature_1",
+        "feature_2"
+    ],
+    "rows": 333,
+    "cols": 2,
+    "target_is_numeric": true,
+    "columns_info": {
+        "feature_1": [
+            "scale"
+        ],
+        "feature_2": [
+            "scale"
+        ]
+    },
+    "target_info": [
+        "scale"
+    ],
+    "n_features": 2,
+    "is_sample_weighted": false
+}
