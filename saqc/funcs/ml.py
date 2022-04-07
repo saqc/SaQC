@@ -40,7 +40,7 @@ MULTI_TARGET_MODELS = {
     "multi_class": sklearn.multioutput.MultiOutputclassifier,
 }
 
-AUTO_ML_DEFAULT = {"algorithms": ["Xgboost"], "mode": "Perform"}
+AUTO_ML_DEFAULT = {"algorithms": ("Xgboost",), "mode": "Perform"}
 
 
 def _getSamplerParams(
