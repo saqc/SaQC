@@ -26,7 +26,7 @@ Get an overview over the parameters here: `Here <https://supervised.mljar.com/ap
 Regression
 ----------
 
-Lets generate an py:class:`saqc.SaQC` instance from some generic toy data.
+Lets generate an :py:class:`saqc.SaQC` instance from some generic toy data.
 
 .. doctest:: exampleML
 
@@ -57,16 +57,41 @@ Lets generate an py:class:`saqc.SaQC` instance from some generic toy data.
    [366 rows x 3 columns]
    >>> qc = saqc.SaQC(data)
 
-First, we will set up a basic univariate regression task with a neural network regressor:
+First, we will set up a basic uni-variat regression task with a neural network regressor. We set aside some
+test data by setting a train-test split point at `"2000-12-01"`. So Training (and validation) is only performed
+on the data collected prior to the date ``tt_split``. The data collected subsequently will be used for calculating
+the report test scores.
+As a target
 
 .. doctest:: exampleML
 
-   >>> qc = qc.trainModel('variable1', target='variable1', window='3D', target_i='center', mode='Regressor', results_path=data_path, model_folder='tutorialModel1VarRegressor', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-11')
+   >>> qc = qc.trainModel('variable1', target='variable1', window='3D', target_i='center', mode='Regressor', results_path=data_path, model_folder='tutorialModel1VarRegressor', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01')
    AutoML directory: ...
    The task is regression with evaluation metric rmse
    AutoML will use algorithms: ['Neural Network']
    AutoML will ensemble available models
    ...
+
+Model versus prediction-plot:
+
+.. image:: ../resources/temp/tutorialModels/tutorialModel1VarRegressor/true_vs_predict.png
+   :target: ../resources/temp/tutorialModels/tutorialModel1VarRegressor/true_vs_predict.png
+   :alt:
+
+scores report
+
+.. literalinclude:: ../resources/temp/tutorialModels/scores.csv
+
+feature map
+
+.. literalinclude:: ../resources/temp/tutorialModels/x_feature_map.csv
+
+
+Use the trained model to predict data:
+
+.. doctest:: exampleML
+
+   >>> qc = qc.modelPredict('variable1', target='variable1_1VarPrediction', results_path=data_path, model_folder='tutorialModel1VarRegressor')
 
 
 

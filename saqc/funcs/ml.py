@@ -701,7 +701,7 @@ def modelPredict(
 
     if dfilter < np.inf:
         for f in sampler_config["predictors"]:
-            data_in.loc[flags[f] >= dfilter, field] = np.nan
+            data_in.loc[flags[f] >= dfilter, f] = np.nan
 
     samples = _generateSamples(
         X=sampler_config["predictors"],
@@ -962,4 +962,5 @@ def modelImpute(
     flags.history[field].append(
         new_flags, {"func": "modelImpute", "args": (), "kwargs": kwargs}
     )
+    data, flags = dropField(data, temp_trg, flags)
     return data, flags

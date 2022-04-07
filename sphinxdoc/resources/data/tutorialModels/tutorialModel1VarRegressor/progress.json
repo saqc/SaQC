@@ -16,13 +16,13 @@
                 "model_name": "prepare_data",
                 "model_type": "prepare_data",
                 "fit_level": "prepare_data",
-                "train_time": 0.00588536262512207
+                "train_time": 0.008360862731933594
             },
             {
                 "model_name": "1_Default_NeuralNetwork",
                 "model_type": "Neural Network",
                 "fit_level": "default_algorithms",
-                "train_time": 2.7193894386291504
+                "train_time": 3.172018051147461
             }
         ],
         "is_hill_climbing": false,
@@ -73,8 +73,8 @@
                 "explain_level": 2,
                 "name": "1_Default_NeuralNetwork",
                 "status": "trained",
-                "final_loss": 3.7299857564310375,
-                "train_time": 3.0005290508270264,
+                "final_loss": 3.7841703259133688,
+                "train_time": 3.478330373764038,
                 "data_type": "original",
                 "max_time_for_learner": 360.0
             }
@@ -85,8 +85,8 @@
                 "is_stacked": false,
                 "name": "Ensemble",
                 "status": "skipped",
-                "final_loss": 3.7299857564310375,
-                "train_time": 3.0005290508270264
+                "final_loss": 3.7841703259133688,
+                "train_time": 3.478330373764038
             }
         ]
     },

@@ -3,7 +3,7 @@
         "feature_1",
         "feature_2"
     ],
-    "rows": 333,
+    "rows": 334,
     "cols": 2,
     "target_is_numeric": true,
     "columns_info": {
