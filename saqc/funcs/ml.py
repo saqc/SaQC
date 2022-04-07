@@ -394,8 +394,7 @@ def trainModel(
     * :py:meth:`saqc.SaQC.modelFlag`
     """
 
-    if not os.path.exists(results_path):
-        os.makedirs(results_path)
+    Path(results_path).mkdir(exist_ok=True)
 
     if model_folder is None:
         model_folder = os.path.join(results_path, target[0])
