@@ -34,10 +34,10 @@ from saqc.funcs.tools import dropField
 
 
 MULTI_TARGET_MODELS = {
-    "chain_reg": sklearn.multioutput.RegressorChain,
-    "multi_reg": sklearn.multioutput.MultiOutputRegressor,
-    "chain_class": sklearn.multioutput.ClassifierChain,
-    "multi_class": sklearn.multioutput.MultiOutputClassifier,
+    "chain_reg": sklearn.multioutput.regressorChain,
+    "multi_reg": sklearn.multioutput.MultiOutputregressor,
+    "chain_class": sklearn.multioutput.classifierChain,
+    "multi_class": sklearn.multioutput.MultiOutputclassifier,
 }
 
 AUTO_ML_DEFAULT = {"algorithms": ["Xgboost"], "mode": "Perform"}
@@ -49,7 +49,7 @@ def _getSamplerParams(
     predictors: str,
     target: str,
     window: Union[str, int],
-    target_i: Union[int, list, Literal["center", "forward"]],
+    target_idx: Union[int, list, Literal["center", "forward"]],
     predict: Union[Literal["flag", "value"], str],
     feature_mask: bool = True,
     drop_na_samples: bool = True,
@@ -63,17 +63,17 @@ def _getSamplerParams(
             raise IndexError("Training with irregularly sampled data not supported")
         window = int(pd.Timedelta(window) / freq)
 
-    if target_i in ["center", "forward"]:
-        target_i = window // 2 if target_i == "center" else window - 1
+    if target_idx in ["center", "forward"]:
+        target_idx = window // 2 if target_idx == "center" else window - 1
 
-    target_i = toSequence(target_i)
-    target_i.sort()
+    target_idx = toSequence(target_idx)
+    target_idx.sort()
 
     mask_frame = pd.DataFrame(True, columns=predictors, index=range(window))
     if isinstance(feature_mask, str):
         if feature_mask == "target":
             if toSequence(target)[0] in mask_frame.columns:
-                mask_frame.loc[target_i, target] = False
+                mask_frame.loc[target_idx, target] = False
         else:
             raise ValueError(f'"{feature_mask}" not a thing.')
     elif isinstance(feature_mask, dict):
@@ -84,10 +84,10 @@ def _getSamplerParams(
     elif isinstance(feature_mask, np.ndarray):
         mask_frame[:] = feature_mask
 
-    if predict in ["Regressor", "Classifier"]:
+    if predict in ["regressor", "classifier"]:
         data_in = pd.concat([x_data, data[target].to_df()], axis=1)
         data_in = data_in.loc[:, ~data_in.columns.duplicated()]
-    elif predict == "Flagger":
+    elif predict == "flagger":
         y_data = pd.concat([flags[t] > -np.inf for t in target], axis=1)
         target = [t + "_flag" for t in toSequence(target)]
         y_data.columns = target
@@ -112,12 +112,12 @@ def _getSamplerParams(
         y_data.columns = target
         data_in = pd.concat([x_data, y_data], axis=1)
 
-    if len(target_i) > 1:
+    if len(target_idx) > 1:
         na_filter_x = True
     else:
         na_filter_x = drop_na_samples
 
-    return window, data_in, mask_frame, target, target_i, na_filter_x
+    return window, data_in, mask_frame, target, target_idx, na_filter_x
 
 
 def _generateSamples(
@@ -125,7 +125,7 @@ def _generateSamples(
     Y: str,
     sub_len: int,
     data: pd.DataFrame,
-    target_i: Union[list, int],
+    target_idx: Union[list, int],
     x_mask: str = [],
     na_filter_x: bool = True,
     na_filter_y: bool = True,
@@ -188,9 +188,9 @@ def _generateSamples(
     selector = x_mask_samples.squeeze(axis=0)
     x_samples = x_samples[:, selector]
     x_map_samples = x_map_samples[:, selector]
-    y_samples = y_samples[:, target_i, :]
-    y_map_samples = y_map_samples[:, target_i, :]
-    i_map_samples = i_map_samples[:, target_i]
+    y_samples = y_samples[:, target_idx, :]
+    y_map_samples = y_map_samples[:, target_idx, :]
+    i_map_samples = i_map_samples[:, target_idx]
     # currently only support for 1-d y (i guess)
     y_samples = np.squeeze(y_samples, axis=2)
     y_map_samples = np.squeeze(y_map_samples, axis=2)
@@ -262,8 +262,8 @@ def trainModel(
     flags: Flags,
     target: str,
     window: Union[str, int],
-    target_i: Union[int, list, Literal["center", "forward"]],
-    mode: Union[Literal["Regressor", "Classifier", "Flagger"], str],
+    target_idx: Union[int, list, Literal["center", "forward"]],
+    mode: Union[Literal["regressor", "classifier", "flagger"], str],
     results_path: str,
     model_folder: Optional[str] = None,
     tt_split: Optional[Union[float, str]] = None,
@@ -296,13 +296,13 @@ def trainModel(
     window : {int, str}
         Window size of predictor series.
 
-    target_i : {List[int], "center", "Forward"}
+    target_idx : {List[int], "center", "Forward"}
         Index of the target values relatively to the window of predictors.
 
-    mode : {"Regressor", "Classifier", "Flagger",  str}
+    mode : {"regressor", "classifier", "flagger",  str}
         Type of model to be trained.
 
-        * "Flagger" trains a binary classifier on the flags value of `target`.
+        * "flagger" trains a binary classifier on the flags value of `target`.
         * If another string is passed, a binary classifier gets trained on the flags column labeled `mode`.
 
     results_path : str
@@ -334,9 +334,9 @@ def trainModel(
 
     feature_mask: {"target", pd.DataFrame, dict, np.ndarray}, default None
         Controlls wich indices from the input variables are to be hidden (=dropped) while training.
-        When ``None`` is passed (default), and a ``mode`` is either `"Classifier"` or `"Regressor"`, the target
+        When ``None`` is passed (default), and a ``mode`` is either `"classifier"` or `"regressor"`, the target
         indices of the target variable are dropped, if the target variable is part of the predictors set. If mode is
-        `"Flagger"`, no features get hidden by the default ``feature_mask``.
+        `"flagger"`, no features get hidden by the default ``feature_mask``.
 
         * "target" - Drop the target indices of the target variable
         * `dict`: A dictionary with variable names as keys and integer lists as items, denoting the indices to be
@@ -408,27 +408,24 @@ def trainModel(
         shutil.rmtree(model_folder)
         os.makedirs(model_folder)
 
-    if not dfilter:
-        dfilter = BAD if mode in ["Regressor", "Classifier"] else FILTER_NONE
-
     train_kwargs = train_kwargs or {}
 
     if feature_mask is None:
-        feature_mask = "target" if mode in ["Classifier", "Regressor"] else None
+        feature_mask = "target" if mode in ["classifier", "regressor"] else None
 
     sampler_config = {
         "predictors": field,
         "window": window,
         "predict": mode,
-        "target_i": target_i,
+        "target_idx": target_idx,
         "feature_mask": feature_mask,
         "target": target,
         "drop_na_samples": drop_na_samples,
     }
 
-    mode = "Classifier" if mode != "Regressor" else "Regressor"
+    mode = "classifier" if mode != "regressor" else "regressor"
 
-    window, data_in, feature_mask, target, target_i, na_filter_x = _getSamplerParams(
+    window, data_in, feature_mask, target, target_idx, na_filter_x = _getSamplerParams(
         data, flags, **sampler_config
     )
 
@@ -444,7 +441,7 @@ def trainModel(
         Y=target,
         sub_len=window,
         data=data_in,
-        target_i=target_i,
+        target_idx=target_idx,
         x_mask=feature_mask,
         na_filter_x=na_filter_x,
         na_filter_y=True,
@@ -466,7 +463,7 @@ def trainModel(
         for k in AUTO_ML_DEFAULT:
             train_kwargs.setdefault(k, AUTO_ML_DEFAULT[k])
             train_kwargs.update({"results_path": model_folder})
-        if len(target_i) > 1:
+        if len(target_idx) > 1:
             train_kwargs.pop("results_path", None)
         model = AutoML(**train_kwargs)
     else:
@@ -477,8 +474,8 @@ def trainModel(
             strategy="constant", constant=y_train[0, 0]
         )
 
-    if len(target_i) > 1:
-        if mode == "Regressor":
+    if len(target_idx) > 1:
+        if mode == "regressor":
             model = MULTI_TARGET_MODELS[multi_target_model + "_reg"](
                 model, **multi_train_kwargs
             )
@@ -487,7 +484,7 @@ def trainModel(
                 model, **multi_train_kwargs
             )
 
-    if mode == "Regressor":
+    if mode == "regressor":
         fitted = model.fit(x_train, y_train.squeeze())
     else:
         fitted = model.fit(x_train, y_train.squeeze().astype(int))
@@ -496,13 +493,9 @@ def trainModel(
     y_pred_train = model.predict(x_train)
     score_book = {}
     classification_report = {}
-    if mode == "Regressor":
+    if mode == "regressor":
         score_book.update(
             {
-                "score": [
-                    model.score(x_train, y_train.squeeze(axis=1)),
-                    model.score(x_test, y_test.squeeze(axis=1)),
-                ],
                 "mse": [
                     metrics.mean_squared_error(y_pred_train, y_train),
                     metrics.mean_squared_error(y_pred_test, y_test),
@@ -521,7 +514,7 @@ def trainModel(
                 ],
             }
         )
-    elif mode == "Classifier":
+    elif mode == "classifier":
         y_test, y_pred_test, y_train, y_pred_train = (
             y_test.astype(int),
             y_pred_test.astype(int),
@@ -689,7 +682,7 @@ def modelPredict(
         drop_na_samples or sampler_config["drop_na_samples"]
     )
 
-    window, data_in, x_mask, target, target_i, na_filter_x = _getSamplerParams(
+    window, data_in, x_mask, target, target_idx, na_filter_x = _getSamplerParams(
         data, flags, **sampler_config
     )
 
@@ -708,16 +701,16 @@ def modelPredict(
         Y=target,
         sub_len=window,
         data=data_in,
-        target_i=target_i,
+        target_idx=target_idx,
         x_mask=x_mask,
         na_filter_x=na_filter_x,
         na_filter_y=False,
     )
 
     y_pred = model.predict(samples[0])
-    if len(target_i) > 1:
+    if len(target_idx) > 1:
         pred_ser = _mergePredictions(
-            data_in.index, len(target_i), y_pred, samples[2], pred_agg
+            data_in.index, len(target_idx), y_pred, samples[2], pred_agg
         )
     else:
         pred_ser = pd.Series(np.nan, index=data_in.index)

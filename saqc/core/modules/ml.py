@@ -24,7 +24,7 @@ class Ml:
         field: str,
         target: str,
         window: Union[str, int],
-        target_i: Union[int, list[int], Literal["center", "forward"]],
+        target_idx: Union[int, list[int], Literal["center", "forward"]],
         mode: Union[Literal["Regressor", "Classifier", "Flagger"], str],
         results_path: str,
         model_folder: Optional[str] = None,
