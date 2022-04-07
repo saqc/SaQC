@@ -64,7 +64,14 @@ the report test scores.
 
 .. doctest:: exampleML
 
-   >>> qc = qc.trainModel('variable1', target='variable1', window='3D', target_i='center', mode='Regressor', results_path=data_path, model_folder='tutorialModel1VarRegressor', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01')
+   >>> qc = qc.trainModel('variable1', target='variable1', window='3D', target_idx='center', mode='Regressor', results_path=data_path, model_folder='tutorialModel1VarRegressor', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01')
+      AutoML directory: ...
+      The task is regression with evaluation metric rmse
+      AutoML will use algorithms: ['Neural Network']
+      AutoML will ensemble available models
+      ...
+
+   Just pass the
    AutoML directory: ...
    The task is regression with evaluation metric rmse
    AutoML will use algorithms: ['Neural Network']
@@ -88,7 +95,12 @@ add `variable2`, to the predictors set:
 
 .. doctest:: exampleML
 
-   >>> qc = qc.trainModel(['variable1','variable2'], target='variable1', window='3D', target_i='center', mode='Regressor', results_path=data_path, model_folder='tutorialModel2VarRegressor', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01')
+   >>> qc = qc.trainModel(['variable1','variable2'], target='variable1', window='3D', target_idx='center', mode='Regressor', results_path=data_path, model_folder='tutorialModel2VarRegressor', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01')
+      AutoML directory: ...
+      The task is regression with evaluation metric rmse
+      AutoML will use algorithms: ['Neural Network']
+      AutoML will ensemble available models
+      ...
    AutoML directory: ...
    The task is regression with evaluation metric rmse
    AutoML will use algorithms: ['Neural Network']
@@ -105,7 +117,14 @@ of training to `variable3`, which is a boolean series:
 
 .. doctest:: exampleML
 
-   >>> qc = qc.trainModel(['variable1','variable2'], target='variable3', window='3D', target_i='center', mode='Classifier', results_path=data_path, model_folder='tutorialModel2VarClassifier', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01')
+   >>> qc = qc.trainModel(['variable1','variable2'], target='variable3', window='3D', target_idx='center', mode='Classifier', results_path=data_path, model_folder='tutorialModel2VarClassifier', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01')
+      AutoML directory: ...
+      The task is binary_classification with evaluation metric logloss
+      AutoML will use algorithms: ['Neural Network']
+      AutoML will ensemble available models
+      ...
+
+   We can also directly train a model on the flags of a timeseries:
    AutoML directory: ...
    The task is binary_classification with evaluation metric logloss
    AutoML will use algorithms: ['Neural Network']
@@ -117,6 +136,36 @@ We can also directly train a model on the flags of a timeseries:
 .. doctest:: exampleML
 
    >>> qc = qc.flagGeneric('variable3', target='variable2', func=lambda x: x==1)
+         >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_idx='center', mode='Flagger', results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01', dfilter=np.inf)
+         AutoML directory: ...
+         The task is binary_classification with evaluation metric logloss
+         AutoML will use algorithms: ['Neural Network']
+         AutoML will ensemble available models
+         ...
+      >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_idx='center', mode='Flagger', results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01', dfilter=np.inf)
+      AutoML directory: ...
+      The task is binary_classification with evaluation metric logloss
+      AutoML will use algorithms: ['Neural Network']
+      AutoML will ensemble available models
+      ...
+         >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_idx='center', mode='Flagger', results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01', dfilter=np.inf)
+         AutoML directory: ...
+         The task is binary_classification with evaluation metric logloss
+         AutoML will use algorithms: ['Neural Network']
+         AutoML will ensemble available models
+         ...
+      >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_idx='center', mode='Flagger', results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01', dfilter=np.inf)
+      AutoML directory: ...
+      The task is binary_classification with evaluation metric logloss
+      AutoML will use algorithms: ['Neural Network']
+      AutoML will ensemble available models
+      ...
+      >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_idx='center', mode='Flagger', results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01', dfilter=np.inf)
+      AutoML directory: ...
+      The task is binary_classification with evaluation metric logloss
+      AutoML will use algorithms: ['Neural Network']
+      AutoML will ensemble available models
+      ...
    >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_i='center', mode='Flagger', results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01', dfilter=np.inf)
    AutoML directory: ...
    The task is binary_classification with evaluation metric logloss
