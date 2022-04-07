@@ -1,0 +1,37 @@
+{
+    "columns": [
+        "feature_1",
+        "feature_2",
+        "feature_3",
+        "feature_4",
+        "feature_5",
+        "feature_6"
+    ],
+    "rows": 334,
+    "cols": 6,
+    "target_is_numeric": true,
+    "columns_info": {
+        "feature_1": [
+            "scale"
+        ],
+        "feature_2": [
+            "scale"
+        ],
+        "feature_3": [
+            "scale"
+        ],
+        "feature_4": [
+            "scale"
+        ],
+        "feature_5": [
+            "scale"
+        ],
+        "feature_6": [
+            "scale"
+        ]
+    },
+    "target_info": [],
+    "n_features": 6,
+    "is_sample_weighted": false,
+    "n_classes": 2
+}

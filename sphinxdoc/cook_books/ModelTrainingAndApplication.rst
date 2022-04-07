@@ -61,7 +61,6 @@ First, we will set up a basic uni-variat regression task with a neural network r
 test data by setting a train-test split point at `"2000-12-01"`. So Training (and validation) is only performed
 on the data collected prior to the date ``tt_split``. The data collected subsequently will be used for calculating
 the report test scores.
-As a target
 
 .. doctest:: exampleML
 
@@ -72,26 +71,64 @@ As a target
    AutoML will ensemble available models
    ...
 
-Model versus prediction-plot:
-
-.. image:: ../resources/temp/tutorialModels/tutorialModel1VarRegressor/true_vs_predict.png
-   :target: ../resources/temp/tutorialModels/tutorialModel1VarRegressor/true_vs_predict.png
-   :alt:
-
-scores report
-
-.. literalinclude:: ../resources/temp/tutorialModels/scores.csv
-
-feature map
-
-.. literalinclude:: ../resources/temp/tutorialModels/x_feature_map.csv
-
-
-Use the trained model to predict data:
+Just pass the `modelPredict` method the fitted models location and assign the field, the prediction should be written
+to:
 
 .. doctest:: exampleML
 
    >>> qc = qc.modelPredict('variable1', target='variable1_1VarPrediction', results_path=data_path, model_folder='tutorialModel1VarRegressor')
 
+Check out the newly generated model folder `'tutorialModel1VarRegressor'` in the ``data_path`` directory. It will contain
+the ``AutoML`` fitting report, along with the default fitting report `saqc` generates, containing
+scores from common performance measures and some regression plots.
+
+Of course The model performs quite poorly, since most the data variance cant be explained with
+`variable1`, since its mostly random. The model performance will improve significantly, if we
+add `variable2`, to the predictors set:
+
+.. doctest:: exampleML
+
+   >>> qc = qc.trainModel(['variable1','variable2'], target='variable1', window='3D', target_i='center', mode='Regressor', results_path=data_path, model_folder='tutorialModel2VarRegressor', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01')
+   AutoML directory: ...
+   The task is regression with evaluation metric rmse
+   AutoML will use algorithms: ['Neural Network']
+   AutoML will ensemble available models
+   ...
 
 
+Classification
+--------------
+
+There are two supported methods for the training of Classifier models.
+First, we can train a model directly on a timeseries of classes. We can change the target
+of training to `variable3`, which is a boolean series:
+
+.. doctest:: exampleML
+
+   >>> qc = qc.trainModel(['variable1','variable2'], target='variable3', window='3D', target_i='center', mode='Classifier', results_path=data_path, model_folder='tutorialModel2VarClassifier', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01')
+   AutoML directory: ...
+   The task is binary_classification with evaluation metric logloss
+   AutoML will use algorithms: ['Neural Network']
+   AutoML will ensemble available models
+   ...
+
+We can also directly train a model on the flags of a timeseries:
+
+.. doctest:: exampleML
+
+   >>> qc = qc.flagGeneric('variable3', target='variable2', func=lambda x: x==1)
+   >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_i='center', mode='Flagger', results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01', dfilter=np.inf)
+   AutoML directory: ...
+   The task is binary_classification with evaluation metric logloss
+   AutoML will use algorithms: ['Neural Network']
+   AutoML will ensemble available models
+   ...
+
+Flagging with a Classifier
+--------------------------
+
+A trained binary classifier can be used to flag variables:
+
+.. doctest:: exampleML
+
+   >>> qc = qc.modelFlag('variable1',  results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags')

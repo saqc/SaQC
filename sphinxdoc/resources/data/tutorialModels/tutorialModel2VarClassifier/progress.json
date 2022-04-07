@@ -16,13 +16,13 @@
                 "model_name": "prepare_data",
                 "model_type": "prepare_data",
                 "fit_level": "prepare_data",
-                "train_time": 0.008339643478393555
+                "train_time": 0.013782501220703125
             },
             {
                 "model_name": "1_Default_NeuralNetwork",
                 "model_type": "Neural Network",
                 "fit_level": "default_algorithms",
-                "train_time": 3.6516239643096924
+                "train_time": 2.8833277225494385
             }
         ],
         "is_hill_climbing": false,
@@ -42,25 +42,37 @@
                         ],
                         "feature_2": [
                             "scale_normal"
+                        ],
+                        "feature_3": [
+                            "scale_normal"
+                        ],
+                        "feature_4": [
+                            "scale_normal"
+                        ],
+                        "feature_5": [
+                            "scale_normal"
+                        ],
+                        "feature_6": [
+                            "scale_normal"
                         ]
                     },
                     "target_preprocessing": [
-                        "na_exclude",
-                        "scale_normal"
+                        "na_exclude"
                     ],
-                    "ml_task": "regression"
+                    "ml_task": "binary_classification"
                 },
                 "validation_strategy": {
                     "validation_type": "split",
                     "train_ratio": 0.75,
                     "shuffle": true,
-                    "X_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor/X.data",
-                    "y_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor/y.data",
-                    "results_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor"
+                    "stratify": true,
+                    "X_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarClassifier/X.data",
+                    "y_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarClassifier/y.data",
+                    "results_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarClassifier"
                 },
                 "learner": {
                     "model_type": "Neural Network",
-                    "ml_task": "regression",
+                    "ml_task": "binary_classification",
                     "n_jobs": -1,
                     "dense_1_size": 32,
                     "dense_2_size": 16,
@@ -69,12 +81,12 @@
                     "explain_level": 2
                 },
                 "automl_random_state": 1234,
-                "ml_task": "regression",
+                "ml_task": "binary_classification",
                 "explain_level": 2,
                 "name": "1_Default_NeuralNetwork",
                 "status": "trained",
-                "final_loss": 3.7841703259133688,
-                "train_time": 4.011427164077759,
+                "final_loss": 0.35307658695074007,
+                "train_time": 3.751805543899536,
                 "data_type": "original",
                 "max_time_for_learner": 360.0
             }
@@ -85,8 +97,8 @@
                 "is_stacked": false,
                 "name": "Ensemble",
                 "status": "skipped",
-                "final_loss": 3.7841703259133688,
-                "train_time": 4.011427164077759
+                "final_loss": 0.35307658695074007,
+                "train_time": 3.751805543899536
             }
         ]
     },

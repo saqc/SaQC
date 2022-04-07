@@ -16,13 +16,13 @@
                 "model_name": "prepare_data",
                 "model_type": "prepare_data",
                 "fit_level": "prepare_data",
-                "train_time": 0.008339643478393555
+                "train_time": 0.013751029968261719
             },
             {
                 "model_name": "1_Default_NeuralNetwork",
                 "model_type": "Neural Network",
                 "fit_level": "default_algorithms",
-                "train_time": 3.6516239643096924
+                "train_time": 3.9577739238739014
             }
         ],
         "is_hill_climbing": false,
@@ -42,6 +42,15 @@
                         ],
                         "feature_2": [
                             "scale_normal"
+                        ],
+                        "feature_3": [
+                            "scale_normal"
+                        ],
+                        "feature_4": [
+                            "scale_normal"
+                        ],
+                        "feature_5": [
+                            "scale_normal"
                         ]
                     },
                     "target_preprocessing": [
@@ -54,9 +63,9 @@
                     "validation_type": "split",
                     "train_ratio": 0.75,
                     "shuffle": true,
-                    "X_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor/X.data",
-                    "y_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor/y.data",
-                    "results_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor"
+                    "X_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarRegressor/X.data",
+                    "y_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarRegressor/y.data",
+                    "results_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarRegressor"
                 },
                 "learner": {
                     "model_type": "Neural Network",
@@ -73,8 +82,8 @@
                 "explain_level": 2,
                 "name": "1_Default_NeuralNetwork",
                 "status": "trained",
-                "final_loss": 3.7841703259133688,
-                "train_time": 4.011427164077759,
+                "final_loss": 0.13244345979127864,
+                "train_time": 4.315383434295654,
                 "data_type": "original",
                 "max_time_for_learner": 360.0
             }
@@ -85,8 +94,8 @@
                 "is_stacked": false,
                 "name": "Ensemble",
                 "status": "skipped",
-                "final_loss": 3.7841703259133688,
-                "train_time": 4.011427164077759
+                "final_loss": 0.13244345979127864,
+                "train_time": 4.315383434295654
             }
         ]
     },

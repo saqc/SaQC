@@ -1,5 +1,5 @@
 {
-    "uid": "89cfa249-91ed-432f-a284-eb82206c2dc1",
+    "uid": "d1d7afb4-c86b-4fbb-8f7d-86df5cc38700",
     "name": "1_Default_NeuralNetwork",
     "preprocessing": [
         {
@@ -7,21 +7,33 @@
                 {
                     "scale": [
                         6.284159596397281,
-                        6.192875221260549
+                        3.1420797981986404,
+                        3.080251690574971,
+                        6.192875221260549,
+                        3.0964376106302747
                     ],
                     "mean": [
                         14.222108093354176,
-                        14.220275881986142
+                        7.111054046677088,
+                        7.077889207114763,
+                        14.220275881986142,
+                        7.110137940993071
                     ],
                     "var": [
                         39.49066183299203,
-                        38.3517035061029
+                        9.872665458248008,
+                        9.487950477289967,
+                        38.3517035061029,
+                        9.587925876525725
                     ],
                     "n_samples_seen": 250,
-                    "n_features_in": 2,
+                    "n_features_in": 5,
                     "columns": [
                         "feature_1",
-                        "feature_2"
+                        "feature_2",
+                        "feature_3",
+                        "feature_4",
+                        "feature_5"
                     ],
                     "scale_method": "scale_normal"
                 }
@@ -51,6 +63,15 @@
                     ],
                     "feature_2": [
                         "scale_normal"
+                    ],
+                    "feature_3": [
+                        "scale_normal"
+                    ],
+                    "feature_4": [
+                        "scale_normal"
+                    ],
+                    "feature_5": [
+                        "scale_normal"
                     ]
                 },
                 "target_preprocessing": [
@@ -66,7 +87,7 @@
             "library_version": "1.0.2",
             "algorithm_name": "Neural Network",
             "algorithm_short_name": "Neural Network",
-            "uid": "29ac3013-0fd2-44ff-b46c-039a79a9f733",
+            "uid": "7b5132c6-8213-4956-9b78-c3e9b8f81c2f",
             "params": {
                 "model_type": "Neural Network",
                 "ml_task": "regression",
@@ -92,6 +113,15 @@
                 ],
                 "feature_2": [
                     "scale_normal"
+                ],
+                "feature_3": [
+                    "scale_normal"
+                ],
+                "feature_4": [
+                    "scale_normal"
+                ],
+                "feature_5": [
+                    "scale_normal"
                 ]
             },
             "target_preprocessing": [
@@ -104,9 +134,9 @@
             "validation_type": "split",
             "train_ratio": 0.75,
             "shuffle": true,
-            "X_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor/X.data",
-            "y_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor/y.data",
-            "results_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor"
+            "X_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarRegressor/X.data",
+            "y_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarRegressor/y.data",
+            "results_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarRegressor"
         },
         "learner": {
             "model_type": "Neural Network",
@@ -133,7 +163,7 @@
     ],
     "predictions_fname": "1_Default_NeuralNetwork/predictions_validation.csv",
     "metric_name": "rmse",
-    "final_loss": 3.7841703259133688,
-    "train_time": 3.6516239643096924,
+    "final_loss": 0.13244345979127864,
+    "train_time": 3.9577739238739014,
     "is_stacked": false
 }
