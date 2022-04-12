@@ -436,7 +436,7 @@ def trainModel(
         Test data scores are written to the `score.csv` file in the `model_folder` after model fit.
 
     feature_mask: {"target", pd.DataFrame, dict, np.ndarray}, default None
-        Controlls wich indices from the input variables are to be hidden (=dropped) while training.
+        Controls which indices from the input variables are to be hidden (=dropped) while training.
         When ``None`` is passed (default), and a ``mode`` is either `"classifier"` or `"regressor"`, the target
         indices of the target variable are dropped, if the target variable is part of the predictors set. If mode is
         `"flagger"`, no features get hidden by the default ``feature_mask``.
@@ -497,12 +497,16 @@ def trainModel(
     * :py:meth:`saqc.SaQC.modelFlag`
     """
 
+<<<<<<< HEAD
     in_freq = getFreqDelta(pd.concat([data[f] for f in toSequence(field)+ toSequence(target)], axis=1).index)
     if in_freq is None:
         raise IndexError('Input data empty, or not sampled at (multiples) of the same frequency')
 
     if not os.path.exists(results_path):
         os.makedirs(results_path)
+=======
+    Path(results_path).mkdir(exist_ok=True)
+>>>>>>> 2f0225937f93af563ffa382dbeabddcde34f7de9
 
     if model_folder is None:
         model_folder = os.path.join(results_path, target[0])
