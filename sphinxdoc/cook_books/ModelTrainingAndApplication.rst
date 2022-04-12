@@ -112,12 +112,12 @@ of training to `variable3`, which is a boolean series:
    AutoML will ensemble available models
    ...
 
-We can also directly train a model on the flags of a timeseries:
+We can also train a model on the flags of a timeseries:
 
 .. doctest:: exampleML
 
    >>> qc = qc.flagGeneric('variable3', target='variable2', func=lambda x: x==1)
-   >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_i='center', mode='flagger', results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01', dfilter=np.inf)
+   >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_idx='center', mode='flagger', results_path=data_path, model_folder='tutorialModel2VarClassifierOnFlags', train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, tt_split='2000-12-01', dfilter=np.inf)
    AutoML directory: ...
    The task is binary_classification with evaluation metric logloss
    AutoML will use algorithms: ['Neural Network']
