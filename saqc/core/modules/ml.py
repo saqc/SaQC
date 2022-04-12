@@ -26,7 +26,7 @@ class Ml:
         window: Union[str, int],
         target_idx: Union[int, list[int], Literal["center", "forward"]],
         mode: Union[Literal["regressor", "classifier", "flagger"], str],
-        results_path: str,
+        path: str,
         model_folder: Optional[str] = None,
         tt_split: Optional[Union[float, str]] = None,
         feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
@@ -44,7 +44,7 @@ class Ml:
     def modelPredict(
         self,
         field: str,
-        results_path: str,
+        path: str,
         pred_agg: callable = np.nanmean,
         model_folder: Optional[str] = None,
         drop_na_samples: Optional[bool] = None,
@@ -58,7 +58,7 @@ class Ml:
     def modelFlag(
         self,
         field: str,
-        results_path: str,
+        path: str,
         pred_agg: callable = np.nanmean,
         model_folder: Optional[str] = None,
         drop_na_samples: Optional[bool] = None,
@@ -72,7 +72,7 @@ class Ml:
     def modelImpute(
         self,
         field: str,
-        results_path: str,
+        path: str,
         pred_agg: callable = np.nanmean,
         model_folder: Optional[str] = None,
         drop_na_samples: Optional[bool] = None,

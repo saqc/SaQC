@@ -325,9 +325,9 @@ def _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs,
     if not base_estimator:
         for k in AUTO_ML_DEFAULT:
             train_kwargs.setdefault(k, AUTO_ML_DEFAULT[k])
-            train_kwargs.update({"results_path": model_folder})
+            train_kwargs.update({"path": model_folder})
         if len(target_idx) > 1:
-            train_kwargs.pop("results_path", None)
+            train_kwargs.pop("path", None)
         model = AutoML(**train_kwargs)
     else:
         model = base_estimator(**train_kwargs)
@@ -367,7 +367,7 @@ def trainModel(
     window: Union[str, int],
     target_idx: Union[int, list, Literal["center", "forward"]],
     mode: Union[Literal["regressor", "classifier", "flagger"], str],
-    results_path: str,
+    path: str,
     model_folder: Optional[str] = None,
     tt_split: Optional[Union[float, str]] = None,
     feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
@@ -408,7 +408,7 @@ def trainModel(
         * "flagger" trains a binary classifier on the flags value of `target`.
         * If another string is passed, a binary classifier gets trained on the flags column labeled `mode`.
 
-    results_path : str
+    path : str
         File path for the training results parent folder.
 
     model_folder : str, default None
@@ -471,7 +471,7 @@ def trainModel(
         Filter Field and Target variables.
 
     override : bool, default False
-        Override the ``results_path``/``model_folder`` directory, if it already exists.
+        Override the ``path``/``model_folder`` directory, if it already exists.
         Fitting a ``mljar.AutoML`` model with not-empty target folder will fail, if ``override`` is ``False``.
 
     Returns
@@ -501,13 +501,13 @@ def trainModel(
     if in_freq is None:
         raise IndexError('Input data empty, or not sampled at (multiples) of the same frequency')
 
-    if not os.path.exists(results_path):
-        os.makedirs(results_path)
+    if not os.path.exists(path):
+        os.makedirs(path)
 
     if model_folder is None:
-        model_folder = os.path.join(results_path, target[0])
+        model_folder = os.path.join(path, target[0])
     else:
-        model_folder = os.path.join(results_path, model_folder)
+        model_folder = os.path.join(path, model_folder)
 
     if not os.path.exists(model_folder):
         os.makedirs(model_folder)
@@ -594,7 +594,7 @@ def modelPredict(
     data: DictOfSeries,
     field: str,
     flags: Flags,
-    results_path: str,
+    path: str,
     pred_agg: callable = np.nanmean,
     model_folder: Optional[str] = None,
     drop_na_samples: Optional[bool] = None,
@@ -617,7 +617,7 @@ def modelPredict(
     flags : saqc.Flags
         Container to store flags of the data.
 
-    results_path: str
+    path: str
         Path to the models parent folder.
 
     pred_agg: callable, default np.nanmean
@@ -657,7 +657,7 @@ def modelPredict(
     -----
     The process of prediction works as follows:
 
-    1. The model stored to ``results_path``/``field``(default) or ``results_path``/``model_folder`` is
+    1. The model stored to ``path``/``field``(default) or ``path``/``model_folder`` is
        loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
@@ -683,9 +683,9 @@ def modelPredict(
 
     assign_features = assign_features or {}
     if model_folder is None:
-        model_folder = os.path.join(results_path, field)
+        model_folder = os.path.join(path, field)
     else:
-        model_folder = os.path.join(results_path, model_folder)
+        model_folder = os.path.join(path, model_folder)
 
     with open(os.path.join(model_folder, "config.pkl"), "rb") as f:
         sampler_config = pickle.load(f)
@@ -745,7 +745,7 @@ def modelFlag(
     data: DictOfSeries,
     field: str,
     flags: Flags,
-    results_path: str,
+    path: str,
     pred_agg: callable = np.nanmean,
     model_folder: Optional[str] = None,
     drop_na_samples: Optional[bool] = None,
@@ -768,7 +768,7 @@ def modelFlag(
     flags : saqc.Flags
         Container to store flags of the data.
 
-    results_path : str
+    path : str
         Path to the models parent folder.
 
     pred_agg : callable, default np.nanmean
@@ -806,7 +806,7 @@ def modelFlag(
     -----
     The process of flags prediction works as follows:
 
-    1. The model stored to ``results_path``/``field``(default) or ``results_path``/``model_folder`` is
+    1. The model stored to ``path``/``field``(default) or ``path``/``model_folder`` is
        loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
@@ -839,7 +839,7 @@ def modelFlag(
         data,
         temp_trg,
         flags,
-        results_path=results_path,
+        path=path,
         pred_agg=pred_agg,
         model_folder=model_folder,
         drop_na_samples=drop_na_samples,
@@ -859,7 +859,7 @@ def modelImpute(
     data: DictOfSeries,
     field: str,
     flags: Flags,
-    results_path: str,
+    path: str,
     pred_agg: callable = np.nanmean,
     model_folder: Optional[str] = None,
     drop_na_samples: Optional[bool] = None,
@@ -885,7 +885,7 @@ def modelImpute(
     flags : saqc.Flags
         Container to store flags of the data.
 
-    results_path : str
+    path : str
         Path to the models parent folder.
 
     pred_agg : callable, default np.nanmean
@@ -926,7 +926,7 @@ def modelImpute(
     -----
     The process of imputation works as follows:
 
-    1. The model stored to ``results_path``/``field``(default) or ``results_path``/``model_folder`` is
+    1. The model stored to ``path``/``field``(default) or ``path``/``model_folder`` is
        loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
@@ -956,7 +956,7 @@ def modelImpute(
         data,
         temp_trg,
         flags,
-        results_path=results_path,
+        path=path,
         pred_agg=pred_agg,
         model_folder=model_folder,
         drop_na_samples=drop_na_samples,
