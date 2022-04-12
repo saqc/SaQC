@@ -255,6 +255,59 @@ def _tt_split(d_index, samples, tt_split):
     return x_train, x_test, y_train, y_test
 
 
+def _makeScoreReports(y_pred_train, y_pred_test, y_train, y_test, mode):
+    score_book = {}
+    classification_report = {}
+    if mode == "regressor":
+        score_book.update(
+            {
+                "mse": [
+                    metrics.mean_squared_error(y_pred_train, y_train),
+                    metrics.mean_squared_error(y_pred_test, y_test),
+                ],
+                "mae": [
+                    metrics.mean_absolute_error(y_pred_train, y_train),
+                    metrics.mean_absolute_error(y_pred_test, y_test),
+                ],
+                "explained_var": [
+                    metrics.explained_variance_score(y_train, y_pred_train),
+                    metrics.explained_variance_score(y_test, y_pred_test),
+                ],
+                "r2_score": [
+                    metrics.r2_score(y_train, y_pred_train),
+                    metrics.r2_score(y_test, y_pred_test),
+                ],
+            }
+        )
+    elif mode == "classifier":
+        y_test, y_pred_test, y_train, y_pred_train = (
+            y_test.astype(int),
+            y_pred_test.astype(int),
+            y_train.astype(int),
+            y_pred_train.astype(int),
+        )
+        confusion_test = sklearn.metrics.confusion_matrix(y_pred_test, y_test)
+        confusion_train = sklearn.metrics.confusion_matrix(y_pred_train, y_train)
+        c_selector = (
+            lambda x, i, j: x[i, j] if (i < x.shape[0] and j < x.shape[1]) else np.nan
+        )
+        for i in range(confusion_train.shape[0]):
+            for j in range(confusion_train.shape[1]):
+                score_book.update(
+                    {
+                        f"confusion_{i}_{j}": [
+                            confusion_train[i, j],
+                            c_selector(confusion_test, i, j),
+                        ]
+                    }
+                )
+        classification_report.update(
+            metrics.classification_report(y_train, y_pred_train, output_dict=True)
+        )
+        return score_book, classification_report
+
+
+
 def _samplesToSplits(data_in, samples, tt_split):
     x_train, x_test, y_train, y_test = _tt_split(data_in.index, samples, tt_split)
     if x_test.shape[0] == 0:
@@ -262,6 +315,47 @@ def _samplesToSplits(data_in, samples, tt_split):
         y_test = np.zeros_like(samples[4])
 
     return x_train, x_test, y_train, y_test
+
+def _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs, y_train, model_folder, mode):
+    if multi_target_model == "chain":
+        multi_train_kwargs = {"order": train_kwargs.pop("order", None)}
+    else:
+        multi_train_kwargs = {}
+
+    if not base_estimator:
+        for k in AUTO_ML_DEFAULT:
+            train_kwargs.setdefault(k, AUTO_ML_DEFAULT[k])
+            train_kwargs.update({"results_path": model_folder})
+        if len(target_idx) > 1:
+            train_kwargs.pop("results_path", None)
+        model = AutoML(**train_kwargs)
+    else:
+        model = base_estimator(**train_kwargs)
+
+    if y_train.max() == y_train.min():
+        model = getattr(sklearn.dummy, f"Dummy{mode.capitalize()}")(
+            strategy="constant", constant=y_train[0, 0]
+        )
+
+    if len(target_idx) > 1:
+        if mode == "regressor":
+            model = MULTI_TARGET_MODELS[multi_target_model + "_reg"](
+                model, **multi_train_kwargs
+            )
+        else:
+            model = MULTI_TARGET_MODELS[multi_target_model + "_class"](
+                model, **multi_train_kwargs
+            )
+
+    return model
+
+
+def _modelFitting(x_train, y_train, model, mode):
+    if mode == "regressor":
+        fitted = model.fit(x_train, y_train.squeeze())
+    else:
+        fitted = model.fit(x_train, y_train.squeeze().astype(int))
+    return fitted
 
 
 @register(mask=[], demask=[], squeeze=[], multivariate=True, handles_target=True)
@@ -465,99 +559,14 @@ def trainModel(
     if x_train.shape[0] == 0:
         return data, flags
 
-    if multi_target_model == "chain":
-        multi_train_kwargs = {"order": train_kwargs.pop("order", None)}
-    else:
-        multi_train_kwargs = {}
+    model = _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs, y_train, model_folder, mode)
 
-    if not base_estimator:
-        for k in AUTO_ML_DEFAULT:
-            train_kwargs.setdefault(k, AUTO_ML_DEFAULT[k])
-            train_kwargs.update({"results_path": model_folder})
-        if len(target_idx) > 1:
-            train_kwargs.pop("results_path", None)
-        model = AutoML(**train_kwargs)
-    else:
-        model = base_estimator(**train_kwargs)
-
-    if y_train.max() == y_train.min():
-        model = getattr(sklearn.dummy, f"Dummy{mode.capitalize()}")(
-            strategy="constant", constant=y_train[0, 0]
-        )
-
-    if len(target_idx) > 1:
-        if mode == "regressor":
-            model = MULTI_TARGET_MODELS[multi_target_model + "_reg"](
-                model, **multi_train_kwargs
-            )
-        else:
-            model = MULTI_TARGET_MODELS[multi_target_model + "_class"](
-                model, **multi_train_kwargs
-            )
-
-    if mode == "regressor":
-        fitted = model.fit(x_train, y_train.squeeze())
-    else:
-        fitted = model.fit(x_train, y_train.squeeze().astype(int))
+    fitted = _modelFitting(x_train, y_train, model, mode)
 
     y_pred_test = model.predict(x_test)
     y_pred_train = model.predict(x_train)
-    score_book = {}
-    classification_report = {}
-    if mode == "regressor":
-        score_book.update(
-            {
-                "mse": [
-                    metrics.mean_squared_error(y_pred_train, y_train),
-                    metrics.mean_squared_error(y_pred_test, y_test),
-                ],
-                "mae": [
-                    metrics.mean_absolute_error(y_pred_train, y_train),
-                    metrics.mean_absolute_error(y_pred_test, y_test),
-                ],
-                "explained_var": [
-                    metrics.explained_variance_score(y_train, y_pred_train),
-                    metrics.explained_variance_score(y_test, y_pred_test),
-                ],
-                "r2_score": [
-                    metrics.r2_score(y_train, y_pred_train),
-                    metrics.r2_score(y_test, y_pred_test),
-                ],
-            }
-        )
-    elif mode == "classifier":
-        y_test, y_pred_test, y_train, y_pred_train = (
-            y_test.astype(int),
-            y_pred_test.astype(int),
-            y_train.astype(int),
-            y_pred_train.astype(int),
-        )
-        score_book.update(
-            {
-                "score": [
-                    model.score(x_train, y_train.squeeze(axis=1)),
-                    model.score(x_test, y_test.squeeze(axis=1)),
-                ]
-            }
-        )
-        confusion_test = sklearn.metrics.confusion_matrix(y_pred_test, y_test)
-        confusion_train = sklearn.metrics.confusion_matrix(y_pred_train, y_train)
-        c_selector = (
-            lambda x, i, j: x[i, j] if (i < x.shape[0] and j < x.shape[1]) else np.nan
-        )
-        for i in range(confusion_train.shape[0]):
-            for j in range(confusion_train.shape[1]):
-                score_book.update(
-                    {
-                        f"confusion_{i}_{j}": [
-                            confusion_train[i, j],
-                            c_selector(confusion_test, i, j),
-                        ]
-                    }
-                )
-        classification_report.update(
-            metrics.classification_report(y_train, y_pred_train, output_dict=True)
-        )
+
+    score_book, classification_report = _makeScoreReports(y_pred_train, y_pred_test, y_train, y_test, mode)
 
     with open(os.path.join(model_folder, "config.pkl"), "wb") as f:
         pickle.dump(sampler_config, f)
