@@ -34,10 +34,10 @@ from saqc.funcs.tools import dropField
 
 
 MULTI_TARGET_MODELS = {
-    "chain_reg": sklearn.multioutput.regressorChain,
-    "multi_reg": sklearn.multioutput.MultiOutputregressor,
-    "chain_class": sklearn.multioutput.classifierChain,
-    "multi_class": sklearn.multioutput.MultiOutputclassifier,
+    "chain_reg": sklearn.multioutput.RegressorChain,
+    "multi_reg": sklearn.multioutput.MultiOutputRegressor,
+    "chain_class": sklearn.multioutput.ClassifierChain,
+    "multi_class": sklearn.multioutput.MultiOutputClassifier,
 }
 
 AUTO_ML_DEFAULT = {"algorithms": ("Xgboost",), "mode": "Perform"}
@@ -255,6 +255,15 @@ def _tt_split(d_index, samples, tt_split):
     return x_train, x_test, y_train, y_test
 
 
+def _samplesToSplits(data_in, samples, tt_split):
+    x_train, x_test, y_train, y_test = _tt_split(data_in.index, samples, tt_split)
+    if x_test.shape[0] == 0:
+        x_test = np.zeros_like(samples[3])
+        y_test = np.zeros_like(samples[4])
+
+    return x_train, x_test, y_train, y_test
+
+
 @register(mask=[], demask=[], squeeze=[], multivariate=True, handles_target=True)
 def trainModel(
     data: DictOfSeries,
@@ -394,6 +403,10 @@ def trainModel(
     * :py:meth:`saqc.SaQC.modelFlag`
     """
 
+    in_freq = getFreqDelta(pd.concat([data[f] for f in toSequence(field)+ toSequence(target)], axis=1).index)
+    if in_freq is None:
+        raise IndexError('Input data empty, or not sampled at (multiples) of the same frequency')
+
     if not os.path.exists(results_path):
         os.makedirs(results_path)
 
@@ -447,12 +460,10 @@ def trainModel(
         na_filter_y=True,
     )
 
-    x_train, x_test, y_train, y_test = _tt_split(data_in.index, samples, tt_split)
+    x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, tt_split)
+
     if x_train.shape[0] == 0:
         return data, flags
-    if x_test.shape[0] == 0:
-        x_test = np.zeros_like(samples[3])
-        y_test = np.zeros_like(samples[4])
 
     if multi_target_model == "chain":
         multi_train_kwargs = {"order": train_kwargs.pop("order", None)}
@@ -470,7 +481,7 @@ def trainModel(
         model = base_estimator(**train_kwargs)
 
     if y_train.max() == y_train.min():
-        model = getattr(sklearn.dummy, f"Dummy{mode}")(
+        model = getattr(sklearn.dummy, f"Dummy{mode.capitalize()}")(
             strategy="constant", constant=y_train[0, 0]
         )
 
