@@ -829,11 +829,7 @@ def modelFlag(
     * :py:meth:`saqc.SaQC.modelPredict`
     """
 
-    temp_trg = (
-        field
-        + str(datetime.now()).replace(" ", "")
-        + np.random.random(1)[0].astype(str)
-    )
+    temp_trg = field + str(uuid.uuid4())
     data, flags = copyField(data, field, flags, target=temp_trg, **kwargs)
     data, flags = modelPredict(
         data,
@@ -946,11 +942,7 @@ def modelImpute(
     * :py:meth:`saqc.SaQC.modelFlag`
     * :py:meth:`saqc.SaQC.modelPredict`
     """
-    temp_trg = (
-        field
-        + str(datetime.now()).replace(" ", "")
-        + np.random.random(1)[0].astype(str)
-    )
+    temp_trg = field + str(uuid.uuid4())
     data, flags = copyField(data, field, flags, target=temp_trg, **kwargs)
     data, flags = modelPredict(
         data,
