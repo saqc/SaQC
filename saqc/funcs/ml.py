@@ -42,6 +42,7 @@ MULTI_TARGET_MODELS = {
 
 AUTO_ML_DEFAULT = {"algorithms": ("Xgboost",), "mode": "Perform"}
 
+MODEL_FOLDER_SUFFIX = 'model'
 
 def _getSamplerParams(
     data: DictOfSeries,
@@ -316,6 +317,7 @@ def _samplesToSplits(data_in, samples, tt_split):
 
     return x_train, x_test, y_train, y_test
 
+
 def _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs, y_train, model_folder, mode):
     if multi_target_model == "chain":
         multi_train_kwargs = {"order": train_kwargs.pop("order", None)}
@@ -368,7 +370,6 @@ def trainModel(
     target_idx: Union[int, list, Literal["center", "forward"]],
     mode: Union[Literal["regressor", "classifier", "flagger"], str],
     path: str,
-    model_folder: Optional[str] = None,
     tt_split: Optional[Union[float, str]] = None,
     feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
     drop_na_samples: bool = True,
@@ -409,10 +410,7 @@ def trainModel(
         * If another string is passed, a binary classifier gets trained on the flags column labeled `mode`.
 
     path : str
-        File path for the training results parent folder.
-
-    model_folder : str, default None
-        Folder to write the training results to. If ``None`` is passed, the model folder will be named `target`.
+        File path to write the training results to.
         The folder will contain:
 
         * the pickled model fit: ``model.pkl``
@@ -421,8 +419,6 @@ def trainModel(
         * mapping of timeseries indices to feature indices: ``x_feature_map.csv``, ``y_feature_map.csv``
         * If trained model is a `mlyar.AutoML` model, its report path will also point to `model_folder` and the
           report is written to it as well.
-
-        If ``None`` is passed, the model folder will be named `target`.
 
     tt_split: {float, str}, default None
         Rule for splitting data up, into training and testing data.
@@ -471,8 +467,10 @@ def trainModel(
         Filter Field and Target variables.
 
     override : bool, default False
-        Override the ``path``/``model_folder`` directory, if it already exists.
+        Override the ``path`` directory, if it already exists.
         Fitting a ``mljar.AutoML`` model with not-empty target folder will fail, if ``override`` is ``False``.
+        To prevent accidents, only folders named with the `MODEL_FOLDER_SUFFIX` (default:"_model") can
+        be overriden on the fly.
 
     Returns
     -------
@@ -499,21 +497,13 @@ def trainModel(
 
     in_freq = getFreqDelta(pd.concat([data[f] for f in toSequence(field)+ toSequence(target)], axis=1).index)
     if in_freq is None:
-        raise IndexError('Input data empty, or not sampled at (multiples) of the same frequency')
+        raise IndexError('Input data empty, or not sampled at (multiples of) the same frequency')
 
     if not os.path.exists(path):
         os.makedirs(path)
-
-    if model_folder is None:
-        model_folder = os.path.join(path, target[0])
-    else:
-        model_folder = os.path.join(path, model_folder)
-
-    if not os.path.exists(model_folder):
-        os.makedirs(model_folder)
-    elif override:
-        shutil.rmtree(model_folder)
-        os.makedirs(model_folder)
+    elif override & (os.path.basename(path).split('_') == MODEL_FOLDER_SUFFIX):
+        shutil.rmtree(path)
+        os.makedirs(path)
 
     train_kwargs = train_kwargs or {}
 
@@ -559,7 +549,7 @@ def trainModel(
     if x_train.shape[0] == 0:
         return data, flags
 
-    model = _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs, y_train, model_folder, mode)
+    model = _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs, y_train, path, mode)
 
     fitted = _modelFitting(x_train, y_train, model, mode)
 
@@ -568,22 +558,22 @@ def trainModel(
 
     score_book, classification_report = _makeScoreReports(y_pred_train, y_pred_test, y_train, y_test, mode)
 
-    with open(os.path.join(model_folder, "config.pkl"), "wb") as f:
+    with open(os.path.join(path, "config.pkl"), "wb") as f:
         pickle.dump(sampler_config, f)
 
-    with open(os.path.join(model_folder, "model.pkl"), "wb") as f:
+    with open(os.path.join(path, "model.pkl"), "wb") as f:
         pickle.dump(fitted, f)
 
-    pd.Series().to_csv(os.path.join(model_folder, "saqc_model_dir.csv"))
+    pd.Series().to_csv(os.path.join(path, "saqc_model_dir.csv"))
     pd.Series(samples[3].squeeze()).to_csv(
-        os.path.join(model_folder, f"x_feature_map.csv")
+        os.path.join(path, f"x_feature_map.csv")
     )
     pd.Series(samples[4].squeeze()).to_csv(
-        os.path.join(model_folder, f"y_feature_map.csv")
+        os.path.join(path, f"y_feature_map.csv")
     )
-    pd.DataFrame(score_book).to_csv(os.path.join(model_folder, f"scores.csv"))
+    pd.DataFrame(score_book).to_csv(os.path.join(path, f"scores.csv"))
     pd.DataFrame(classification_report).to_csv(
-        os.path.join(model_folder, f"classification_report.csv")
+        os.path.join(path, f"classification_report.csv")
     )
 
     return data, flags
@@ -596,7 +586,6 @@ def modelPredict(
     flags: Flags,
     path: str,
     agg_func: callable = np.nanmean,
-    model_folder: Optional[str] = None,
     drop_na_samples: Optional[bool] = None,
     assign_features: Optional[dict] = None,
     dfilter: float = FILTER_NONE,
@@ -618,19 +607,16 @@ def modelPredict(
         Container to store flags of the data.
 
     path: str
-        Path to the models parent folder.
-
-    agg_func: callable, default np.nanmean
-        Function for aggregation of multiple predictions associated with the same timestep.
-
-    model_folder: str, None
-        Folder containing the model data.
+        Path to the folder containing the model data.
         If ``None`` (default), a folder named ``field`` is searched.
         The folder must contain:
 
         * the pickled model object, ``model.pkl`` (A sklearn-style model object, implementing
           a ``predict`` method
-        * the pickled configuration dictionary, ``config.pkl``.
+        * the pickled configuration dictionary, ``config.pkl`
+
+    agg_func: callable, default np.nanmean
+        Function for aggregation of multiple predictions associated with the same timestep.
 
     drop_na_samples: bool, default None
         Calculate predictions for input samples containing invalid (flagged or NaN)
@@ -657,8 +643,7 @@ def modelPredict(
     -----
     The process of prediction works as follows:
 
-    1. The model stored to ``path``/``field``(default) or ``path``/``model_folder`` is
-       loaded.
+    1. The model stored to ``path`` is loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
        This means, that `variable fields` the model has been trained on, have to be present in the data.
@@ -682,15 +667,10 @@ def modelPredict(
     """
 
     assign_features = assign_features or {}
-    if model_folder is None:
-        model_folder = os.path.join(path, field)
-    else:
-        model_folder = os.path.join(path, model_folder)
-
-    with open(os.path.join(model_folder, "config.pkl"), "rb") as f:
+    with open(os.path.join(path, "config.pkl"), "rb") as f:
         sampler_config = pickle.load(f)
 
-    with open(os.path.join(model_folder, "model.pkl"), "rb") as f:
+    with open(os.path.join(path, "model.pkl"), "rb") as f:
         model = pickle.load(f)
 
     sampler_config["predictors"] = [
@@ -747,7 +727,6 @@ def modelFlag(
     flags: Flags,
     path: str,
     agg_func: callable = np.nanmean,
-    model_folder: Optional[str] = None,
     drop_na_samples: Optional[bool] = None,
     assign_features: Optional[dict] = None,
     dfilter: float = BAD,
@@ -768,19 +747,17 @@ def modelFlag(
     flags : saqc.Flags
         Container to store flags of the data.
 
-    path : str
-        Path to the models parent folder.
+    path: str
+        Path to the folder containing the model data.
+        If ``None`` (default), a folder named ``field`` is searched.
+        The folder must contain:
+
+        * the pickled model object, ``model.pkl`` (A sklearn-style model object, implementing
+          a ``predict`` method
+        * the pickled configuration dictionary, ``config.pkl`
 
     agg_func : callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
-
-    model_folder : str, default None
-        Folder containing the model data.
-        If ``None`` (default), a folder named ``field`` is searched.
-        The folder must contain:
-        * the pickled model object, ``model.pkl`` (A sklearn-style model object, implementing
-          a ``predict`` method
-        * the pickled configuration dictionary, ``config.pkl``.
 
     drop_na_samples : bool, default None
         Calculate predictions for input samples containing invalid (flagged or NaN)
@@ -806,8 +783,7 @@ def modelFlag(
     -----
     The process of flags prediction works as follows:
 
-    1. The model stored to ``path``/``field``(default) or ``path``/``model_folder`` is
-       loaded.
+    1. The model stored to ``path`` is loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
        This means, that `variable fields` the model has been trained on, have to be present in the data.
@@ -837,7 +813,6 @@ def modelFlag(
         flags,
         path=path,
         agg_func=agg_func,
-        model_folder=model_folder,
         drop_na_samples=drop_na_samples,
         dfilter=dfilter,
         assign_features=assign_features,
@@ -857,7 +832,6 @@ def modelImpute(
     flags: Flags,
     path: str,
     agg_func: callable = np.nanmean,
-    model_folder: Optional[str] = None,
     drop_na_samples: Optional[bool] = None,
     assign_features: Optional[dict] = None,
     dfilter: float = BAD,
@@ -882,19 +856,17 @@ def modelImpute(
     flags : saqc.Flags
         Container to store flags of the data.
 
-    path : str
-        Path to the models parent folder.
+    path: str
+        Path to the folder containing the model data.
+        If ``None`` (default), a folder named ``field`` is searched.
+        The folder must contain:
+
+        * the pickled model object, ``model.pkl`` (A sklearn-style model object, implementing
+          a ``predict`` method
+        * the pickled configuration dictionary, ``config.pkl`
 
     agg_func : callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
-
-    model_folder : str, None
-        Folder containing the model data.
-        If ``None`` (default), a folder named ``field`` is searched.
-        The folder must contain:
-        * the pickled model object, ``model.pkl`` (A sklearn-style model object, implementing
-          a ``predict`` method
-        * the pickled configuration dictionary, ``config.pkl``.
 
     drop_na_samples : bool, default None
         Calculate predictions for input samples containing invalid (flagged or NaN)
@@ -951,7 +923,6 @@ def modelImpute(
         flags,
         path=path,
         agg_func=agg_func,
-        model_folder=model_folder,
         drop_na_samples=drop_na_samples,
         assign_features=assign_features,
         dfilter=dfilter,
