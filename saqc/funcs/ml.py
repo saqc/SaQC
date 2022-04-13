@@ -867,7 +867,8 @@ def modelImpute(
     """
     Use a trained model for data imputation.
 
-    Imputation is tried to be performed for missing as well as flagged data in field.
+    Imputation is performed for missing as well as flagged data in field, where ever valid predictor samples are
+    available.
 
     Parameters
     ----------
