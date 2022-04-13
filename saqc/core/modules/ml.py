@@ -33,6 +33,7 @@ class Ml:
         training_kwargs: Optional[dict] = None,
         multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
         base_estimater: Optional[callable] = None,
+        errors: Literal['coerce', 'raise'] = 'raise',
         dfilter: float = BAD,
         override: bool = False,
         **kwargs,

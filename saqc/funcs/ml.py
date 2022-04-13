@@ -360,6 +360,45 @@ def _modelFitting(x_train, y_train, model, mode):
     return fitted
 
 
+def _writeResults(path, fitted, sampler_config, samples, score_book, classification_report):
+    with open(os.path.join(path, "config.pkl"), "wb") as f:
+        pickle.dump(sampler_config, f)
+
+    with open(os.path.join(path, "model.pkl"), "wb") as f:
+        pickle.dump(fitted, f)
+
+    pd.Series().to_csv(os.path.join(path, "saqc_model_dir.csv"))
+    pd.Series(samples[3].squeeze()).to_csv(
+        os.path.join(path, f"x_feature_map.csv")
+    )
+    pd.Series(samples[4].squeeze()).to_csv(
+        os.path.join(path, f"y_feature_map.csv")
+    )
+    pd.DataFrame(score_book).to_csv(os.path.join(path, f"scores.csv"))
+    pd.DataFrame(classification_report).to_csv(
+        os.path.join(path, f"classification_report.csv")
+    )
+    return 0
+
+def _handleEmptySetup(x_train, y_train, errors, target ,samples, path, sampler_config):
+    invalid = ''
+    if (x_train.shape[0] == 0):
+        invalid = 'empty training data set.'
+    elif y_train.max() == y_train.min():
+        invalid = 'constant target data set.'
+    if len(invalid) > 0:
+        if errors == 'raise':
+            raise ValueError(f'Preparing data for {target}, resulted in invalid set-up, because of: {invalid}.')
+        else:
+            model = sklearn.multioutput.MultiOutputClassifier(
+                sklearn.dummy.DummyClassifier(strategy='constant', constant='NaN'))
+            y_dummy = np.empty_like(samples[4])
+            y_dummy[:] = 'NaN'
+            fitted = model.fit(np.zeros_like(samples[3]), y_dummy)
+            _writeResults(path, fitted, sampler_config, samples, {'dummy': 'NaN'}, {'dummy': 'NaN'})
+        return False
+    return True
+
 @register(mask=[], demask=[], squeeze=[], multivariate=True, handles_target=True)
 def trainModel(
     data: DictOfSeries,
@@ -376,6 +415,7 @@ def trainModel(
     train_kwargs: Optional[dict] = None,
     multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
     base_estimator: Optional[BaseEstimator] = None,
+    errors: Literal['coerce', 'raise'] = 'raise',
     dfilter: float = BAD,
     override: bool = False,
     **kwargs,
@@ -463,6 +503,11 @@ def trainModel(
         The base estimator to be fitted to the data. If ``None`` (default), the base estimator
         is an ``AutoML`` (mljar-supervised) instance.
 
+    errors : {'coerce', 'raise'}, default 'raise'
+        When the training data set turns out to be empty, after all invalid samples are removed,
+        or when the target data turns out to be constant, either fail ('raise'), or write a dummy
+        model to the results path ('coerce'), predicting always 'NaN', and continue program.
+
     dfilter : float, default BAD
         Filter Field and Target variables.
 
@@ -544,37 +589,21 @@ def trainModel(
         na_filter_y=True,
     )
 
-    x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, test_split)
+    x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, test_split, errors)
 
-    if x_train.shape[0] == 0:
+    check_val = _handleEmptySetup(x_train, y_train, errors, target ,samples, path, sampler_config)
+    if not check_val:
         return data, flags
 
     model = _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs, y_train, path, mode)
 
     fitted = _modelFitting(x_train, y_train, model, mode)
 
-    y_pred_test = model.predict(x_test)
-    y_pred_train = model.predict(x_train)
+    y_pred_test, y_pred_train = model.predict(x_test), model.predict(x_train)
 
     score_book, classification_report = _makeScoreReports(y_pred_train, y_pred_test, y_train, y_test, mode)
 
-    with open(os.path.join(path, "config.pkl"), "wb") as f:
-        pickle.dump(sampler_config, f)
-
-    with open(os.path.join(path, "model.pkl"), "wb") as f:
-        pickle.dump(fitted, f)
-
-    pd.Series().to_csv(os.path.join(path, "saqc_model_dir.csv"))
-    pd.Series(samples[3].squeeze()).to_csv(
-        os.path.join(path, f"x_feature_map.csv")
-    )
-    pd.Series(samples[4].squeeze()).to_csv(
-        os.path.join(path, f"y_feature_map.csv")
-    )
-    pd.DataFrame(score_book).to_csv(os.path.join(path, f"scores.csv"))
-    pd.DataFrame(classification_report).to_csv(
-        os.path.join(path, f"classification_report.csv")
-    )
+    _writeResults(path, fitted, sampler_config, samples, score_book, classification_report)
 
     return data, flags
 
