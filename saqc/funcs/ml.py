@@ -217,7 +217,7 @@ def _mergePredictions(
     target_length: int,
     predictions: np.array,
     prediction_map: np.array,
-    pred_agg: Callable,
+    agg_func: Callable,
 ):
 
     # generate array that holds in any row, the predictions for the associated data index row from all prediction
@@ -228,7 +228,7 @@ def _mergePredictions(
     for k in range(target_length):
         win_arr[:, k] = np.roll(win_arr[:, k], shift=k)
         win_arr[:k, k] = np.nan
-    y_pred = np.apply_along_axis(pred_agg, 1, win_arr)
+    y_pred = np.apply_along_axis(agg_func, 1, win_arr)
     pred_ser = pd.Series(y_pred, index=prediction_index)
     return pred_ser
 
@@ -595,7 +595,7 @@ def modelPredict(
     field: str,
     flags: Flags,
     path: str,
-    pred_agg: callable = np.nanmean,
+    agg_func: callable = np.nanmean,
     model_folder: Optional[str] = None,
     drop_na_samples: Optional[bool] = None,
     assign_features: Optional[dict] = None,
@@ -620,7 +620,7 @@ def modelPredict(
     path: str
         Path to the models parent folder.
 
-    pred_agg: callable, default np.nanmean
+    agg_func: callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
 
     model_folder: str, None
@@ -668,7 +668,7 @@ def modelPredict(
        results are stored to ``target``.
 
     Note, If a MultiOutput model was trained, it is likely to get multiple predictions for the same timestamps.
-       In this case, ``pred_agg`` is applied to aggregate the predictions or select one of them.
+       In this case, ``agg_func`` is applied to aggregate the predictions or select one of them.
        Predictions are generated in a rolling window. Multiple predictions for the same value are ordered
        according to the order of the prediction window they were covered by.
 
@@ -730,7 +730,7 @@ def modelPredict(
     y_pred = model.predict(samples[0])
     if len(target_idx) > 1:
         pred_ser = _mergePredictions(
-            data_in.index, len(target_idx), y_pred, samples[2], pred_agg
+            data_in.index, len(target_idx), y_pred, samples[2], agg_func
         )
     else:
         pred_ser = pd.Series(np.nan, index=data_in.index)
@@ -746,7 +746,7 @@ def modelFlag(
     field: str,
     flags: Flags,
     path: str,
-    pred_agg: callable = np.nanmean,
+    agg_func: callable = np.nanmean,
     model_folder: Optional[str] = None,
     drop_na_samples: Optional[bool] = None,
     assign_features: Optional[dict] = None,
@@ -771,7 +771,7 @@ def modelFlag(
     path : str
         Path to the models parent folder.
 
-    pred_agg : callable, default np.nanmean
+    agg_func : callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
 
     model_folder : str, default None
@@ -816,7 +816,7 @@ def modelFlag(
     3. Variable ``field`` gets flagged, where the model predicts the positive class.
 
     Note, If a MultiOutput model was trained, it is likely to get multiple predictions for the same timestamps.
-       In this case, ``pred_agg`` is applied to aggregate the predictions or select one of them.
+       In this case, ``agg_func`` is applied to aggregate the predictions or select one of them.
        Predictions are generated in a rolling window. Multiple predictions for the same value are ordered
        according to the order of the prediction window they were covered by.
 
@@ -840,7 +840,7 @@ def modelFlag(
         temp_trg,
         flags,
         path=path,
-        pred_agg=pred_agg,
+        agg_func=agg_func,
         model_folder=model_folder,
         drop_na_samples=drop_na_samples,
         dfilter=dfilter,
@@ -860,7 +860,7 @@ def modelImpute(
     field: str,
     flags: Flags,
     path: str,
-    pred_agg: callable = np.nanmean,
+    agg_func: callable = np.nanmean,
     model_folder: Optional[str] = None,
     drop_na_samples: Optional[bool] = None,
     assign_features: Optional[dict] = None,
@@ -888,7 +888,7 @@ def modelImpute(
     path : str
         Path to the models parent folder.
 
-    pred_agg : callable, default np.nanmean
+    agg_func : callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
 
     model_folder : str, None
@@ -936,7 +936,7 @@ def modelImpute(
     3. Imputation: Missing and Flagged Values in ``field`` get replaced by model predictions, if one can be calculated.
 
     Note, if a MultiOutput model was trained, it is likely to get multiple predictions for the same timestamps.
-       In this case, ``pred_agg`` is applied to aggregate the predictions or select one of them.
+       In this case, ``agg_func`` is applied to aggregate the predictions or select one of them.
        Predictions are generated in a rolling window. Multiple predictions for the same value are ordered
        according to the order of the prediction window they were covered by.
 
@@ -957,7 +957,7 @@ def modelImpute(
         temp_trg,
         flags,
         path=path,
-        pred_agg=pred_agg,
+        agg_func=agg_func,
         model_folder=model_folder,
         drop_na_samples=drop_na_samples,
         assign_features=assign_features,
