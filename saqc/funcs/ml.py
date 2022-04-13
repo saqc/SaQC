@@ -53,7 +53,7 @@ def _getSamplerParams(
     target_idx: Union[int, list, Literal["center", "forward"]],
     predict: Union[Literal["flag", "value"], str],
     feature_mask: bool = True,
-    drop_na_samples: bool = True,
+    dropna: bool = True,
     **kwargs,
 ):
     x_data = data[predictors].to_df()
@@ -116,7 +116,7 @@ def _getSamplerParams(
     if len(target_idx) > 1:
         na_filter_x = True
     else:
-        na_filter_x = drop_na_samples
+        na_filter_x = dropna
 
     return window, data_in, mask_frame, target, target_idx, na_filter_x
 
@@ -372,7 +372,7 @@ def trainModel(
     path: str,
     test_split: Optional[Union[float, str]] = None,
     feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
-    drop_na_samples: bool = True,
+    dropna: bool = True,
     train_kwargs: Optional[dict] = None,
     multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
     base_estimator: Optional[BaseEstimator] = None,
@@ -443,7 +443,7 @@ def trainModel(
         * `pd.DataFrame`: A boolean Dataframe, with column named as the variables to be masked, and rows according to
           the number of indices in the feature window.
 
-    drop_na_samples: bool, default True
+    dropna: bool, default True
         Drop samples that contain NaN values.
         In case of a multi target model, fitting with NaN containing samples is not supported.
 
@@ -517,7 +517,7 @@ def trainModel(
         "target_idx": target_idx,
         "feature_mask": feature_mask,
         "target": target,
-        "drop_na_samples": drop_na_samples,
+        "dropna": dropna,
     }
 
     mode = "classifier" if mode != "regressor" else "regressor"
@@ -586,7 +586,7 @@ def modelPredict(
     flags: Flags,
     path: str,
     agg_func: callable = np.nanmean,
-    drop_na_samples: Optional[bool] = None,
+    dropna: Optional[bool] = None,
     assign_features: Optional[dict] = None,
     dfilter: float = FILTER_NONE,
     **kwargs,
@@ -618,7 +618,7 @@ def modelPredict(
     agg_func: callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
 
-    drop_na_samples: bool, default None
+    dropna: bool, default None
         Calculate predictions for input samples containing invalid (flagged or NaN)
         values. Defaults to the value the prediction model has been trained with.
 
@@ -678,8 +678,8 @@ def modelPredict(
         for p in sampler_config["predictors"]
     ]
 
-    sampler_config["drop_na_samples"] = (
-        drop_na_samples or sampler_config["drop_na_samples"]
+    sampler_config["dropna"] = (
+        dropna or sampler_config["dropna"]
     )
 
     window, data_in, x_mask, target, target_idx, na_filter_x = _getSamplerParams(
@@ -727,7 +727,7 @@ def modelFlag(
     flags: Flags,
     path: str,
     agg_func: callable = np.nanmean,
-    drop_na_samples: Optional[bool] = None,
+    dropna: Optional[bool] = None,
     assign_features: Optional[dict] = None,
     dfilter: float = BAD,
     **kwargs,
@@ -759,7 +759,7 @@ def modelFlag(
     agg_func : callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
 
-    drop_na_samples : bool, default None
+    dropna : bool, default None
         Calculate predictions for input samples containing invalid (flagged or NaN)
         values. Defaults to the value the prediction model has been trained with.
 
@@ -813,7 +813,7 @@ def modelFlag(
         flags,
         path=path,
         agg_func=agg_func,
-        drop_na_samples=drop_na_samples,
+        dropna=dropna,
         dfilter=dfilter,
         assign_features=assign_features,
         **kwargs,
@@ -832,7 +832,7 @@ def modelImpute(
     flags: Flags,
     path: str,
     agg_func: callable = np.nanmean,
-    drop_na_samples: Optional[bool] = None,
+    dropna: Optional[bool] = None,
     assign_features: Optional[dict] = None,
     dfilter: float = BAD,
     flag: float = UNFLAGGED,
@@ -868,7 +868,7 @@ def modelImpute(
     agg_func : callable, default np.nanmean
         Function for aggregation of multiple predictions associated with the same timestep.
 
-    drop_na_samples : bool, default None
+    dropna : bool, default None
         Calculate predictions for input samples containing invalid (flagged or NaN)
         values. Defaults to the value the prediction model has been trained with.
 
@@ -923,7 +923,7 @@ def modelImpute(
         flags,
         path=path,
         agg_func=agg_func,
-        drop_na_samples=drop_na_samples,
+        dropna=dropna,
         assign_features=assign_features,
         dfilter=dfilter,
         **kwargs,
