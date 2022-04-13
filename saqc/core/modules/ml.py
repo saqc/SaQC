@@ -27,7 +27,7 @@ class Ml:
         target_idx: Union[int, list[int], Literal["center", "forward"]],
         mode: Union[Literal["regressor", "classifier", "flagger"], str],
         path: str,
-        tt_split: Optional[Union[float, str]] = None,
+        test_split: Optional[Union[float, str]] = None,
         feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
         drop_na_samples: bool = True,
         training_kwargs: Optional[dict] = None,

@@ -234,24 +234,24 @@ def _mergePredictions(
     return pred_ser
 
 
-def _tt_split(d_index, samples, tt_split):
+def _test_split(d_index, samples, test_split):
     s_i = samples[2][:, 0]
     index_en = pd.Series(range(len(d_index)), d_index)
-    if tt_split is None:
+    if test_split is None:
         x_train, y_train, x_test, y_test = (
             samples[0],
             samples[1],
             np.empty((0,) + samples[0].shape[1:]),
             np.empty((0,) + samples[1].shape[1:]),
         )
-    if isinstance(tt_split, str):
-        split_point = index_en[:tt_split].values[-1]
+    if isinstance(test_split, str):
+        split_point = index_en[:test_split].values[-1]
         split_i = np.searchsorted(s_i, split_point)
         x_train, x_test = samples[0][:split_i, :], samples[0][split_i:, :]
         y_train, y_test = samples[1][:split_i, :], samples[1][split_i:, :]
-    elif isinstance(tt_split, float):
+    elif isinstance(test_split, float):
         x_train, x_test, y_train, y_test = train_test_split(
-            samples[0], samples[1], test_size=tt_split, shuffle=True
+            samples[0], samples[1], test_size=test_split, shuffle=True
         )
     return x_train, x_test, y_train, y_test
 
@@ -309,8 +309,8 @@ def _makeScoreReports(y_pred_train, y_pred_test, y_train, y_test, mode):
 
 
 
-def _samplesToSplits(data_in, samples, tt_split):
-    x_train, x_test, y_train, y_test = _tt_split(data_in.index, samples, tt_split)
+def _samplesToSplits(data_in, samples, test_split):
+    x_train, x_test, y_train, y_test = _test_split(data_in.index, samples, test_split)
     if x_test.shape[0] == 0:
         x_test = np.zeros_like(samples[3])
         y_test = np.zeros_like(samples[4])
@@ -370,7 +370,7 @@ def trainModel(
     target_idx: Union[int, list, Literal["center", "forward"]],
     mode: Union[Literal["regressor", "classifier", "flagger"], str],
     path: str,
-    tt_split: Optional[Union[float, str]] = None,
+    test_split: Optional[Union[float, str]] = None,
     feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
     drop_na_samples: bool = True,
     train_kwargs: Optional[dict] = None,
@@ -420,13 +420,13 @@ def trainModel(
         * If trained model is a `mlyar.AutoML` model, its report path will also point to `model_folder` and the
           report is written to it as well.
 
-    tt_split: {float, str}, default None
+    test_split: {float, str}, default None
         Rule for splitting data up, into training and testing data.
 
         * If ``None`` is passed, no test data will be set aside.
         * If a float is passed, it will be interpreted as the proportion of randomly selected data, that is to be
-          set aside for test score calculation (0 <= ``tt_split`` <= 1).
-        * If a string is passed, it will be interpreted as split date time point: Any data sampled before ``tt_split``
+          set aside for test score calculation (0 <= ``test_split`` <= 1).
+        * If a string is passed, it will be interpreted as split date time point: Any data sampled before ``test_split``
           will be comprised in the training data set, the rest will be used for testing.
 
         Test data scores are written to the `score.csv` file in the `model_folder` after model fit.
@@ -544,7 +544,7 @@ def trainModel(
         na_filter_y=True,
     )
 
-    x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, tt_split)
+    x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, test_split)
 
     if x_train.shape[0] == 0:
         return data, flags
