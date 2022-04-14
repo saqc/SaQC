@@ -32,6 +32,11 @@ from saqc.funcs.outliers import flagRange
 from saqc.funcs.flagtools import clearFlags, transferFlags
 from saqc.funcs.tools import dropField
 
+MULTI_TARGET_REGRESSOR = {"chain": sklearn.multioutput.RegressorChain,
+                           "multi": sklearn.multioutput.MultiOutputRegressor}
+
+MULTI_TARGET_CLASSIFIER = {"chain": sklearn.multioutput.ClassifierChain,
+                           "multi": sklearn.multioutput.MultiOutputClassifier}
 
 MULTI_TARGET_MODELS = {
     "chain_reg": sklearn.multioutput.RegressorChain,
@@ -341,11 +346,11 @@ def _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs,
 
     if len(target_idx) > 1:
         if mode == "regressor":
-            model = MULTI_TARGET_MODELS[multi_target_model + "_reg"](
+            model = MULTI_TARGET_REGRESSOR[multi_target_model](
                 model, **multi_train_kwargs
             )
         else:
-            model = MULTI_TARGET_MODELS[multi_target_model + "_class"](
+            model = MULTI_TARGET_CLASSIFIER[multi_target_model](
                 model, **multi_train_kwargs
             )
 
