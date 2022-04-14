@@ -1,0 +1,162 @@
+{
+    "uid": "d7b50fc0-1231-4e20-b1c6-ea5b2657d8ed",
+    "name": "1_Default_NeuralNetwork",
+    "preprocessing": [
+        {
+            "scale": [
+                {
+                    "scale": [
+                        6.074109074164297,
+                        3.0370545370821485,
+                        6.104842966071602,
+                        3.052421483035801,
+                        6.05196028924526,
+                        3.02598014462263
+                    ],
+                    "mean": [
+                        14.114362059145241,
+                        7.057181029572621,
+                        14.130643959050456,
+                        7.065321979525228,
+                        14.348529324056406,
+                        7.174264662028203
+                    ],
+                    "var": [
+                        36.89480104484505,
+                        9.223700261211263,
+                        37.26910764039392,
+                        9.31727691009848,
+                        36.62622334260157,
+                        9.156555835650392
+                    ],
+                    "n_samples_seen": 250,
+                    "n_features_in": 6,
+                    "columns": [
+                        "feature_1",
+                        "feature_2",
+                        "feature_3",
+                        "feature_4",
+                        "feature_5",
+                        "feature_6"
+                    ],
+                    "scale_method": "scale_normal"
+                }
+            ],
+            "ml_task": "binary_classification",
+            "params": {
+                "columns_preprocessing": {
+                    "feature_1": [
+                        "scale_normal"
+                    ],
+                    "feature_2": [
+                        "scale_normal"
+                    ],
+                    "feature_3": [
+                        "scale_normal"
+                    ],
+                    "feature_4": [
+                        "scale_normal"
+                    ],
+                    "feature_5": [
+                        "scale_normal"
+                    ],
+                    "feature_6": [
+                        "scale_normal"
+                    ]
+                },
+                "target_preprocessing": [
+                    "na_exclude"
+                ],
+                "ml_task": "binary_classification"
+            }
+        }
+    ],
+    "learners": [
+        {
+            "library_version": "1.0.2",
+            "algorithm_name": "Neural Network",
+            "algorithm_short_name": "Neural Network",
+            "uid": "32b2cbce-5431-45e0-826c-fb0b06628dcc",
+            "params": {
+                "model_type": "Neural Network",
+                "ml_task": "binary_classification",
+                "n_jobs": -1,
+                "dense_1_size": 32,
+                "dense_2_size": 16,
+                "learning_rate": 0.05,
+                "seed": 1,
+                "explain_level": 2
+            },
+            "name": "learner_fold_0"
+        }
+    ],
+    "params": {
+        "additional": {
+            "max_rows_limit": null,
+            "max_cols_limit": null
+        },
+        "preprocessing": {
+            "columns_preprocessing": {
+                "feature_1": [
+                    "scale_normal"
+                ],
+                "feature_2": [
+                    "scale_normal"
+                ],
+                "feature_3": [
+                    "scale_normal"
+                ],
+                "feature_4": [
+                    "scale_normal"
+                ],
+                "feature_5": [
+                    "scale_normal"
+                ],
+                "feature_6": [
+                    "scale_normal"
+                ]
+            },
+            "target_preprocessing": [
+                "na_exclude"
+            ],
+            "ml_task": "binary_classification"
+        },
+        "validation_strategy": {
+            "validation_type": "split",
+            "train_ratio": 0.75,
+            "shuffle": true,
+            "stratify": true,
+            "X_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarClassifierOnFlags_model/X.data",
+            "y_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarClassifierOnFlags_model/y.data",
+            "results_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarClassifierOnFlags_model"
+        },
+        "learner": {
+            "model_type": "Neural Network",
+            "ml_task": "binary_classification",
+            "n_jobs": -1,
+            "dense_1_size": 32,
+            "dense_2_size": 16,
+            "learning_rate": 0.05,
+            "seed": 1,
+            "explain_level": 2
+        },
+        "automl_random_state": 1234,
+        "ml_task": "binary_classification",
+        "explain_level": 2,
+        "name": "1_Default_NeuralNetwork",
+        "status": "initialized",
+        "final_loss": null,
+        "train_time": null,
+        "data_type": "original",
+        "max_time_for_learner": 360.0
+    },
+    "saved": [
+        "1_Default_NeuralNetwork/learner_fold_0.neural_network"
+    ],
+    "predictions_fname": "1_Default_NeuralNetwork/predictions_validation.csv",
+    "metric_name": "logloss",
+    "final_loss": 0.35307658695074007,
+    "train_time": 0.5834558010101318,
+    "is_stacked": false,
+    "threshold": 0.4591233493328546
+}

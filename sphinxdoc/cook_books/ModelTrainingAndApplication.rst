@@ -122,7 +122,7 @@ We can also train a model on the flags of a timeseries:
 
    >>> flag_model_path = os.path.join(data_path, 'tutorialModel2VarClassifierOnFlags_model')
    >>> qc = qc.flagGeneric('variable3', target='variable2', func=lambda x: x==1)
-   >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_idx='center', mode='flagger', path=model_path, train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, test_split='2000-12-01', dfilter=np.inf)
+   >>> qc = qc.trainModel(['variable1','variable2'], target='variable2', window='3D', target_idx='center', mode='flagger', path=flag_model_path, train_kwargs={'mode':'Explain', "algorithms": ["Neural Network"]}, override=True, test_split='2000-12-01', dfilter=np.inf)
    AutoML directory: ...
    The task is binary_classification with evaluation metric logloss
    AutoML will use algorithms: ['Neural Network']

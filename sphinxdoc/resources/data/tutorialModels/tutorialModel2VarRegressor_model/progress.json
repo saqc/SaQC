@@ -1,0 +1,103 @@
+{
+    "fit_level": "finished",
+    "time_controller": {
+        "total_time_limit": 3600,
+        "model_time_limit": null,
+        "steps": [
+            "simple_algorithms",
+            "default_algorithms",
+            "ensemble"
+        ],
+        "algorithms": [
+            "Neural Network"
+        ],
+        "spend": [
+            {
+                "model_name": "prepare_data",
+                "model_type": "prepare_data",
+                "fit_level": "prepare_data",
+                "train_time": 0.010132312774658203
+            },
+            {
+                "model_name": "1_Default_NeuralNetwork",
+                "model_type": "Neural Network",
+                "fit_level": "default_algorithms",
+                "train_time": 3.2330925464630127
+            }
+        ],
+        "is_hill_climbing": false,
+        "is_stacking": false
+    },
+    "all_params": {
+        "default_algorithms": [
+            {
+                "additional": {
+                    "max_rows_limit": null,
+                    "max_cols_limit": null
+                },
+                "preprocessing": {
+                    "columns_preprocessing": {
+                        "feature_1": [
+                            "scale_normal"
+                        ],
+                        "feature_2": [
+                            "scale_normal"
+                        ],
+                        "feature_3": [
+                            "scale_normal"
+                        ],
+                        "feature_4": [
+                            "scale_normal"
+                        ],
+                        "feature_5": [
+                            "scale_normal"
+                        ]
+                    },
+                    "target_preprocessing": [
+                        "na_exclude",
+                        "scale_normal"
+                    ],
+                    "ml_task": "regression"
+                },
+                "validation_strategy": {
+                    "validation_type": "split",
+                    "train_ratio": 0.75,
+                    "shuffle": true,
+                    "X_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarRegressor_model/X.data",
+                    "y_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarRegressor_model/y.data",
+                    "results_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel2VarRegressor_model"
+                },
+                "learner": {
+                    "model_type": "Neural Network",
+                    "ml_task": "regression",
+                    "n_jobs": -1,
+                    "dense_1_size": 32,
+                    "dense_2_size": 16,
+                    "learning_rate": 0.05,
+                    "seed": 1,
+                    "explain_level": 2
+                },
+                "automl_random_state": 1234,
+                "ml_task": "regression",
+                "explain_level": 2,
+                "name": "1_Default_NeuralNetwork",
+                "status": "trained",
+                "final_loss": 0.13244345979127864,
+                "train_time": 3.5237510204315186,
+                "data_type": "original",
+                "max_time_for_learner": 360.0
+            }
+        ],
+        "ensemble": [
+            {
+                "model_type": "ensemble",
+                "is_stacked": false,
+                "name": "Ensemble",
+                "status": "skipped",
+                "final_loss": 0.13244345979127864,
+                "train_time": 3.5237510204315186
+            }
+        ]
+    },
+    "adjust_validation": false
+}

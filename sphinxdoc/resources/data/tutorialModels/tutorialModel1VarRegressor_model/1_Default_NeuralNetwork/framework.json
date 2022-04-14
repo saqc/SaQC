@@ -1,0 +1,139 @@
+{
+    "uid": "a35b5b42-6cfb-4ccf-b388-f2002f8e46cc",
+    "name": "1_Default_NeuralNetwork",
+    "preprocessing": [
+        {
+            "scale": [
+                {
+                    "scale": [
+                        6.284159596397281,
+                        6.192875221260549
+                    ],
+                    "mean": [
+                        14.222108093354176,
+                        14.220275881986142
+                    ],
+                    "var": [
+                        39.49066183299203,
+                        38.3517035061029
+                    ],
+                    "n_samples_seen": 250,
+                    "n_features_in": 2,
+                    "columns": [
+                        "feature_1",
+                        "feature_2"
+                    ],
+                    "scale_method": "scale_normal"
+                }
+            ],
+            "scale_y": {
+                "scale": [
+                    6.160503381149942
+                ],
+                "mean": [
+                    14.155778414229527
+                ],
+                "var": [
+                    37.95180190915987
+                ],
+                "n_samples_seen": 250,
+                "n_features_in": 1,
+                "columns": [
+                    "target"
+                ],
+                "scale_method": "scale_normal"
+            },
+            "ml_task": "regression",
+            "params": {
+                "columns_preprocessing": {
+                    "feature_1": [
+                        "scale_normal"
+                    ],
+                    "feature_2": [
+                        "scale_normal"
+                    ]
+                },
+                "target_preprocessing": [
+                    "na_exclude",
+                    "scale_normal"
+                ],
+                "ml_task": "regression"
+            }
+        }
+    ],
+    "learners": [
+        {
+            "library_version": "1.0.2",
+            "algorithm_name": "Neural Network",
+            "algorithm_short_name": "Neural Network",
+            "uid": "f6e5dd82-04f3-4471-b4d7-509ab729f0cb",
+            "params": {
+                "model_type": "Neural Network",
+                "ml_task": "regression",
+                "n_jobs": -1,
+                "dense_1_size": 32,
+                "dense_2_size": 16,
+                "learning_rate": 0.05,
+                "seed": 1,
+                "explain_level": 2
+            },
+            "name": "learner_fold_0"
+        }
+    ],
+    "params": {
+        "additional": {
+            "max_rows_limit": null,
+            "max_cols_limit": null
+        },
+        "preprocessing": {
+            "columns_preprocessing": {
+                "feature_1": [
+                    "scale_normal"
+                ],
+                "feature_2": [
+                    "scale_normal"
+                ]
+            },
+            "target_preprocessing": [
+                "na_exclude",
+                "scale_normal"
+            ],
+            "ml_task": "regression"
+        },
+        "validation_strategy": {
+            "validation_type": "split",
+            "train_ratio": 0.75,
+            "shuffle": true,
+            "X_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor_model/X.data",
+            "y_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor_model/y.data",
+            "results_path": "/home/luenensc/PyPojects/saqc/sphinxdoc/resources/data/tutorialModels/tutorialModel1VarRegressor_model"
+        },
+        "learner": {
+            "model_type": "Neural Network",
+            "ml_task": "regression",
+            "n_jobs": -1,
+            "dense_1_size": 32,
+            "dense_2_size": 16,
+            "learning_rate": 0.05,
+            "seed": 1,
+            "explain_level": 2
+        },
+        "automl_random_state": 1234,
+        "ml_task": "regression",
+        "explain_level": 2,
+        "name": "1_Default_NeuralNetwork",
+        "status": "initialized",
+        "final_loss": null,
+        "train_time": null,
+        "data_type": "original",
+        "max_time_for_learner": 360.0
+    },
+    "saved": [
+        "1_Default_NeuralNetwork/learner_fold_0.neural_network"
+    ],
+    "predictions_fname": "1_Default_NeuralNetwork/predictions_validation.csv",
+    "metric_name": "rmse",
+    "final_loss": 3.7841703259133688,
+    "train_time": 2.786545515060425,
+    "is_stacked": false
+}

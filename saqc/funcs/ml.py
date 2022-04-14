@@ -305,7 +305,7 @@ def _makeScoreReports(y_pred_train, y_pred_test, y_train, y_test, mode):
         classification_report.update(
             metrics.classification_report(y_train, y_pred_train, output_dict=True)
         )
-        return score_book, classification_report
+    return score_book, classification_report
 
 
 
@@ -327,9 +327,9 @@ def _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs,
     if not base_estimator:
         for k in AUTO_ML_DEFAULT:
             train_kwargs.setdefault(k, AUTO_ML_DEFAULT[k])
-            train_kwargs.update({"path": model_folder})
+            train_kwargs.update({"results_path": model_folder})
         if len(target_idx) > 1:
-            train_kwargs.pop("path", None)
+            train_kwargs.pop("results_path", None)
         model = AutoML(**train_kwargs)
     else:
         model = base_estimator(**train_kwargs)
@@ -395,7 +395,7 @@ def _handleEmptySetup(x_train, y_train, errors, target ,samples, path, sampler_c
             y_dummy = np.empty_like(samples[4])
             y_dummy[:] = 'NaN'
             fitted = model.fit(np.zeros_like(samples[3]), y_dummy)
-            _writeResults(path, fitted, sampler_config, samples, {'dummy': 'NaN'}, {'dummy': 'NaN'})
+            _writeResults(path, fitted, sampler_config, samples, {'dummy': ['NaN']}, {'dummy': ['NaN']})
         return False
     return True
 
@@ -546,7 +546,7 @@ def trainModel(
 
     if not os.path.exists(path):
         os.makedirs(path)
-    elif override & (os.path.basename(path).split('_') == MODEL_FOLDER_SUFFIX):
+    elif override & (os.path.basename(path).split('_')[-1] == MODEL_FOLDER_SUFFIX):
         shutil.rmtree(path)
         os.makedirs(path)
 
@@ -589,7 +589,7 @@ def trainModel(
         na_filter_y=True,
     )
 
-    x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, test_split, errors)
+    x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, test_split)
 
     check_val = _handleEmptySetup(x_train, y_train, errors, target ,samples, path, sampler_config)
     if not check_val:
@@ -675,7 +675,7 @@ def modelPredict(
     1. The model stored to ``path`` is loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
-       This means, that `variable fields` the model has been trained on, have to be present in the data.
+       This means, that `fields` the model has been trained on, have to be present in the data.
        To replace/rename input variables for a certain model, use the ``assign_features`` parameter.
 
     3. Variable ``field`` gets overridden with the predictions results, if `target`` is not passed. Otherwise
@@ -815,7 +815,7 @@ def modelFlag(
     1. The model stored to ``path`` is loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
-       This means, that `variable fields` the model has been trained on, have to be present in the data.
+       This means, that `fields` the model has been trained on, have to be present in the data.
        To replace/rename input variables for a certain model, use the ``assign_features`` parameter.
 
     3. Variable ``field`` gets flagged, where the model predicts the positive class.
@@ -928,7 +928,7 @@ def modelImpute(
        loaded.
 
     2. Input data to the model is prepared in the same way as it got prepared when training the model.
-       This means, that `variable fields` the model has been trained on, have to be present in the data.
+       This means, that `fields` the model has been trained on, have to be present in the data.
        To replace/rename input variables for a certain model, use the ``assign_features`` parameter.
 
     3. Imputation: Missing and Flagged Values in ``field`` get replaced by model predictions, if one can be calculated.
