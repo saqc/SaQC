@@ -126,6 +126,18 @@ def _getSamplerParams(
     return window, data_in, mask_frame, target, target_idx, na_filter_x
 
 
+def _splitViews(data, sub_len, cols):
+    split = np.lib.stride_tricks.sliding_window_view(data, (sub_len, cols))
+    samples = split.reshape(split.shape[0], split.shape[2], split.shape[3])
+    return samples
+
+
+def _flattenSamples(samples):
+    return samples.reshape(
+        samples.shape[0], samples.shape[1] * samples.shape[2]
+    )
+
+
 def _generateSamples(
     X: str,
     Y: str,
@@ -135,6 +147,7 @@ def _generateSamples(
     x_mask: str = [],
     na_filter_x: bool = True,
     na_filter_y: bool = True,
+    filter_list: list = []
 ):
 
     X = toSequence(X)
@@ -155,64 +168,57 @@ def _generateSamples(
     for var in enumerate(Y):
         y_map[:, var[0]] = [var[1] + f"_{k}" for k in range(sub_len)]
 
-    x_split = np.lib.stride_tricks.sliding_window_view(x_data, (sub_len, x_cols))
-    x_samples = x_split.reshape(x_split.shape[0], x_split.shape[2], x_split.shape[3])
-    # flatten mode (results in [row0, row1, row2, ..., rowSubLen]
-    x_samples = x_samples.reshape(
-        x_samples.shape[0], x_samples.shape[1] * x_samples.shape[2]
-    )
+    # split input into sample views:
+    # x_samples = feature samples
+    # x_map_samples = map of features, containing entries like feature_index
+    # x_mask_samples = mask that hides feature values
+    x_samples = _splitViews(x_data, sub_len, x_cols)
+    x_map_samples = _splitViews(x_map, sub_len, x_cols)
+    x_mask_samples = _splitViews(x_mask, sub_len, x_cols)
+    y_samples = _splitViews(y_data, sub_len, y_cols)
+    y_map_samples = _splitViews(y_map, sub_len, y_cols)
 
-    x_map_split = np.lib.stride_tricks.sliding_window_view(x_map, (sub_len, x_cols))
-    x_map_samples = x_map_split.reshape(
-        x_map_split.shape[0], x_map_split.shape[2], x_map_split.shape[3]
-    )
-    x_map_samples = x_map_samples.reshape(
-        x_map_samples.shape[0], x_map_samples.shape[1] * x_map_samples.shape[2]
-    )
-
-    y_split = np.lib.stride_tricks.sliding_window_view(y_data, (sub_len, y_cols))
-    y_samples = y_split.reshape(y_split.shape[0], y_split.shape[2], y_split.shape[3])
-
-    y_map_split = np.lib.stride_tricks.sliding_window_view(y_map, (sub_len, y_cols))
-    y_map_samples = y_map_split.reshape(
-        y_map_split.shape[0], y_map_split.shape[2], y_map_split.shape[3]
-    )
-
+    # make map of which indices go where in the target samples
     i_map_split = np.lib.stride_tricks.sliding_window_view(
         np.arange(len(y_data)), sub_len
     )
     i_map_samples = i_map_split.reshape(i_map_split.shape[0], i_map_split.shape[1])
 
-    x_mask_split = np.lib.stride_tricks.sliding_window_view(x_mask, (sub_len, x_cols))
-    x_mask_samples = x_mask_split.reshape(
-        x_mask_split.shape[0], x_mask_split.shape[2], x_mask_split.shape[3]
-    )
-    x_mask_samples = x_mask_samples.reshape(
-        x_mask_samples.shape[0], x_mask_samples.shape[1] * x_mask_samples.shape[2]
-    )
+    # filter samples prior to flattening
+    i_filter = np.ones(i_map_samples.shape[0], dtype=bool)
+    if len(filter_list) > 0:
+        for f in filter_list:
+            f_wrap = lambda x: f(np.where(x_mask, x, np.nan))
+            f_val = np.fromiter(map(f_wrap, x_samples), dtype=bool, count=x_samples.shape[0])
+            i_filter &= f_val
 
+    # flatten feature samples
+    x_samples = _flattenSamples(x_samples)
+    x_map_samples = _flattenSamples(x_map_samples)
+    x_mask_samples = _flattenSamples(x_mask_samples)
+
+    # remove masked values from flattened samples
     selector = x_mask_samples.squeeze(axis=0)
     x_samples = x_samples[:, selector]
     x_map_samples = x_map_samples[:, selector]
     y_samples = y_samples[:, target_idx, :]
     y_map_samples = y_map_samples[:, target_idx, :]
     i_map_samples = i_map_samples[:, target_idx]
-    # currently only support for 1-d y (i guess)
+    # currently only support for 1-d
     y_samples = np.squeeze(y_samples, axis=2)
     y_map_samples = np.squeeze(y_map_samples, axis=2)
 
-    na_samples = np.full(y_samples.shape[0], False)
+    # add na filter to the filter
     if na_filter_y:
-        na_samples = np.any(np.isnan(y_samples), axis=1)
+        i_filter &= ~np.any(np.isnan(y_samples), axis=1)
 
     if na_filter_x:
-        na_s = np.any(np.isnan(x_samples), axis=1)
-        na_samples |= na_s
+        i_filter &= ~np.any(np.isnan(x_samples), axis=1)
 
     return (
-        x_samples[~na_samples],
-        y_samples[~na_samples],
-        i_map_samples[~na_samples],
+        x_samples[i_filter],
+        y_samples[i_filter],
+        i_map_samples[i_filter],
         x_map_samples,
         y_map_samples,
     )
