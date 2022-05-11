@@ -147,7 +147,7 @@ def _generateSamples(
     x_mask: str = [],
     na_filter_x: bool = True,
     na_filter_y: bool = True,
-    filter_list: list = []
+    sfilter: Optional[Callable] = None
 ):
 
     X = toSequence(X)
@@ -186,11 +186,10 @@ def _generateSamples(
 
     # filter samples prior to flattening
     i_filter = np.ones(i_map_samples.shape[0], dtype=bool)
-    if len(filter_list) > 0:
-        for f in filter_list:
-            f_wrap = lambda x: f(np.where(x_mask, x, np.nan))
-            f_val = np.fromiter(map(f_wrap, x_samples), dtype=bool, count=x_samples.shape[0])
-            i_filter &= f_val
+    if sfilter is not None:
+        f_wrap = lambda x: sfilter(np.where(x_mask, x, np.nan))
+        i_filter &= np.fromiter(map(f_wrap, x_samples), dtype=bool, count=x_samples.shape[0])
+
 
     # flatten feature samples
     x_samples = _flattenSamples(x_samples)
@@ -429,6 +428,7 @@ def trainModel(
     errors: Literal['coerce', 'raise'] = 'raise',
     dfilter: float = BAD,
     override: bool = False,
+    sfilter: Optional[Callable] = None,
     **kwargs,
 ) -> Tuple[DictOfSeries, Flags]:
     """
@@ -528,6 +528,12 @@ def trainModel(
         To prevent accidents, only folders named with the `MODEL_FOLDER_SUFFIX` (default:"_model") can
         be overriden on the fly.
 
+    sfilter : Callable, default None
+        Filter function to be applied on the samples generated from the features. It must be a function,
+        mapping 2 dimension `ndarrays` onto booleans.
+        The filter function will be applied on samples of the shape ``(window, len(field))``.
+        The columns of the samples directly correspond to the indices of ``fields``.
+
     Returns
     -------
     data : dios.DictOfSeries
@@ -598,6 +604,7 @@ def trainModel(
         x_mask=feature_mask,
         na_filter_x=na_filter_x,
         na_filter_y=True,
+        sfilter=sfilter
     )
 
     x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, test_split)
@@ -881,7 +888,7 @@ def modelImpute(
     """
     Use a trained model for data imputation.
 
-    Imputation is performed for missing as well as flagged data in field, where ever valid predictor samples are
+    Imputation is performed for missing as well as flagged data in field, where-ever valid predictor samples are
     available.
 
     Parameters

@@ -36,6 +36,7 @@ class Ml:
         errors: Literal['coerce', 'raise'] = 'raise',
         dfilter: float = BAD,
         override: bool = False,
+        sfilter: Optional[Callable] = None,
         **kwargs,
     ) -> saqc.SaQC:
         return self._defer("trainModel", locals())
