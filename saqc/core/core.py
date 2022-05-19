@@ -7,7 +7,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import functools
 import warnings
+
 from typing import (
     Any,
     Callable,
@@ -46,13 +48,42 @@ import saqc.funcs  # noqa
 pd.set_option("mode.chained_assignment", "warn")
 np.seterr(invalid="ignore")
 
-
 TRANSLATION_SCHEMES = {
     "float": FloatScheme,
     "simple": SimpleScheme,
     "dmp": DmpScheme,
     "positional": PositionalScheme,
 }
+
+
+def fix_hints(decorator: Callable) -> Callable:
+    # from https://github.com/gri-gus/decohints
+    return decorator
+
+
+@fix_hints
+def flagging_meth(**dec_kws):
+
+    def wrapper(method):
+
+        @functools.wraps(method)
+        def onCall(self, *args, **kwargs):
+            from saqc.core.register import flagging
+
+            # make ``method`` look like a function
+            # to trick ``funcWrapper`` in register.py
+            def pseudoFunction(da, field, fl, *ar, **kws):
+                self._prepared = da, fl
+                new_self = method(self, field, *ar, **kws)
+                return new_self._processed
+
+            funcWrapper_inst = flagging(**dec_kws)(pseudoFunction)
+
+            return self._wrap(funcWrapper_inst)(*args, **kwargs)
+
+        return onCall
+
+    return wrapper
 
 
 class SaQC(FunctionsMixin):
@@ -382,6 +413,47 @@ class SaQC(FunctionsMixin):
             flags = flags.copy()
         return flags
 
+    @flagging_meth()
+    def flagFoo(
+            self,
+            field: str,
+            min: float = -np.inf,
+            max: float = np.inf,
+            flag: float = BAD,
+            **kwargs,
+    ) -> SaQC:
+        """
+        Function flags values not covered by the closed interval [`min`, `max`].
+
+        Parameters
+        ----------
+        field : str
+            The fieldname of the column, holding the data-to-be-flagged.
+        min : float
+            Lower bound for valid data.
+        max : float
+            Upper bound for valid data.
+        flag : float, default BAD
+            flag to set.
+
+        Returns
+        -------
+        data : dios.DictOfSeries
+            A dictionary of pandas.Series, holding all the data.
+        flags : saqc.Flags
+            The quality flags of data
+        """
+
+        data, flags = self._prepared  # noqa
+
+        # using .values is much faster
+        datacol = data[field].values
+        mask = (datacol < min) | (datacol > max)
+        flags[mask, field] = flag
+
+        self._processed = data, flags  # noqa
+        return self
+
 
 class SaQCResult:
     def __init__(
@@ -459,3 +531,9 @@ class SaQCResult:
 
     def __repr__(self):
         return f"SaQCResult\nColumns: {self.columns.to_list()}"
+
+
+if __name__ == '__main__':
+    df = pd.DataFrame(np.arange(16).reshape(4, 4), columns=list("abcd"))
+    qc = SaQC(df)
+    qc.flagFoo('b', min=4)
