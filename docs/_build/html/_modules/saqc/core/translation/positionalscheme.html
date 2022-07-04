@@ -1,0 +1,236 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>saqc.core.translation.positionalscheme &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/tabs.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/thebelab-helper.js"></script>
+    <script src="../../../../_static/tabs.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../../../../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.translation.positionalscheme</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for saqc.core.translation.positionalscheme</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+
+<span class="c1"># SPDX-FileCopyrightText: 2021 Helmholtz-Zentrum für Umweltforschung GmbH - UFZ</span>
+<span class="c1">#</span>
+<span class="c1"># SPDX-License-Identifier: GPL-3.0-or-later</span>
+
+<span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">from</span> <span class="nn">saqc.constants</span> <span class="kn">import</span> <span class="n">BAD</span><span class="p">,</span> <span class="n">DOUBTFUL</span><span class="p">,</span> <span class="n">GOOD</span><span class="p">,</span> <span class="n">UNFLAGGED</span>
+<span class="kn">from</span> <span class="nn">saqc.core.flags</span> <span class="kn">import</span> <span class="n">Flags</span><span class="p">,</span> <span class="n">History</span>
+<span class="kn">from</span> <span class="nn">saqc.core.translation.basescheme</span> <span class="kn">import</span> <span class="n">BackwardMap</span><span class="p">,</span> <span class="n">ForwardMap</span><span class="p">,</span> <span class="n">TranslationScheme</span>
+
+
+<div class="viewcode-block" id="PositionalScheme"><a class="viewcode-back" href="../../../../_api/saqc.core.translation.PositionalScheme.html#saqc.core.PositionalScheme">[docs]</a><span class="k">class</span> <span class="nc">PositionalScheme</span><span class="p">(</span><span class="n">TranslationScheme</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Implements the translation from and to the flagging scheme implemented by CHS</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">DFILTER_DEFAULT</span> <span class="o">=</span> <span class="n">DOUBTFUL</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="n">_FORWARD</span><span class="p">:</span> <span class="n">ForwardMap</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="o">-</span><span class="mi">6</span><span class="p">:</span> <span class="n">UNFLAGGED</span><span class="p">,</span>
+        <span class="o">-</span><span class="mi">5</span><span class="p">:</span> <span class="n">UNFLAGGED</span><span class="p">,</span>
+        <span class="o">-</span><span class="mi">2</span><span class="p">:</span> <span class="n">UNFLAGGED</span><span class="p">,</span>
+        <span class="o">-</span><span class="mi">1</span><span class="p">:</span> <span class="n">UNFLAGGED</span><span class="p">,</span>
+        <span class="mi">0</span><span class="p">:</span> <span class="n">UNFLAGGED</span><span class="p">,</span>
+        <span class="mi">1</span><span class="p">:</span> <span class="n">DOUBTFUL</span><span class="p">,</span>
+        <span class="mi">2</span><span class="p">:</span> <span class="n">BAD</span><span class="p">,</span>
+    <span class="p">}</span>
+    <span class="n">_BACKWARD</span><span class="p">:</span> <span class="n">BackwardMap</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">UNFLAGGED</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">GOOD</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span>
+        <span class="n">DOUBTFUL</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="n">BAD</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">forward</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_FORWARD</span><span class="p">,</span> <span class="n">backward</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_BACKWARD</span><span class="p">)</span>
+
+<div class="viewcode-block" id="PositionalScheme.forward"><a class="viewcode-back" href="../../../../_api/saqc.core.translation.PositionalScheme.html#saqc.core.PositionalScheme.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flags</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Flags</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Translate from &#39;external flags&#39; to &#39;internal flags&#39;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        flags : pd.DataFrame</span>
+<span class="sd">            The external flags to translate</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Flags object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">field</span><span class="p">,</span> <span class="n">field_flags</span> <span class="ow">in</span> <span class="n">flags</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+
+            <span class="c1"># explode the flags into sperate columns and drop the leading `9`</span>
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                <span class="n">field_flags</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">str</span><span class="p">)</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">slice</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="nb">tuple</span><span class="p">)</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                <span class="n">index</span><span class="o">=</span><span class="n">field_flags</span><span class="o">.</span><span class="n">index</span><span class="p">,</span>
+            <span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
+
+            <span class="c1"># the exploded values form the History of `field`</span>
+            <span class="n">fflags</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">_translate</span><span class="p">(</span><span class="n">df</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_FORWARD</span><span class="p">)</span>
+            <span class="n">field_history</span> <span class="o">=</span> <span class="n">History</span><span class="p">(</span><span class="n">field_flags</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">fflags</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">field_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">s</span><span class="p">)</span>
+            <span class="n">data</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">field</span><span class="p">)]</span> <span class="o">=</span> <span class="n">field_history</span>
+
+        <span class="k">return</span> <span class="n">Flags</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="PositionalScheme.backward"><a class="viewcode-back" href="../../../../_api/saqc.core.translation.PositionalScheme.html#saqc.core.PositionalScheme.backward">[docs]</a>    <span class="k">def</span> <span class="nf">backward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flags</span><span class="p">:</span> <span class="n">Flags</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Translate from &#39;internal flags&#39; to &#39;external flags&#39;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        flags : pd.DataFrame</span>
+<span class="sd">            The external flags to translate</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        pd.DataFrame</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">flags</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="n">thist</span> <span class="o">=</span> <span class="n">flags</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">hist</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_BACKWARD</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">float</span><span class="p">)</span>
+            <span class="c1"># concatenate the single flag values</span>
+            <span class="n">ncols</span> <span class="o">=</span> <span class="n">thist</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">init</span> <span class="o">=</span> <span class="mi">9</span> <span class="o">*</span> <span class="mi">10</span><span class="o">**</span><span class="n">ncols</span>
+            <span class="n">bases</span> <span class="o">=</span> <span class="mi">10</span> <span class="o">**</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">ncols</span> <span class="o">-</span> <span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="o">-</span><span class="mi">1</span><span class="p">)</span>
+
+            <span class="n">tflags</span> <span class="o">=</span> <span class="n">init</span> <span class="o">+</span> <span class="p">(</span><span class="n">thist</span> <span class="o">*</span> <span class="n">bases</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            <span class="n">out</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">tflags</span>
+
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">out</span><span class="p">)</span><span class="o">.</span><span class="n">fillna</span><span class="p">(</span><span class="o">-</span><span class="mi">9999</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span></div></div>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../../../index.html">
+              <img class="logo" src="../../../../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../../../../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.translation.positionalscheme</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,250 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>SaQC &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="flagging" href="../_api/saqc.core.flagging.html" />
+    <link rel="prev" title="SaQC" href="../_api/saqc.SaQC.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../_api/saqc.core.flagging.html" title="flagging"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../_api/saqc.SaQC.html" title="SaQC"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">SaQC</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="saqc">
+<h1>SaQC<a class="headerlink" href="#saqc" title="Permalink to this headline">¶</a></h1>
+<section id="module-saqc.core">
+<span id="saqc-core-package"></span><h2>saqc.core Package<a class="headerlink" href="#module-saqc.core" title="Permalink to this headline">¶</a></h2>
+<section id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../_api/saqc.core.flagging.html#saqc.core.flagging" title="saqc.core.flagging"><code class="xref py py-obj docutils literal notranslate"><span class="pre">flagging</span></code></a>(**kwargs)</p></td>
+<td><p>Default decorator for univariate flagging functions.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../_api/saqc.core.fromConfig.html#saqc.core.fromConfig" title="saqc.core.fromConfig"><code class="xref py py-obj docutils literal notranslate"><span class="pre">fromConfig</span></code></a>(fname, *args, **func_kwargs)</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../_api/saqc.core.initFlagsLike.html#saqc.core.initFlagsLike" title="saqc.core.initFlagsLike"><code class="xref py py-obj docutils literal notranslate"><span class="pre">initFlagsLike</span></code></a>(reference[, name])</p></td>
+<td><p>Create empty Flags, from an reference data structure.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../_api/saqc.core.processing.html#saqc.core.processing" title="saqc.core.processing"><code class="xref py py-obj docutils literal notranslate"><span class="pre">processing</span></code></a>(**kwargs)</p></td>
+<td><p>Default decorator for univariate processing functions.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../_api/saqc.core.register.html#saqc.core.register" title="saqc.core.register"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register</span></code></a>(mask, demask, squeeze[, ...])</p></td>
+<td><p>Generalized decorator for any saqc functions.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="classes">
+<h3>Classes<a class="headerlink" href="#classes" title="Permalink to this headline">¶</a></h3>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="../_api/saqc.core.DmpScheme.html#saqc.core.DmpScheme" title="saqc.core.DmpScheme"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DmpScheme</span></code></a>()</p></td>
+<td><p>Implements the translation from and to the flagging scheme implemented in the UFZ - Datamanagementportal</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../_api/saqc.core.Flags.html#saqc.core.Flags" title="saqc.core.Flags"><code class="xref py py-obj docutils literal notranslate"><span class="pre">Flags</span></code></a>([raw_data, copy])</p></td>
+<td><p>SaQC's flags container.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../_api/saqc.core.FloatScheme.html#saqc.core.FloatScheme" title="saqc.core.FloatScheme"><code class="xref py py-obj docutils literal notranslate"><span class="pre">FloatScheme</span></code></a>()</p></td>
+<td><p>Acts as the default Translator, provides a changeable subset of the internal float flags</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../_api/saqc.core.History.html#saqc.core.History" title="saqc.core.History"><code class="xref py py-obj docutils literal notranslate"><span class="pre">History</span></code></a>(index)</p></td>
+<td><p>Saqc internal storage for the history of a (single) flags column.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../_api/saqc.core.PositionalScheme.html#saqc.core.PositionalScheme" title="saqc.core.PositionalScheme"><code class="xref py py-obj docutils literal notranslate"><span class="pre">PositionalScheme</span></code></a>()</p></td>
+<td><p>Implements the translation from and to the flagging scheme implemented by CHS</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="../_api/saqc.core.SaQC.html#saqc.core.SaQC" title="saqc.core.SaQC"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SaQC</span></code></a>([data, flags, scheme])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="../_api/saqc.core.SimpleScheme.html#saqc.core.SimpleScheme" title="saqc.core.SimpleScheme"><code class="xref py py-obj docutils literal notranslate"><span class="pre">SimpleScheme</span></code></a>()</p></td>
+<td><p>Acts as the default Translator, provides a changeable subset of the internal float flags</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="SaQC.html">Package</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Core</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#module-saqc.core">saqc.core Package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.flagging.html">flagging</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.fromConfig.html">fromConfig</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.initFlagsLike.html">initFlagsLike</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.processing.html">processing</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.register.html">register</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#classes">Classes</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.DmpScheme.html">DmpScheme</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.Flags.html">Flags</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.FloatScheme.html">FloatScheme</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.History.html">History</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.PositionalScheme.html">PositionalScheme</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.SaQC.html">SaQC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../_api/saqc.core.SimpleScheme.html">SimpleScheme</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="../_api/saqc.SaQC.html"
+                          title="previous chapter">SaQC</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="../_api/saqc.core.flagging.html"
+                          title="next chapter">flagging</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/modules/SaQCCore.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../_api/saqc.core.flagging.html" title="flagging"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../_api/saqc.SaQC.html" title="SaQC"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">SaQC</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

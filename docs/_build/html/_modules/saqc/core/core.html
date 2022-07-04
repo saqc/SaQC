@@ -1,0 +1,486 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>saqc.core.core &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/tabs.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/thebelab-helper.js"></script>
+    <script src="../../../_static/tabs.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../../../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.core</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for saqc.core.core</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+
+<span class="c1"># SPDX-FileCopyrightText: 2021 Helmholtz-Zentrum für Umweltforschung GmbH - UFZ</span>
+<span class="c1">#</span>
+<span class="c1"># SPDX-License-Identifier: GPL-3.0-or-later</span>
+
+<span class="c1"># -*- coding: utf-8 -*-</span>
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">copy</span> <span class="k">as</span> <span class="n">shallowcopy</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Hashable</span><span class="p">,</span> <span class="n">List</span><span class="p">,</span> <span class="n">MutableMapping</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="c1"># the import is needed to trigger the registration</span>
+<span class="c1"># of the built-in (test-)functions</span>
+<span class="kn">import</span> <span class="nn">saqc.funcs</span>  <span class="c1"># noqa</span>
+<span class="kn">from</span> <span class="nn">dios</span> <span class="kn">import</span> <span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">to_dios</span>
+<span class="kn">from</span> <span class="nn">saqc.core.flags</span> <span class="kn">import</span> <span class="n">Flags</span><span class="p">,</span> <span class="n">initFlagsLike</span>
+<span class="kn">from</span> <span class="nn">saqc.core.history</span> <span class="kn">import</span> <span class="n">History</span>
+<span class="kn">from</span> <span class="nn">saqc.core.modules</span> <span class="kn">import</span> <span class="n">FunctionsMixin</span>
+<span class="kn">from</span> <span class="nn">saqc.core.register</span> <span class="kn">import</span> <span class="n">FUNC_MAP</span><span class="p">,</span> <span class="n">FunctionWrapper</span>
+<span class="kn">from</span> <span class="nn">saqc.core.translation</span> <span class="kn">import</span> <span class="p">(</span>
+    <span class="n">DmpScheme</span><span class="p">,</span>
+    <span class="n">FloatScheme</span><span class="p">,</span>
+    <span class="n">PositionalScheme</span><span class="p">,</span>
+    <span class="n">SimpleScheme</span><span class="p">,</span>
+    <span class="n">TranslationScheme</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="kn">from</span> <span class="nn">saqc.lib.tools</span> <span class="kn">import</span> <span class="n">concatDios</span><span class="p">,</span> <span class="n">toSequence</span>
+<span class="kn">from</span> <span class="nn">saqc.lib.types</span> <span class="kn">import</span> <span class="n">ExternalFlag</span><span class="p">,</span> <span class="n">OptionalNone</span>
+
+<span class="c1"># warnings</span>
+<span class="n">pd</span><span class="o">.</span><span class="n">set_option</span><span class="p">(</span><span class="s2">&quot;mode.chained_assignment&quot;</span><span class="p">,</span> <span class="s2">&quot;warn&quot;</span><span class="p">)</span>
+<span class="n">np</span><span class="o">.</span><span class="n">seterr</span><span class="p">(</span><span class="n">invalid</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+
+
+<span class="n">TRANSLATION_SCHEMES</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;float&quot;</span><span class="p">:</span> <span class="n">FloatScheme</span><span class="p">,</span>
+    <span class="s2">&quot;simple&quot;</span><span class="p">:</span> <span class="n">SimpleScheme</span><span class="p">,</span>
+    <span class="s2">&quot;dmp&quot;</span><span class="p">:</span> <span class="n">DmpScheme</span><span class="p">,</span>
+    <span class="s2">&quot;positional&quot;</span><span class="p">:</span> <span class="n">PositionalScheme</span><span class="p">,</span>
+<span class="p">}</span>
+
+
+<div class="viewcode-block" id="SaQC"><a class="viewcode-back" href="../../../_api/saqc.core.SaQC.html#saqc.SaQC">[docs]</a><span class="k">class</span> <span class="nc">SaQC</span><span class="p">(</span><span class="n">FunctionsMixin</span><span class="p">):</span>
+    <span class="n">_attributes</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;_data&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_flags&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_scheme&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;_attrs&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">data</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">flags</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">scheme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">TranslationScheme</span> <span class="o">=</span> <span class="s2">&quot;float&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initData</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initFlags</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_scheme</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_initTranslationScheme</span><span class="p">(</span><span class="n">scheme</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="s2">&quot;init&quot;</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_construct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">attributes</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SaQC</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Construct a new `SaQC`-Object from `self` and optionally inject</span>
+<span class="sd">        attributes with any chechking and overhead.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        **attributes: any of the `SaQC` data attributes with name and value</span>
+
+<span class="sd">        Note</span>
+<span class="sd">        ----</span>
+<span class="sd">        For internal usage only! Setting values through `injectables` has</span>
+<span class="sd">        the potential to mess up certain invariants of the constructed object.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">SaQC</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">DictOfSeries</span><span class="p">(),</span> <span class="n">flags</span><span class="o">=</span><span class="n">Flags</span><span class="p">(),</span> <span class="n">scheme</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_scheme</span><span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">attributes</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attributes</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SaQC has no attribute </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="n">k</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">out</span><span class="p">,</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="k">def</span> <span class="nf">_validate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">reason</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">equals</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_flags</span><span class="o">.</span><span class="n">columns</span><span class="p">):</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Consistency broken. data and flags have not the same columns.&quot;</span>
+            <span class="k">if</span> <span class="n">reason</span><span class="p">:</span>
+                <span class="n">msg</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot; This was most likely caused by: </span><span class="si">{</span><span class="n">reason</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Dictionary of global attributes of this dataset.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span>
+
+    <span class="nd">@attrs</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">attrs</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">Hashable</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">data</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MutableMapping</span><span class="p">:</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span>
+        <span class="n">data</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">flags</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">MutableMapping</span><span class="p">:</span>
+        <span class="n">flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scheme</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_flags</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">flags</span><span class="o">.</span><span class="n">attrs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attrs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">flags</span>
+
+    <span class="k">def</span> <span class="nf">_expandFields</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">regex</span><span class="p">:</span> <span class="nb">bool</span><span class="p">,</span>
+        <span class="n">field</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="n">target</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        check and expand `field` and `target`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="c1"># expand regular expressions</span>
+        <span class="k">if</span> <span class="n">regex</span><span class="p">:</span>
+            <span class="n">fmask</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">str</span><span class="o">.</span><span class="n">match</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">columns</span><span class="p">[</span><span class="n">fmask</span><span class="p">]</span><span class="o">.</span><span class="n">tolist</span><span class="p">()</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="n">toSequence</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+
+        <span class="n">targets</span> <span class="o">=</span> <span class="n">fields</span> <span class="k">if</span> <span class="n">target</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">toSequence</span><span class="p">(</span><span class="n">target</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">fields</span><span class="p">,</span> <span class="n">targets</span>
+
+    <span class="k">def</span> <span class="nf">_wrap</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">:</span> <span class="n">FunctionWrapper</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        prepare user function input:</span>
+<span class="sd">          - expand fields and targets</span>
+<span class="sd">          - translate user given ``flag`` values or set the default ``BAD``</span>
+<span class="sd">          - translate user given ``dfilter`` values or set the scheme default</span>
+<span class="sd">          - dependeing on the workflow: initialize ``target`` variables</span>
+
+<span class="sd">        Here we add the following parameters to all registered functions, regardless</span>
+<span class="sd">        of their repsective definition:</span>
+<span class="sd">          - ``regex``</span>
+<span class="sd">          - ``target``</span>
+
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span>
+            <span class="n">field</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+            <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+            <span class="n">target</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="n">regex</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+            <span class="n">flag</span><span class="p">:</span> <span class="n">ExternalFlag</span> <span class="o">|</span> <span class="n">OptionalNone</span> <span class="o">=</span> <span class="n">OptionalNone</span><span class="p">(),</span>
+            <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SaQC</span><span class="p">:</span>
+
+            <span class="n">kwargs</span><span class="o">.</span><span class="n">setdefault</span><span class="p">(</span><span class="s2">&quot;dfilter&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scheme</span><span class="o">.</span><span class="n">DFILTER_DEFAULT</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">OptionalNone</span><span class="p">):</span>
+                <span class="c1"># translation schemes might want to use a flag</span>
+                <span class="c1"># `None` so we introduce a special class here</span>
+                <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;flag&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_scheme</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+
+            <span class="n">fields</span><span class="p">,</span> <span class="n">targets</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_expandFields</span><span class="p">(</span>
+                <span class="n">regex</span><span class="o">=</span><span class="n">regex</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="n">field</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="n">target</span>
+            <span class="p">)</span>
+            <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">func</span><span class="o">.</span><span class="n">handles_target</span><span class="p">:</span>
+                <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span> <span class="o">!=</span> <span class="nb">len</span><span class="p">(</span><span class="n">targets</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="s2">&quot;expected the same number of &#39;field&#39; and &#39;target&#39; values&quot;</span>
+                    <span class="p">)</span>
+
+                <span class="c1"># initialize all target variables</span>
+                <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">trg</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">targets</span><span class="p">):</span>
+                    <span class="k">if</span> <span class="n">src</span> <span class="o">!=</span> <span class="n">trg</span><span class="p">:</span>
+                        <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">_callFunction</span><span class="p">(</span>
+                            <span class="n">FUNC_MAP</span><span class="p">[</span><span class="s2">&quot;copyField&quot;</span><span class="p">],</span>
+                            <span class="n">field</span><span class="o">=</span><span class="n">src</span><span class="p">,</span>
+                            <span class="n">target</span><span class="o">=</span><span class="n">trg</span><span class="p">,</span>
+                            <span class="n">overwrite</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">func</span><span class="o">.</span><span class="n">multivariate</span><span class="p">:</span>
+                <span class="c1"># pass all fields and targets</span>
+                <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">_callFunction</span><span class="p">(</span>
+                    <span class="n">func</span><span class="p">,</span>
+                    <span class="n">field</span><span class="o">=</span><span class="n">fields</span><span class="p">,</span>
+                    <span class="n">target</span><span class="o">=</span><span class="n">targets</span><span class="p">,</span>
+                    <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+                    <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># call the function on target</span>
+                <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">trg</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">targets</span><span class="p">):</span>
+                    <span class="n">fkwargs</span> <span class="o">=</span> <span class="p">{</span><span class="o">**</span><span class="n">kwargs</span><span class="p">,</span> <span class="s2">&quot;field&quot;</span><span class="p">:</span> <span class="n">src</span><span class="p">,</span> <span class="s2">&quot;target&quot;</span><span class="p">:</span> <span class="n">trg</span><span class="p">}</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">func</span><span class="o">.</span><span class="n">handles_target</span><span class="p">:</span>
+                        <span class="n">fkwargs</span><span class="p">[</span><span class="s2">&quot;field&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fkwargs</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;target&quot;</span><span class="p">)</span>
+                    <span class="n">out</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">_callFunction</span><span class="p">(</span><span class="n">func</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">fkwargs</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">out</span>
+
+        <span class="k">return</span> <span class="n">inner</span>
+
+    <span class="k">def</span> <span class="nf">_callFunction</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">function</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+        <span class="n">field</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+        <span class="o">*</span><span class="n">args</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+        <span class="o">**</span><span class="n">kwargs</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SaQC</span><span class="p">:</span>
+
+        <span class="n">res</span> <span class="o">=</span> <span class="n">function</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">flags</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_flags</span><span class="p">,</span> <span class="n">field</span><span class="o">=</span><span class="n">field</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># keep consistence: if we modify data and flags inplace in a function,</span>
+        <span class="c1"># but data is the original and flags is a copy (as currently implemented),</span>
+        <span class="c1"># data and flags of the original saqc obj may change inconsistently.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">_flags</span> <span class="o">=</span> <span class="n">res</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_validate</span><span class="p">(</span><span class="n">reason</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;call to </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="n">function</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_construct</span><span class="p">(</span><span class="n">_data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">,</span> <span class="n">_flags</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_flags</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getattr__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        All failing attribute accesses are redirected to __getattr__.</span>
+<span class="sd">        We use this mechanism to make the registered functions appear</span>
+<span class="sd">        as `SaQC`-methods without actually implementing them.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">key</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">FUNC_MAP</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">AttributeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SaQC has no attribute </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="n">key</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_wrap</span><span class="p">(</span><span class="n">FUNC_MAP</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+
+<div class="viewcode-block" id="SaQC.copy"><a class="viewcode-back" href="../../../_api/saqc.core.SaQC.html#saqc.SaQC.copy">[docs]</a>    <span class="k">def</span> <span class="nf">copy</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">deep</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="n">copyfunc</span> <span class="o">=</span> <span class="n">deepcopy</span> <span class="k">if</span> <span class="n">deep</span> <span class="k">else</span> <span class="n">shallowcopy</span>
+        <span class="n">new</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_construct</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">attr</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_attributes</span><span class="p">:</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">new</span><span class="p">,</span> <span class="n">attr</span><span class="p">,</span> <span class="n">copyfunc</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">attr</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">new</span></div>
+
+    <span class="k">def</span> <span class="nf">__copy__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">__deepcopy__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">memodict</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">copy</span><span class="p">(</span><span class="n">deep</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initTranslationScheme</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">scheme</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="n">TranslationScheme</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TranslationScheme</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scheme</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">scheme</span> <span class="ow">in</span> <span class="n">TRANSLATION_SCHEMES</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">TRANSLATION_SCHEMES</span><span class="p">[</span><span class="n">scheme</span><span class="p">]()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scheme</span><span class="p">,</span> <span class="n">TranslationScheme</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">scheme</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;expected one of the following translation schemes &#39;</span><span class="si">{</span><span class="n">TRANSLATION_SCHEMES</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;or an initialized Translator object, got &#39;</span><span class="si">{</span><span class="n">scheme</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_initData</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">DictOfSeries</span><span class="p">:</span>
+
+        <span class="k">if</span> <span class="n">data</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">DictOfSeries</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">results</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">data</span><span class="p">:</span>
+                <span class="n">results</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_castToDios</span><span class="p">(</span><span class="n">d</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">concatDios</span><span class="p">(</span><span class="n">results</span><span class="p">,</span> <span class="n">warn</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stacklevel</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="p">(</span><span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">)):</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_castToDios</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+            <span class="s2">&quot;&#39;data&#39; must be of type pandas.Series, &quot;</span>
+            <span class="s2">&quot;pandas.DataFrame or dios.DictOfSeries or&quot;</span>
+            <span class="s2">&quot;a list of those.&quot;</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_castToDios</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">):</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot init from unnamed pd.Series&quot;</span><span class="p">)</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">to_frame</span><span class="p">()</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;&#39;data&#39; should not have MultiIndex&quot;</span><span class="p">)</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">to_dios</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>  <span class="c1"># noop for DictOfSeries</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;columns labels must be of type string&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">data</span>
+
+    <span class="k">def</span> <span class="nf">_initFlags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flags</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Flags</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">flags</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">initFlagsLike</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">flags</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">Flags</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">flags</span><span class="p">:</span>
+                <span class="n">f</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_castToFlags</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+                <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">f</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                    <span class="k">if</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;Column </span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2"> already exist. Data is overwritten. &quot;</span>
+                            <span class="sa">f</span><span class="s2">&quot;Avoid duplicate columns names over all inputs.&quot;</span><span class="p">,</span>
+                            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="n">result</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">c</span><span class="p">]</span>
+            <span class="n">flags</span> <span class="o">=</span> <span class="n">result</span>
+
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">flags</span><span class="p">,</span> <span class="p">(</span><span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">,</span> <span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">Flags</span><span class="p">)):</span>
+            <span class="n">flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_castToFlags</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="s2">&quot;&#39;flags&#39; must be of type pandas.DataFrame, &quot;</span>
+                <span class="s2">&quot;dios.DictOfSeries or saqc.Flags or &quot;</span>
+                <span class="s2">&quot;a list of those.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="c1"># sanitize</span>
+        <span class="c1"># - if column is missing flags but present in data, add it</span>
+        <span class="c1"># - if column is present in both, the index must be equal</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">c</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">flags</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+                <span class="n">flags</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">History</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">flags</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">equals</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">_data</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;The flags index of column </span><span class="si">{</span><span class="n">c</span><span class="si">}</span><span class="s2"> does not equals &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;the index of the same column in data.&quot;</span>
+                    <span class="p">)</span>
+        <span class="k">return</span> <span class="n">flags</span>
+
+    <span class="k">def</span> <span class="nf">_castToFlags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flags</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">flags</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">idx</span> <span class="ow">in</span> <span class="p">[</span><span class="n">flags</span><span class="o">.</span><span class="n">index</span><span class="p">,</span> <span class="n">flags</span><span class="o">.</span><span class="n">columns</span><span class="p">]:</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">idx</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;&#39;flags&#39; should not have MultiIndex&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">flags</span><span class="p">,</span> <span class="n">Flags</span><span class="p">):</span>
+            <span class="n">flags</span> <span class="o">=</span> <span class="n">Flags</span><span class="p">(</span><span class="n">flags</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">flags</span></div>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../../index.html">
+              <img class="logo" src="../../../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../../../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.core</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

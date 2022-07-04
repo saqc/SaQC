@@ -1,0 +1,241 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>saqc.core.reader &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/tabs.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/thebelab-helper.js"></script>
+    <script src="../../../_static/tabs.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../../../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.reader</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for saqc.core.reader</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+
+<span class="c1"># SPDX-FileCopyrightText: 2021 Helmholtz-Zentrum für Umweltforschung GmbH - UFZ</span>
+<span class="c1">#</span>
+<span class="c1"># SPDX-License-Identifier: GPL-3.0-or-later</span>
+
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="kn">import</span> <span class="nn">ast</span>
+<span class="kn">import</span> <span class="nn">io</span>
+<span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">TextIO</span>
+<span class="kn">from</span> <span class="nn">urllib.error</span> <span class="kn">import</span> <span class="n">URLError</span>
+<span class="kn">from</span> <span class="nn">urllib.request</span> <span class="kn">import</span> <span class="n">urlopen</span>
+
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">from</span> <span class="nn">saqc.core.core</span> <span class="kn">import</span> <span class="n">SaQC</span>
+<span class="kn">from</span> <span class="nn">saqc.core.visitor</span> <span class="kn">import</span> <span class="n">ConfigFunctionParser</span>
+<span class="kn">from</span> <span class="nn">saqc.lib.tools</span> <span class="kn">import</span> <span class="n">isQuoted</span>
+
+<span class="n">COMMENT</span> <span class="o">=</span> <span class="s2">&quot;#&quot;</span>
+<span class="n">SEPARATOR</span> <span class="o">=</span> <span class="s2">&quot;;&quot;</span>
+
+
+<span class="k">def</span> <span class="nf">_openFile</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">TextIO</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="n">Path</span><span class="p">)):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">fobj</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">StringIO</span><span class="p">(</span><span class="n">urlopen</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">fname</span><span class="p">))</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">))</span>
+            <span class="n">fobj</span><span class="o">.</span><span class="n">seek</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">except</span> <span class="p">(</span><span class="ne">ValueError</span><span class="p">,</span> <span class="n">URLError</span><span class="p">):</span>
+            <span class="n">fobj</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">fobj</span> <span class="o">=</span> <span class="n">fname</span>
+
+    <span class="k">return</span> <span class="n">fobj</span>
+
+
+<span class="k">def</span> <span class="nf">_closeFile</span><span class="p">(</span><span class="n">fobj</span><span class="p">):</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">fobj</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+    <span class="k">except</span> <span class="ne">AttributeError</span><span class="p">:</span>
+        <span class="k">pass</span>
+
+
+<span class="k">def</span> <span class="nf">readFile</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+
+    <span class="n">fobj</span> <span class="o">=</span> <span class="n">_openFile</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+
+    <span class="n">out</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">line</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">fobj</span><span class="p">):</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">COMMENT</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+            <span class="c1"># skip over comment line</span>
+            <span class="k">continue</span>
+
+        <span class="n">parts</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="n">SEPARATOR</span><span class="p">)]</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">parts</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">2</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span>
+                <span class="s2">&quot;The configuration format expects exactly two columns, one &quot;</span>
+                <span class="s2">&quot;for the variable name and one for the test to apply, but &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;in line </span><span class="si">{</span><span class="n">i</span><span class="si">}</span><span class="s2"> we got: </span><span class="se">\n</span><span class="s2">&#39;</span><span class="si">{</span><span class="n">line</span><span class="si">}</span><span class="s2">&#39;&quot;</span>
+            <span class="p">)</span>
+        <span class="n">out</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">]</span> <span class="o">+</span> <span class="n">parts</span><span class="p">)</span>
+
+    <span class="n">_closeFile</span><span class="p">(</span><span class="n">fobj</span><span class="p">)</span>
+
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+        <span class="n">out</span><span class="p">[</span><span class="mi">1</span><span class="p">:],</span>
+        <span class="n">columns</span><span class="o">=</span><span class="p">[</span>
+            <span class="s2">&quot;row&quot;</span><span class="p">,</span>
+        <span class="p">]</span>
+        <span class="o">+</span> <span class="n">out</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:],</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">set_index</span><span class="p">(</span><span class="s2">&quot;row&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">df</span>
+
+
+<span class="c1"># Todo: needs a (maybe tiny) docstring!</span>
+<div class="viewcode-block" id="fromConfig"><a class="viewcode-back" href="../../../_api/saqc.fromConfig.html#saqc.core.fromConfig">[docs]</a><span class="k">def</span> <span class="nf">fromConfig</span><span class="p">(</span><span class="n">fname</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">func_kwargs</span><span class="p">):</span>
+    <span class="n">saqc</span> <span class="o">=</span> <span class="n">SaQC</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">func_kwargs</span><span class="p">)</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">readFile</span><span class="p">(</span><span class="n">fname</span><span class="p">)</span>
+
+    <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">expr</span> <span class="ow">in</span> <span class="n">config</span><span class="o">.</span><span class="n">itertuples</span><span class="p">():</span>
+
+        <span class="n">regex</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">if</span> <span class="n">isQuoted</span><span class="p">(</span><span class="n">field</span><span class="p">):</span>
+            <span class="n">fld</span> <span class="o">=</span> <span class="n">field</span><span class="p">[</span><span class="mi">1</span><span class="p">:</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">regex</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">fld</span> <span class="o">=</span> <span class="n">field</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">ast</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">expr</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;eval&quot;</span><span class="p">)</span>
+            <span class="n">func_name</span><span class="p">,</span> <span class="n">func_kwargs</span> <span class="o">=</span> <span class="n">ConfigFunctionParser</span><span class="p">()</span><span class="o">.</span><span class="n">parse</span><span class="p">(</span><span class="n">tree</span><span class="o">.</span><span class="n">body</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)(</span><span class="sa">f</span><span class="s2">&quot;failed to parse: </span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2"> ; </span><span class="si">{</span><span class="n">expr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+        <span class="n">func_kwargs</span><span class="p">[</span><span class="s2">&quot;field&quot;</span> <span class="k">if</span> <span class="s2">&quot;field&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">func_kwargs</span> <span class="k">else</span> <span class="s2">&quot;target&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">fld</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="c1"># We explictly route all function calls through SaQC.__getattr__</span>
+            <span class="c1"># in order to do a FUNC_MAP lookup. Otherwise we wouldn&#39;t be able</span>
+            <span class="c1"># to overwrite exsiting test functions with custom register calls.</span>
+            <span class="n">saqc</span> <span class="o">=</span> <span class="n">saqc</span><span class="o">.</span><span class="fm">__getattr__</span><span class="p">(</span><span class="n">func_name</span><span class="p">)(</span><span class="n">regex</span><span class="o">=</span><span class="n">regex</span><span class="p">,</span> <span class="o">**</span><span class="n">func_kwargs</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)(</span><span class="sa">f</span><span class="s2">&quot;failed to execute: </span><span class="si">{</span><span class="n">field</span><span class="si">}</span><span class="s2"> ; </span><span class="si">{</span><span class="n">expr</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span> <span class="kn">from</span> <span class="nn">e</span>
+
+    <span class="k">return</span> <span class="n">saqc</span></div>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../../index.html">
+              <img class="logo" src="../../../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../../../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.reader</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

@@ -1,0 +1,637 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Data Regularisation &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Outlier Detection and Flagging" href="OutlierDetection.html" />
+    <link rel="prev" title="Command Line Application" href="../gettingstarted/TutorialCLI.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="OutlierDetection.html" title="Outlier Detection and Flagging"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../gettingstarted/TutorialCLI.html" title="Command Line Application"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Data Regularisation</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="data-regularisation">
+<h1>Data Regularisation<a class="headerlink" href="#data-regularisation" title="Permalink to this headline">¶</a></h1>
+<p>The tutorial aims to introduce the usage of <code class="docutils literal notranslate"><span class="pre">SaQC</span></code> methods, in order to obtain regularly sampled data derivatives
+from given time series data input. Regularly sampled time series data, is data, that exhibits a constant temporal
+spacing in between subsequent data points.</p>
+<p>In the following steps, the tutorial guides through the usage of the <em>SaQC</em> <a class="reference internal" href="../funcs/generic.html"><span class="doc">resampling</span></a>
+library.</p>
+<ol class="arabic simple">
+<li><p>Initially, we introduce and motivate regularisation techniques and we do import the tutorial data.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#why-regularisation"><span class="std std-ref">Why Regularisation</span></a></p></li>
+<li><p><a class="reference internal" href="#tutorial-data"><span class="std std-ref">Tutorial Data</span></a></p></li>
+</ul>
+</li>
+<li><p>We will get an overview over the main <a class="reference internal" href="#regularisations"><span class="std std-ref">Regularisation</span></a> methods, starting with the shift.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#shift"><span class="std std-ref">Shift</span></a></p></li>
+<li><p><a class="reference internal" href="#target-parameter"><span class="std std-ref">Target Parameter</span></a></p>
+<ul>
+<li><p><a class="reference internal" href="#freq-parameter"><span class="std std-ref">Freq Parameter</span></a></p></li>
+<li><p><a class="reference internal" href="#shifting-method"><span class="std std-ref">Method Parameter</span></a></p></li>
+<li><p><a class="reference internal" href="#valid-data"><span class="std std-ref">Valid Data</span></a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>We introduce the notion of <em>valid</em> data and see how sparse intervals and those with multiple values interact with
+regularisation.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#data-loss-and-empty-intervals"><span class="std std-ref">Data Loss and Empty Intervals</span></a></p>
+<ul>
+<li><p><a class="reference internal" href="#empty-intervals"><span class="std std-ref">Empty Intervals</span></a></p>
+<ul>
+<li><p><a class="reference internal" href="#valid-data"><span class="std std-ref">Valid Data</span></a></p></li>
+<li><p><a class="reference internal" href="#data-reduction"><span class="std std-ref">Data Reduction</span></a></p></li>
+<li><p><a class="reference internal" href="#minimize-shifting-distance"><span class="std std-ref">Minimize Shifting</span></a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>We use the Aggregation and the Interpolation method.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#aggregation"><span class="std std-ref">Aggregation</span></a></p>
+<ul>
+<li><p><a class="reference internal" href="#aggregation-functions"><span class="std std-ref">Function Parameter</span></a></p></li>
+<li><p><a class="reference internal" href="#shifting-method"><span class="std std-ref">Method Parameter</span></a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#interpolation"><span class="std std-ref">Interpolation</span></a></p></li>
+<li><p><a class="reference internal" href="#interpolation-and-data-sparsity"><span class="std std-ref">Representing Data Sparsity</span></a></p></li>
+</ul>
+</li>
+<li><p>We see how regularisation interacts with Flags.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#flags-and-regularisation"><span class="std std-ref">Flags and Regularisation</span></a></p></li>
+</ul>
+</li>
+</ol>
+<section id="why-regularisation">
+<h2>Why Regularisation<a class="headerlink" href="#why-regularisation" title="Permalink to this headline">¶</a></h2>
+<p>Often, measurement data does not come in regularly sampled time series. The reasons, why one usually would
+like to have time series data, that exhibits a constant temporal gap size
+in between subsequent measurements, are manifold.</p>
+<p>The 2 foremost important ones, may be, that statistics, such as <em>mean</em> and <em>standard deviation</em>
+usually presuppose the set of data points, they are computed of, to
+be equally weighted.</p>
+<p>The second reason, is, that, relating data of different sources to another, is impossible, if one
+has not a mapping at hand, that relates the different date time indices to each other. One easy and intuitive
+way of constructing such a mapping, is to just resample all data at the same (regular) timestamp.</p>
+</section>
+<section id="tutorial-data">
+<h2>Tutorial Data<a class="headerlink" href="#tutorial-data" title="Permalink to this headline">¶</a></h2>
+<p>The following <a class="reference external" href="../resources/data/SoilMoisture.csv">dataset</a> of Soil Moisture measurements may serve as
+example data set:</p>
+<a class="reference external image-reference" href="../resources/images/cbooks_soil_moisture.png"><img alt="" src="../_images/cbooks_soil_moisture.png" /></a>
+<p>Lets import it and check out the first and last lines.
+.. doctest:: example</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data_path</span> <span class="o">=</span> <span class="s1">&#39;./resources/data/SoilMoisture.csv&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">data_path</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data</span>
+<span class="go">                     SoilMoisture</span>
+<span class="go">2021-01-01 00:09:07     23.429701</span>
+<span class="go">2021-01-01 00:18:55     23.431900</span>
+<span class="go">2021-01-01 00:28:42     23.343100</span>
+<span class="go">2021-01-01 00:38:30     23.476400</span>
+<span class="go">2021-01-01 00:48:18     23.343100</span>
+<span class="gp">... </span>                          <span class="o">...</span>
+<span class="go">2021-03-20 07:13:49    152.883102</span>
+<span class="go">2021-03-20 07:26:16    156.587906</span>
+<span class="go">2021-03-20 07:40:37    166.146194</span>
+<span class="go">2021-03-20 07:54:59    164.690598</span>
+<span class="go">2021-03-20 08:40:41    155.318893</span>
+
+<span class="go">[10607 rows x 1 columns]</span>
+</pre></div>
+</div>
+<p>The data series seems to start with a sampling rate of roughly <em>10</em> minutes.
+Somewhere the sampling rate changes, and at the end it seems to exhibit an intended sampling
+rate of <em>15</em> minutes.</p>
+<p>Finding out about the proper sampling a series should be regularized to, is a subject on its own and wont be covered
+here. Usually, the intended sampling rate of sensor data is known from the specification of the sensor.</p>
+<p>If that is not the case, and if there seem to be more than one candidates for a rate regularisation, a rough rule of
+thumb, aiming at minimisation of data loss and data manipulation, may be,
+to go for the smallest rate seemingly present in the data.</p>
+</section>
+<section id="regularisations">
+<h2>Regularisations<a class="headerlink" href="#regularisations" title="Permalink to this headline">¶</a></h2>
+<p>So lets transform the measurements timestamps to have a regular <em>10</em> minutes frequency. In order to do so,
+we have to decide what to do with each time stamps associated data, when we alter the timestamps value.</p>
+<p>Basically, there are three types of <a class="reference internal" href="../funcs/resampling.html"><span class="doc">regularisations</span></a> methods:</p>
+<ol class="arabic simple">
+<li><p>We could keep the values as they are, and thus,
+just <a class="reference internal" href="#shift"><span class="std std-ref">shift</span></a> them in time to match the equidistant <em>10</em> minutes frequency grid, we want the data to exhibit.</p></li>
+<li><p>We could calculate new, synthetic data values for the regular timestamps, via an <a class="reference internal" href="#interpolation"><span class="std std-ref">interpolation</span></a> method.</p></li>
+<li><p>We could apply some <a class="reference internal" href="#aggregation"><span class="std std-ref">aggregation</span></a> to up- or down sample the data.</p></li>
+</ol>
+</section>
+<section id="shift">
+<h2>Shift<a class="headerlink" href="#shift" title="Permalink to this headline">¶</a></h2>
+<p>Lets apply a simple shift via the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.shift" title="saqc.SaQC.shift"><code class="xref py py-meth docutils literal notranslate"><span class="pre">shift()</span></code></a> method.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">saqc</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">saqc</span><span class="o">.</span><span class="n">SaQC</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="s1">&#39;SoilMoisture&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;SoilMoisture_bshift&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;10min&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;bshift&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<section id="target-parameter">
+<h3>Target parameter<a class="headerlink" href="#target-parameter" title="Permalink to this headline">¶</a></h3>
+<p>We selected a new <code class="docutils literal notranslate"><span class="pre">target</span></code> field, to store the shifted data to a new field, so that our original data wouldnt be
+overridden.</p>
+</section>
+<section id="freq-parameter">
+<h3>Freq parameter<a class="headerlink" href="#freq-parameter" title="Permalink to this headline">¶</a></h3>
+<p>We passed the <code class="docutils literal notranslate"><span class="pre">freq</span></code> keyword of the intended sampling frequency in terms of a
+<a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases">date alias</a> string. All of
+the <a class="reference internal" href="../funcs/resampling.html"><span class="doc">regularisations</span></a> methods have such a frequency keyword,
+and it just determines the sampling rate, the resulting regular timeseries will have.</p>
+</section>
+<section id="shifting-method">
+<h3>Shifting Method<a class="headerlink" href="#shifting-method" title="Permalink to this headline">¶</a></h3>
+<p>With the <code class="docutils literal notranslate"><span class="pre">method</span></code> keyword, we determined the direction of the shift. We passed it the string <code class="docutils literal notranslate"><span class="pre">bshift</span></code> -
+which applies a <em>backwards</em> shift, so data points get shifted <em>backwards</em>, until they match a timestamp
+that is a multiple of <em>10</em> minutes. (See <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.shift" title="saqc.SaQC.shift"><code class="xref py py-meth docutils literal notranslate"><span class="pre">shift()</span></code></a> documentation for more
+details on the keywords.)</p>
+<p>Lets see, how the data is now sampled. Therefore, we use the <code class="docutils literal notranslate"><span class="pre">data</span></code> Atribute from the
+<a class="reference internal" href="../_api/saqc.core.SaQC.html#saqc.core.SaQC" title="saqc.core.core.SaQC"><code class="xref py py-class docutils literal notranslate"><span class="pre">SaQC</span></code></a> object. This will prevent the methods output from
+being merged to a <code class="docutils literal notranslate"><span class="pre">pandas.DataFrame</span></code> object, and the changes from the resampling will be easier
+comprehensible from one look.</p>
+</section>
+<section id="shifted-data">
+<h3>Shifted data<a class="headerlink" href="#shifted-data" title="Permalink to this headline">¶</a></h3>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span> 
+<span class="go">                    SoilMoisture |                     SoilMoisture_bshift |</span>
+<span class="go">================================ | ======================================= |</span>
+<span class="go">2021-01-01 00:09:07    23.429701 | 2021-01-01 00:00:00           23.429701 |</span>
+<span class="go">2021-01-01 00:18:55    23.431900 | 2021-01-01 00:10:00           23.431900 |</span>
+<span class="go">2021-01-01 00:28:42    23.343100 | 2021-01-01 00:20:00           23.343100 |</span>
+<span class="go">2021-01-01 00:38:30    23.476400 | 2021-01-01 00:30:00           23.476400 |</span>
+<span class="go">2021-01-01 00:48:18    23.343100 | 2021-01-01 00:40:00           23.343100 |</span>
+<span class="go">                             ... | ...                                 ... |</span>
+<span class="go">2021-03-20 07:13:49   152.883102 | 2021-03-20 08:10:00                 NaN |</span>
+<span class="go">2021-03-20 07:26:16   156.587906 | 2021-03-20 08:20:00                 NaN |</span>
+<span class="go">2021-03-20 07:40:37   166.146194 | 2021-03-20 08:30:00                 NaN |</span>
+<span class="go">2021-03-20 07:54:59   164.690598 | 2021-03-20 08:40:00          155.318893 |</span>
+<span class="go">2021-03-20 08:40:41   155.318893 | 2021-03-20 08:50:00                 NaN |</span>
+<span class="go">[10607]                            [11286]</span>
+
+<span class="go">max: [11286 rows x 2 columns]</span>
+</pre></div>
+</div>
+<p>We see, the first and last <em>10</em> datapoints of both, the original data time series and the shifted one.</p>
+<p>Obveously, the shifted data series now exhibits a regular sampling rate of <em>10</em> minutes, with the index
+ranging from the latest timestamp, that is a multiple of <em>10</em> minutes and preceeds the initial timestamp
+of the original data, up to the first <em>10</em> minutes multiple, that succeeds the last original datas timestamp.
+This is default behavior to all the <a class="reference internal" href="../funcs/resampling.html"><span class="doc">regularisations</span></a> provided by <code class="docutils literal notranslate"><span class="pre">saqc</span></code>.</p>
+</section>
+</section>
+<section id="data-loss-and-empty-intervals">
+<h2>Data Loss and Empty Intervals<a class="headerlink" href="#data-loss-and-empty-intervals" title="Permalink to this headline">¶</a></h2>
+<p>The number of datapoints  (displayed at the bottom of the table columns) has changed through the
+transformation as well. That change stems from 2 sources mainly:</p>
+<section id="empty-intervals">
+<h3>Empty Intervals<a class="headerlink" href="#empty-intervals" title="Permalink to this headline">¶</a></h3>
+<p>If there is no <a class="reference internal" href="#valid-data"><span class="std std-ref">valid</span></a> data point available within an interval of the passed frequency,
+that could be shifted to match a multiple of the frequency, a <code class="docutils literal notranslate"><span class="pre">NaN</span></code> value gets inserted to represent the fact,
+that in the interval that is represented by that date time index, there was data missing.</p>
+</section>
+<section id="valid-data">
+<h3>Valid Data<a class="headerlink" href="#valid-data" title="Permalink to this headline">¶</a></h3>
+<p>Data points are referred to, as <em>valid</em>, in context of a regularisation, if:</p>
+<ol class="arabic simple">
+<li><p>the data points value is not <code class="docutils literal notranslate"><span class="pre">NaN</span></code></p></li>
+<li><p>the <em>flag</em> of that datapoint has a value lower than the value passed to the methods
+<code class="docutils literal notranslate"><span class="pre">to_mask</span></code> keyword - since this keyword defaults to the highest flag level available,
+defaultly, all data flagged <code class="xref py py-const docutils literal notranslate"><span class="pre">BAD</span></code>, is considered invalid by that method.</p></li>
+</ol>
+<p>Note, that, from point <em>2</em> above, it follows, that flagging data values
+before regularisation, will effectively exclude them from the regularistaion process. See chapter
+<a class="reference internal" href="#flags-and-regularisation"><span class="std std-ref">flagging and resampling</span></a> for an example of this effect and how it can help
+control <a class="reference internal" href="#data-reduction"><span class="std std-ref">data reduction</span></a>.</p>
+</section>
+<section id="data-reduction">
+<h3>data reduction<a class="headerlink" href="#data-reduction" title="Permalink to this headline">¶</a></h3>
+<p>If there are multiple values present within an interval with size according to the passed frequency alias passed to
+<code class="docutils literal notranslate"><span class="pre">freq</span></code>, this values get reduced to one single value, that will get assigned to the timestamp associated with the
+interval.</p>
+<p>This reduction depends on the selected <a class="reference internal" href="../funcs/resampling.html"><span class="doc">regularisation</span></a> method.</p>
+<p>For example, <a class="reference internal" href="#shift"><span class="std std-ref">above</span></a>, we applied a backwards <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.shift" title="saqc.SaQC.shift"><code class="xref py py-meth docutils literal notranslate"><span class="pre">shift()</span></code></a> with a <em>10</em> minutes frequency.
+As a result, the first value, encountered after any multiple of <em>10</em> minutes, gets shifted backwards to be aligned with
+the desired frequency and any other value in that <em>10</em> minutes interval just gets discarded.</p>
+<p>See the below chunk of our processed <em>SoilMoisture</em> data set to get an idea of the effect. There are 2 measurements
+within the <em>10</em> minutes interval ranging from <code class="docutils literal notranslate"><span class="pre">2021-01-01</span> <span class="pre">07:30:00</span></code> to <code class="docutils literal notranslate"><span class="pre">2021-01-01</span> <span class="pre">07:40:00</span></code> present
+in the original data - and only the first of the two reappears in the shifted data set, as representation
+for that interval.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s2">&quot;2021-01-01 07:00:00&quot;</span><span class="p">:</span><span class="s2">&quot;2021-01-01 08:00:00&quot;</span><span class="p">]</span> 
+<span class="go">             SoilMoisture_bshift |                              SoilMoisture |</span>
+<span class="go">================================ | ========================================= |</span>
+<span class="go">Date Time                        | Date Time                                 |</span>
+<span class="go">2021-01-01 07:00:00      23.3431 | 2021-01-01 07:00:41               23.3431 |</span>
+<span class="go">2021-01-01 07:10:00      23.3431 | 2021-01-01 07:10:29               23.3431 |</span>
+<span class="go">2021-01-01 07:20:00      23.2988 | 2021-01-01 07:20:17               23.2988 |</span>
+<span class="go">2021-01-01 07:30:00      23.3874 | 2021-01-01 07:30:05               23.3874 |</span>
+<span class="go">2021-01-01 07:40:00      23.3431 | 2021-01-01 07:39:53               23.3853 |</span>
+<span class="go">2021-01-01 07:50:00      23.3874 | 2021-01-01 07:49:41               23.3431 |</span>
+</pre></div>
+</div>
+</section>
+<section id="minimize-shifting-distance">
+<h3>Minimize Shifting Distance<a class="headerlink" href="#minimize-shifting-distance" title="Permalink to this headline">¶</a></h3>
+<p>Notice, how, for example, the data point for <code class="docutils literal notranslate"><span class="pre">2021-01-01</span> <span class="pre">07:49:41</span></code> gets shifted all the way back, to
+<code class="docutils literal notranslate"><span class="pre">2021-01-01</span> <span class="pre">07:40:00</span></code> - although, shifting it forward to <code class="docutils literal notranslate"><span class="pre">07:40:00</span></code> would be less a manipulation, since this timestamp
+appears to be closer to the original one.</p>
+<p>To shift to any frequncy aligned timestamp the value that is closest to that timestamp, we
+can perform a <em>nearest shift</em> instead of a simple <em>back shift</em>, by using the shift method <code class="docutils literal notranslate"><span class="pre">&quot;nshift&quot;</span></code>:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">shift</span><span class="p">(</span><span class="s1">&#39;SoilMoisture&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;SoilMoisture_nshift&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;10min&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;nshift&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;2021-01-01T07:00:00&#39;</span><span class="p">:</span><span class="s1">&#39;2021-01-01T08:00:00&#39;</span><span class="p">]</span> 
+<span class="go">             SoilMoisture_nshift |                              SoilMoisture |</span>
+<span class="go">================================ | ========================================= |</span>
+<span class="go">Date Time                        | Date Time                                 |</span>
+<span class="go">2021-01-01 07:00:00      23.3431 | 2021-01-01 07:00:41               23.3431 |</span>
+<span class="go">2021-01-01 07:10:00      23.3431 | 2021-01-01 07:10:29               23.3431 |</span>
+<span class="go">2021-01-01 07:20:00      23.2988 | 2021-01-01 07:20:17               23.2988 |</span>
+<span class="go">2021-01-01 07:30:00      23.3874 | 2021-01-01 07:30:05               23.3874 |</span>
+<span class="go">2021-01-01 07:40:00      23.3853 | 2021-01-01 07:39:53               23.3853 |</span>
+<span class="go">2021-01-01 07:50:00      23.3431 | 2021-01-01 07:49:41               23.3431 |</span>
+</pre></div>
+</div>
+<p>Now, any timestamp got assigned, the value that is nearest to it, <em>if</em> there is one valid data value available in the
+interval surrounding that timestamp with a range of half the frequency. In our example, this would mean, the regular
+timestamp would get assigned the nearest value of all the values, that preceed or succeed it by less than <em>5</em> minutes.</p>
+<p>Maybe check out, what happens with the chunk of the final 2 hours of our shifted <em>Soil Moisture</em> dataset, to get an idea.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;2021-03-20 07:00:00&#39;</span><span class="p">:]</span> 
+<span class="go">             SoilMoisture_nshift |                              SoilMoisture |</span>
+<span class="go">================================ | ========================================= |</span>
+<span class="go">Date Time                        | Date Time                                 |</span>
+<span class="go">2021-03-20 07:00:00   145.027496 | 2021-03-20 07:13:49            152.883102 |</span>
+<span class="go">2021-03-20 07:10:00   152.883102 | 2021-03-20 07:26:16            156.587906 |</span>
+<span class="go">2021-03-20 07:20:00          NaN | 2021-03-20 07:40:37            166.146194 |</span>
+<span class="go">2021-03-20 07:30:00   156.587906 | 2021-03-20 07:54:59            164.690598 |</span>
+<span class="go">2021-03-20 07:40:00   166.146194 | 2021-03-20 08:40:41            155.318893 |</span>
+<span class="go">2021-03-20 07:50:00   164.690598 | 2021-03-20 08:40:41            155.318893 |</span>
+<span class="go">2021-03-20 08:00:00          NaN |                                           |</span>
+<span class="go">2021-03-20 08:10:00          NaN |                                           |</span>
+<span class="go">2021-03-20 08:20:00          NaN |                                           |</span>
+<span class="go">2021-03-20 08:30:00          NaN |                                           |</span>
+<span class="go">2021-03-20 08:40:00   155.318893 |                                           |</span>
+<span class="go">2021-03-20 08:50:00          NaN |                                           |</span>
+</pre></div>
+</div>
+<p>Since there is no valid data available, for example, in the interval from <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">07:55:00</span></code> to <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">08:05:00</span></code> - the new value
+for the regular timestamp <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">08:00:00</span></code>, that lies in the center of this interval, is <code class="docutils literal notranslate"><span class="pre">NaN</span></code>.</p>
+</section>
+</section>
+<section id="aggregation">
+<h2>Aggregation<a class="headerlink" href="#aggregation" title="Permalink to this headline">¶</a></h2>
+<p>If we want to comprise several values by aggregation and assign the result to the new regular timestamp, instead of
+selecting a single one, we can do this, with the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.resample" title="saqc.SaQC.resample"><code class="xref py py-meth docutils literal notranslate"><span class="pre">resample()</span></code></a> method.
+Lets resample the <em>SoilMoisture</em> data to have a <em>20</em> minutes sample rate by aggregating every <em>20</em> minutes intervals
+content with the arithmetic mean (which is implemented by numpies <code class="docutils literal notranslate"><span class="pre">numpy.mean</span></code> function for example).</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">resample</span><span class="p">(</span><span class="s1">&#39;SoilMoisture&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;SoilMoisture_mean&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;20min&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;bagg&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span> 
+<span class="go">                    SoilMoisture |                     SoilMoisture_mean |</span>
+<span class="go">================================ | ===================================== |</span>
+<span class="go">Date Time                        | Date Time                             |</span>
+<span class="go">2021-01-01 00:09:07    23.429701 | 2021-01-01 00:00:00         23.430800 |</span>
+<span class="go">2021-01-01 00:18:55    23.431900 | 2021-01-01 00:20:00         23.409750 |</span>
+<span class="go">2021-01-01 00:28:42    23.343100 | 2021-01-01 00:40:00         23.320950 |</span>
+<span class="go">2021-01-01 00:38:30    23.476400 | 2021-01-01 01:00:00         23.365250 |</span>
+<span class="go">2021-01-01 00:48:18    23.343100 | 2021-01-01 01:20:00         23.320950 |</span>
+<span class="go">2021-01-01 00:58:06    23.298800 | 2021-01-01 01:40:00         23.343100 |</span>
+<span class="go">2021-01-01 01:07:54    23.387400 | 2021-01-01 02:00:00         23.320950 |</span>
+<span class="go">2021-01-01 01:17:41    23.343100 | 2021-01-01 02:20:00         23.343100 |</span>
+<span class="go">2021-01-01 01:27:29    23.298800 | 2021-01-01 02:40:00         23.343100 |</span>
+<span class="go">2021-01-01 01:37:17    23.343100 | 2021-01-01 03:00:00         23.343100 |</span>
+<span class="go">                          ... | ...                               ... |</span>
+<span class="go">2021-03-20 05:07:02   137.271500 | 2021-03-20 05:40:00        154.116806 |</span>
+<span class="go">2021-03-20 05:21:35   138.194107 | 2021-03-20 06:00:00        150.567505 |</span>
+<span class="go">2021-03-20 05:41:59   154.116806 | 2021-03-20 06:20:00               NaN |</span>
+<span class="go">2021-03-20 06:03:09   150.567505 | 2021-03-20 06:40:00        145.027496 |</span>
+<span class="go">2021-03-20 06:58:10   145.027496 | 2021-03-20 07:00:00        152.883102 |</span>
+<span class="go">2021-03-20 07:13:49   152.883102 | 2021-03-20 07:20:00        156.587906 |</span>
+<span class="go">2021-03-20 07:26:16   156.587906 | 2021-03-20 07:40:00        165.418396 |</span>
+<span class="go">2021-03-20 07:40:37   166.146194 | 2021-03-20 08:00:00               NaN |</span>
+<span class="go">2021-03-20 07:54:59   164.690598 | 2021-03-20 08:20:00               NaN |</span>
+<span class="go">2021-03-20 08:40:41   155.318893 | 2021-03-20 08:40:00        155.318893 |</span>
+<span class="go">[10607]                            [5643]</span>
+</pre></div>
+</div>
+<section id="aggregation-functions">
+<h3>Aggregation functions<a class="headerlink" href="#aggregation-functions" title="Permalink to this headline">¶</a></h3>
+<p>You can pass arbitrary function objects to the <code class="docutils literal notranslate"><span class="pre">func</span></code> parameter, to be applied to calculate every intervals result,
+as long as this function returns a scalar <em>float</em> value upon an array-like input. (So <code class="docutils literal notranslate"><span class="pre">np.median</span></code> would be propper
+for calculating the median, <code class="docutils literal notranslate"><span class="pre">sum</span></code>, for assigning the value sum, and so on.)</p>
+</section>
+<section id="aggregation-method">
+<h3>Aggregation method<a class="headerlink" href="#aggregation-method" title="Permalink to this headline">¶</a></h3>
+<p>As it is with the <a class="reference internal" href="#shift"><span class="std std-ref">shift</span></a> functionality, a <code class="docutils literal notranslate"><span class="pre">method</span></code> keyword controlls, weather the
+aggregation result for the interval in between 2 regular timestamps gets assigned to the left (=<code class="docutils literal notranslate"><span class="pre">bagg</span></code>) or to the
+right (<code class="docutils literal notranslate"><span class="pre">fagg</span></code>) boundary timestamp.</p>
+<ul class="simple">
+<li><p>Also, analogous to to the shift functionality, intervals of size <code class="docutils literal notranslate"><span class="pre">freq</span></code>, that do
+not contain any <a class="reference internal" href="#valid-data"><span class="std std-ref">valid</span></a> data, that could be aggregated, get <code class="docutils literal notranslate"><span class="pre">ǹp.nan</span></code> assigned.</p></li>
+</ul>
+</section>
+</section>
+<section id="interpolation">
+<h2>Interpolation<a class="headerlink" href="#interpolation" title="Permalink to this headline">¶</a></h2>
+<p>Another common way of obtaining regular timestamps, is, the interpolation of data at regular timestamps.</p>
+<p>In the pool of py:mod:<cite>regularisation &lt;Functions.saqc.resampling&gt;</cite> methods, is available the
+<a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.interpolate" title="saqc.SaQC.interpolate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">interpolate()</span></code></a> method.</p>
+<p>Lets apply a linear interpolation onto the dataset. To access
+linear interpolation, we pass the <code class="docutils literal notranslate"><span class="pre">method</span></code> parameter the string <code class="docutils literal notranslate"><span class="pre">&quot;time&quot;</span></code>. This
+applies an interpolation, that is sensitive to the difference in temporal gaps
+(as opposed by <code class="docutils literal notranslate"><span class="pre">&quot;linear&quot;</span></code>, wich expects all the gaps to be equal). Get an overview
+of the possible interpolation methods in the <code class="xref py py-meth docutils literal notranslate"><span class="pre">interpolate&gt;()</span></code>
+documentation. Lets check the results:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="s1">&#39;SoilMoisture&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;SoilMoisture_linear&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;10min&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;time&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span> 
+<span class="go">                    SoilMoisture |                       SoilMoisture_linear |</span>
+<span class="go">================================ | ========================================= |</span>
+<span class="go">Date Time                        | Date Time                                 |</span>
+<span class="go">2021-01-01 00:00:00          NaN | 2021-01-01 00:09:07             23.429701 |</span>
+<span class="go">2021-01-01 00:10:00    23.429899 | 2021-01-01 00:18:55             23.431900 |</span>
+<span class="go">2021-01-01 00:20:00    23.422067 | 2021-01-01 00:28:42             23.343100 |</span>
+<span class="go">2021-01-01 00:30:00    23.360782 | 2021-01-01 00:38:30             23.476400 |</span>
+<span class="go">2021-01-01 00:40:00    23.455997 | 2021-01-01 00:48:18             23.343100 |</span>
+<span class="go">2021-01-01 00:50:00    23.335415 | 2021-01-01 00:58:06             23.298800 |</span>
+<span class="go">2021-01-01 01:00:00    23.315977 | 2021-01-01 01:07:54             23.387400 |</span>
+<span class="go">2021-01-01 01:10:00    23.377891 | 2021-01-01 01:17:41             23.343100 |</span>
+<span class="go">2021-01-01 01:20:00    23.332627 | 2021-01-01 01:27:29             23.298800 |</span>
+<span class="go">2021-01-01 01:30:00    23.310176 | 2021-01-01 01:37:17             23.343100 |</span>
+<span class="go">                          ... | ...                                   ... |</span>
+<span class="go">2021-03-20 07:20:00   154.723105 | 2021-03-20 05:07:02            137.271500 |</span>
+<span class="go">2021-03-20 07:30:00          NaN | 2021-03-20 05:21:35            138.194107 |</span>
+<span class="go">2021-03-20 07:40:00          NaN | 2021-03-20 05:41:59            154.116806 |</span>
+<span class="go">2021-03-20 07:50:00   165.195497 | 2021-03-20 06:03:09            150.567505 |</span>
+<span class="go">2021-03-20 08:00:00          NaN | 2021-03-20 06:58:10            145.027496 |</span>
+<span class="go">2021-03-20 08:10:00          NaN | 2021-03-20 07:13:49            152.883102 |</span>
+<span class="go">2021-03-20 08:20:00          NaN | 2021-03-20 07:26:16            156.587906 |</span>
+<span class="go">2021-03-20 08:30:00          NaN | 2021-03-20 07:40:37            166.146194 |</span>
+<span class="go">2021-03-20 08:40:00          NaN | 2021-03-20 07:54:59            164.690598 |</span>
+<span class="go">2021-03-20 08:50:00          NaN | 2021-03-20 08:40:41            155.318893 |</span>
+<span class="go">[11286]                            [10607]</span>
+</pre></div>
+</div>
+<section id="interpolation-and-data-sparsity">
+<h3>Interpolation and Data Sparsity<a class="headerlink" href="#interpolation-and-data-sparsity" title="Permalink to this headline">¶</a></h3>
+<p>The regularisation by interpolation is strict in the sense, that regular timestamps <em>only</em> get
+interpolated, if they have at least one <a class="reference internal" href="#valid-data"><span class="std std-ref">valid</span></a> data value preceeding them <em>and</em> one
+succeeding them <em>within</em> the given frequency range (wich is controlled by the <code class="docutils literal notranslate"><span class="pre">freq</span></code> keyword.).</p>
+<p>Thats, why, you have no interpolation value at <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">07:30:00</span></code> - bacause it is preceeded
+by a <a class="reference internal" href="#valid-data"><span class="std std-ref">valid</span></a> value at <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">07:26:16</span></code>, but there is no <a class="reference internal" href="#valid-data"><span class="std std-ref">valid</span></a> value
+available in between the succeeding <em>10</em> minutes interval from <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">07:30:00</span></code> to <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">07:30:00</span></code>.</p>
+<p>On the other hand, there is an interpolated value assigned to <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">07:50:00</span></code>, it is preceeded by
+a <a class="reference internal" href="#valid-data"><span class="std std-ref">valid</span></a> value at <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">07:40:37</span></code> and one succeeding at <code class="docutils literal notranslate"><span class="pre">2021-03-20</span> <span class="pre">07:54:59</span></code>.</p>
+<p>This behavior is intended to reflect the sparsity of the original data in the
+regularized data set. The behavior can be circumvented by applying the more general
+<a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.interpolateIndex" title="saqc.SaQC.interpolateIndex"><code class="xref py py-meth docutils literal notranslate"><span class="pre">interpolateIndex()</span></code></a>.</p>
+<section id="linear-interpolation">
+<h4>Linear Interpolation<a class="headerlink" href="#linear-interpolation" title="Permalink to this headline">¶</a></h4>
+<p>Note, that there is a wrapper available for linear interpolation: <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.linear" title="saqc.SaQC.linear"><code class="xref py py-meth docutils literal notranslate"><span class="pre">linear()</span></code></a>.</p>
+</section>
+</section>
+</section>
+<section id="flags-and-regularisation">
+<h2>Flags and Regularisation<a class="headerlink" href="#flags-and-regularisation" title="Permalink to this headline">¶</a></h2>
+<p>Since data, that is flagged by a level higher or equal to the passed <code class="docutils literal notranslate"><span class="pre">to_mask</span></code> value
+(default=:py:const:~saqc.constants.BAD), is not regarded <a class="reference internal" href="#valid-data"><span class="std std-ref">valid</span></a> by the applied function,
+it can be of advantage, to flag data before regularisation in order to effectively exclude it
+from the resulting regularly sampled data set. Lets see an example for the <em>SoilMoisture</em> data set.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">linear</span><span class="p">(</span><span class="s1">&#39;SoilMoisture&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;SoilMoisture_linear&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;10min&#39;</span><span class="p">)</span> 
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;2021-01-01 15:00:00&#39;</span><span class="p">:</span><span class="s1">&#39;2021-01-01 16:00:00&#39;</span><span class="p">]</span> 
+<span class="go">             SoilMoisture_linear |                              SoilMoisture |</span>
+<span class="go">================================ | ========================================= |</span>
+<span class="go">Date Time                        | Date Time                                 |</span>
+<span class="go">2021-01-01 15:00:00    23.341182 | 2021-01-01 15:00:51               23.3410 |</span>
+<span class="go">2021-01-01 15:10:00    23.342964 | 2021-01-01 15:10:38               23.3431 |</span>
+<span class="go">2021-01-01 15:20:00    23.341092 | 2021-01-01 15:20:26               23.3410 |</span>
+<span class="go">2021-01-01 15:30:00    23.341000 | 2021-01-01 15:30:14               23.3410 |</span>
+<span class="go">2021-01-01 15:40:00  -119.512446 | 2021-01-01 15:40:02             -120.0000 |</span>
+<span class="go">2021-01-01 15:50:00    23.299553 | 2021-01-01 15:49:50               23.2988 |</span>
+</pre></div>
+</div>
+<p>At <code class="docutils literal notranslate"><span class="pre">2021-01-01</span> <span class="pre">15:40:02</span></code> the original data exhibits a measurement value
+of <code class="docutils literal notranslate"><span class="pre">-120</span></code> - which is obviously not a valid data point, regarding the fact, that <em>SoilMoisture</em> measurements
+should be percentage values in between <em>0</em> and <em>100</em>.</p>
+<p>Since we dont exclude the value from interpolation, it gets included in the interpolation
+process for the regular timstamp at <code class="docutils literal notranslate"><span class="pre">2021-01-01</span> <span class="pre">15:40:00</span></code> - wich, as a result, also exhibits
+a non - sence value of <em>-119.512446</em>. We could now flag the resulting regular dataset and
+exclude this calculated non sence value from further processing and analysis.</p>
+<p>But, this would mean, that we would have a small data gap at this point.</p>
+<p>We can circumvent having that gap, by flagging that value before interpolation. This
+works, because there is actually another, now valid value, available in the interval
+in between <code class="docutils literal notranslate"><span class="pre">2021-01-01</span> <span class="pre">15:40:00</span></code> and <code class="docutils literal notranslate"><span class="pre">2021-01-01</span> <span class="pre">15:50:00</span></code>, that can serve as right pillow point
+for the interpolation at <code class="docutils literal notranslate"><span class="pre">2021-01-01</span> <span class="pre">15:40:00</span></code>. So lets flag all the values smaller than <em>0</em>
+with the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.flagRange" title="saqc.SaQC.flagRange"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flagRange()</span></code></a> method and after this,
+do the interpolation.</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagRange</span><span class="p">(</span><span class="s1">&#39;SoilMoisture&#39;</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">interpolate</span><span class="p">(</span><span class="s1">&#39;SoilMoisture&#39;</span><span class="p">,</span> <span class="n">freq</span><span class="o">=</span><span class="s1">&#39;10min&#39;</span><span class="p">,</span> <span class="n">method</span><span class="o">=</span><span class="s1">&#39;time&#39;</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;2021-01-01T07:00:00&#39;</span><span class="p">:</span><span class="s1">&#39;2021-01-01T08:00:00&#39;</span><span class="p">]</span> 
+<span class="go">                    SoilMoisture |                     SoilMoisture_original |</span>
+<span class="go">================================ | ========================================= |</span>
+<span class="go">Date Time                        | Date Time                                 |</span>
+<span class="go">2021-01-01 15:00:00    23.341182 | 2021-01-01 15:00:51               23.3410 |</span>
+<span class="go">2021-01-01 15:10:00    23.342964 | 2021-01-01 15:10:38               23.3431 |</span>
+<span class="go">2021-01-01 15:20:00    23.341092 | 2021-01-01 15:20:26               23.3410 |</span>
+<span class="go">2021-01-01 15:30:00    23.341000 | 2021-01-01 15:30:14               23.3410 |</span>
+<span class="go">2021-01-01 15:40:00    23.319971 | 2021-01-01 15:40:02             -120.0000 |</span>
+<span class="go">2021-01-01 15:50:00    23.299553 | 2021-01-01 15:49:50               23.2988 |</span>
+</pre></div>
+</div>
+</section>
+<section id="back-projection-of-flags">
+<h2>back projection of flags<a class="headerlink" href="#back-projection-of-flags" title="Permalink to this headline">¶</a></h2>
+<p>TODO</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Data Regularisation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#why-regularisation">Why Regularisation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#tutorial-data">Tutorial Data</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#regularisations">Regularisations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#shift">Shift</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#target-parameter">Target parameter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#freq-parameter">Freq parameter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#shifting-method">Shifting Method</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#shifted-data">Shifted data</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#data-loss-and-empty-intervals">Data Loss and Empty Intervals</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#empty-intervals">Empty Intervals</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#valid-data">Valid Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-reduction">data reduction</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#minimize-shifting-distance">Minimize Shifting Distance</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#aggregation">Aggregation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#aggregation-functions">Aggregation functions</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#aggregation-method">Aggregation method</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#interpolation">Interpolation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#interpolation-and-data-sparsity">Interpolation and Data Sparsity</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#linear-interpolation">Linear Interpolation</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#flags-and-regularisation">Flags and Regularisation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#back-projection-of-flags">back projection of flags</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="../gettingstarted/TutorialCLI.html"
+                          title="previous chapter">Command Line Application</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="OutlierDetection.html"
+                          title="next chapter">Outlier Detection and Flagging</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/cookbooks/DataRegularisation.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="OutlierDetection.html" title="Outlier Detection and Flagging"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../gettingstarted/TutorialCLI.html" title="Command Line Application"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Data Regularisation</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

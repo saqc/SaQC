@@ -1,2 +1,2 @@
 name,model_type,metric_type,metric_value,train_time
-1_Default_NeuralNetwork,Neural Network,rmse,0.13244345979127864,3.52
+1_Default_NeuralNetwork,Neural Network,rmse,0.13244345979127864,3.73

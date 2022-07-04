@@ -1,0 +1,270 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Customizations &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Assigning results to new variables" href="SourceTarget.html" />
+    <link rel="prev" title="Global Keywords" href="GlobalKeywords.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="SourceTarget.html" title="Assigning results to new variables"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="GlobalKeywords.html" title="Global Keywords"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Customizations</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="customizations">
+<h1>Customizations<a class="headerlink" href="#customizations" title="Permalink to this headline">¶</a></h1>
+<p>SaQC comes with a continuously growing number of pre-implemented
+quality checking and processing routines as well as flagging schemes.
+For any sufficiently large use case however it is very likely that the
+functions provided won’t fulfill all your needs and requirements.</p>
+<p>Acknowledging the impossibility to address all imaginable use cases, we
+designed the system to allow for extensions and costumizations. The main extensions options, namely
+<a class="reference internal" href="#custom-quality-check-routines"><span class="std std-ref">quality check routines</span></a>
+and the <a class="reference internal" href="#custom-flagging-schemes"><span class="std std-ref">flagging scheme</span></a>
+are described within this documents.</p>
+<section id="custom-quality-check-routines">
+<h2>Custom quality check routines<a class="headerlink" href="#custom-quality-check-routines" title="Permalink to this headline">¶</a></h2>
+<p>In case you are missing quality check routines, you are of course very
+welcome to file a feature request issue on the project’s
+<a class="reference external" href="https://git.ufz.de/rdm-software/saqc">gitlab repository</a>. However, if
+you are more the “I-get-this-done-by-myself” type of person,
+SaQC provides two ways to integrate custom routines into the system:</p>
+<ol class="arabic simple">
+<li><p>The <a class="reference internal" href="GenericFunctions.html#generic-functions"><span class="std std-ref">extension language</span></a></p></li>
+<li><p>An <a class="reference internal" href="#interface"><span class="std std-ref">interface</span></a> to the evaluation machinery</p></li>
+</ol>
+<section id="interface">
+<h3>Interface<a class="headerlink" href="#interface" title="Permalink to this headline">¶</a></h3>
+<p>In order to make a function usable within the evaluation framework of SaQC it needs to
+implement the following function interface</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">pandas</span>
+<span class="kn">import</span> <span class="nn">dios</span>
+<span class="kn">import</span> <span class="nn">saqc</span>
+
+<span class="k">def</span> <span class="nf">yourTestFunction</span><span class="p">(</span>
+   <span class="n">data</span><span class="p">:</span> <span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">,</span>
+   <span class="n">field</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+   <span class="n">flags</span><span class="p">:</span> <span class="n">saqc</span><span class="o">.</span><span class="n">Flags</span><span class="p">,</span>
+   <span class="o">*</span><span class="n">args</span><span class="p">,</span>
+   <span class="o">**</span><span class="n">kwargs</span>
+   <span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">saqc</span><span class="o">.</span><span class="n">Flags</span><span class="p">)</span>
+</pre></div>
+</div>
+<section id="argument-descriptions">
+<h4>Argument Descriptions<a class="headerlink" href="#argument-descriptions" title="Permalink to this headline">¶</a></h4>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">data</span></code></p></td>
+<td><p>The actual dataset, an instance of <code class="docutils literal notranslate"><span class="pre">dios.DictOfSeries</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">field</span></code></p></td>
+<td><p>The field/column within <code class="docutils literal notranslate"><span class="pre">data</span></code>, that function is processing.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">flags</span></code></p></td>
+<td><p>An instance of saqc.Flags, responsible for the translation of test results into quality attributes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">args</span></code></p></td>
+<td><p>Any other arguments needed to parameterize the function.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">kwargs</span></code></p></td>
+<td><p>Any other keyword arguments needed to parameterize the function.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="integrate-into-saqc">
+<h3>Integrate into SaQC<a class="headerlink" href="#integrate-into-saqc" title="Permalink to this headline">¶</a></h3>
+<p>In order make your function available to the system it needs to be registered. We provide a decorator
+<cite>``flagging`</cite> &lt;saqc/functions/register.py&gt;`_ with saqc, to integrate your
+test functions into SaQC. Here is a complete dummy example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">saqc</span> <span class="kn">import</span> <span class="n">register</span>
+
+<span class="nd">@flagging</span><span class="p">()</span>
+<span class="k">def</span> <span class="nf">yourTestFunction</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">flags</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">flags</span>
+</pre></div>
+</div>
+</section>
+<section id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p>The function <cite>``flagRange`</cite> &lt;saqc/funcs/outliers.py&gt;`_ provides a simple, yet complete implementation of
+a quality check routine. You might want to look into its implementation as an example.</p>
+</section>
+</section>
+<section id="custom-flagging-schemes">
+<h2>Custom flagging schemes<a class="headerlink" href="#custom-flagging-schemes" title="Permalink to this headline">¶</a></h2>
+<p>Sorry for the inconvenience! Coming soon…</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Customizations</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#custom-quality-check-routines">Custom quality check routines</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#interface">Interface</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#argument-descriptions">Argument Descriptions</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#integrate-into-saqc">Integrate into SaQC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#custom-flagging-schemes">Custom flagging schemes</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="GlobalKeywords.html"
+                          title="previous chapter">Global Keywords</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="SourceTarget.html"
+                          title="next chapter">Assigning results to new variables</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/documentation/Customizations.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="SourceTarget.html" title="Assigning results to new variables"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="GlobalKeywords.html" title="Global Keywords"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Customizations</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

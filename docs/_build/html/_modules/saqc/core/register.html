@@ -1,0 +1,614 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>saqc.core.register &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../../_static/tabs.css" />
+    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+    <script src="../../../_static/jquery.js"></script>
+    <script src="../../../_static/underscore.js"></script>
+    <script src="../../../_static/doctools.js"></script>
+    <script src="../../../_static/thebelab-helper.js"></script>
+    <script src="../../../_static/tabs.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../../../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.register</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for saqc.core.register</h1><div class="highlight"><pre>
+<span></span><span class="ch">#!/usr/bin/env python</span>
+
+<span class="c1"># SPDX-FileCopyrightText: 2021 Helmholtz-Zentrum für Umweltforschung GmbH - UFZ</span>
+<span class="c1">#</span>
+<span class="c1"># SPDX-License-Identifier: GPL-3.0-or-later</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">functools</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">warnings</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Any</span><span class="p">,</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">,</span> <span class="n">Tuple</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">import</span> <span class="nn">dios</span>
+<span class="kn">from</span> <span class="nn">saqc.constants</span> <span class="kn">import</span> <span class="n">FILTER_ALL</span><span class="p">,</span> <span class="n">UNFLAGGED</span>
+<span class="kn">from</span> <span class="nn">saqc.core.flags</span> <span class="kn">import</span> <span class="n">Flags</span><span class="p">,</span> <span class="n">History</span>
+<span class="kn">from</span> <span class="nn">saqc.lib.tools</span> <span class="kn">import</span> <span class="n">squeezeSequence</span><span class="p">,</span> <span class="n">toSequence</span>
+
+<span class="c1"># NOTE:</span>
+<span class="c1"># the global SaQC function store,</span>
+<span class="c1"># will be filled by calls to register</span>
+<span class="n">FUNC_MAP</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Callable</span><span class="p">]</span> <span class="o">=</span> <span class="p">{}</span>
+
+<span class="n">_is_list_like</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">api</span><span class="o">.</span><span class="n">types</span><span class="o">.</span><span class="n">is_list_like</span>
+
+
+<span class="k">class</span> <span class="nc">FunctionWrapper</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
+        <span class="n">mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">demask</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">squeeze</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span>
+        <span class="n">multivariate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">handles_target</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="c1"># todo:</span>
+        <span class="c1">#  - meta only is written with squeeze</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">func</span> <span class="o">=</span> <span class="n">func</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func_name</span> <span class="o">=</span> <span class="n">func</span><span class="o">.</span><span class="vm">__name__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">func_signature</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">func</span><span class="p">)</span>
+
+        <span class="c1"># ensure type and all elements exist in signature</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_checkDecoratorKeywords</span><span class="p">(</span><span class="n">mask</span><span class="p">,</span> <span class="n">demask</span><span class="p">,</span> <span class="n">squeeze</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">decorator_mask</span> <span class="o">=</span> <span class="n">mask</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">decorator_demask</span> <span class="o">=</span> <span class="n">demask</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">decorator_squeeze</span> <span class="o">=</span> <span class="n">squeeze</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">multivariate</span> <span class="o">=</span> <span class="n">multivariate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">handles_target</span> <span class="o">=</span> <span class="n">handles_target</span>
+
+        <span class="c1"># set in __call__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flags</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fields</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask_thresh</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stored_data</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># make ourself look like the wrapped function, especially the docstring</span>
+        <span class="n">functools</span><span class="o">.</span><span class="n">update_wrapper</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">func</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="nf">_checkDecoratorKeywords</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">demask</span><span class="p">,</span> <span class="n">squeeze</span><span class="p">):</span>
+        <span class="n">params</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">func_signature</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">dec_arg</span><span class="p">,</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span>
+            <span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="n">demask</span><span class="p">,</span> <span class="n">squeeze</span><span class="p">],</span> <span class="p">[</span><span class="s2">&quot;mask&quot;</span><span class="p">,</span> <span class="s2">&quot;demask&quot;</span><span class="p">,</span> <span class="s2">&quot;squeeze&quot;</span><span class="p">]</span>
+        <span class="p">):</span>
+            <span class="n">typeerr</span> <span class="o">=</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;type of decorator argument &#39;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&#39; must &quot;</span>
+                <span class="sa">f</span><span class="s2">&quot;be a list of strings, not </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">dec_arg</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dec_arg</span><span class="p">,</span> <span class="nb">list</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="n">typeerr</span>
+            <span class="k">for</span> <span class="n">elem</span> <span class="ow">in</span> <span class="n">dec_arg</span><span class="p">:</span>
+                <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">elem</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                    <span class="k">raise</span> <span class="n">typeerr</span>
+                <span class="k">if</span> <span class="n">elem</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">params</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                        <span class="sa">f</span><span class="s2">&quot;passed value </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="n">elem</span><span class="p">)</span><span class="si">}</span><span class="s2"> in </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="si">}</span><span class="s2"> is not an &quot;</span>
+                        <span class="sa">f</span><span class="s2">&quot;parameter in decorated function </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func_name</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+                    <span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_argnamesToColumns</span><span class="p">(</span><span class="n">names</span><span class="p">:</span> <span class="nb">list</span><span class="p">,</span> <span class="n">values</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="n">clist</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">names</span><span class="p">:</span>
+            <span class="n">value</span> <span class="o">=</span> <span class="n">values</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span>  <span class="c1"># eg. the value behind &#39;field&#39;</span>
+
+            <span class="c1"># NOTE: do not change order of the tests</span>
+            <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">pass</span>
+            <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+                <span class="n">clist</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
+            <span class="c1"># we ignore DataFrame, Series, DictOfSeries</span>
+            <span class="c1"># and high order types alike</span>
+            <span class="k">elif</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">value</span><span class="p">,</span> <span class="s2">&quot;columns&quot;</span><span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="k">elif</span> <span class="n">_is_list_like</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">all</span><span class="p">([</span><span class="nb">isinstance</span><span class="p">(</span><span class="n">e</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="k">for</span> <span class="n">e</span> <span class="ow">in</span> <span class="n">value</span><span class="p">]):</span>
+                <span class="n">clist</span> <span class="o">+=</span> <span class="n">value</span>
+        <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">(</span><span class="n">clist</span><span class="p">)</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_warn</span><span class="p">(</span><span class="n">missing</span><span class="p">,</span> <span class="n">source</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">action</span> <span class="o">=</span> <span class="n">source</span> <span class="o">+</span> <span class="s2">&quot;ed&quot;</span>
+        <span class="n">obj</span> <span class="o">=</span> <span class="s2">&quot;flags&quot;</span> <span class="k">if</span> <span class="n">source</span> <span class="o">==</span> <span class="s2">&quot;squeeze&quot;</span> <span class="k">else</span> <span class="s2">&quot;data&quot;</span>
+        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;Column(s) </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="n">missing</span><span class="p">)</span><span class="si">}</span><span class="s2"> cannot not be </span><span class="si">{</span><span class="n">action</span><span class="si">}</span><span class="s2"> &quot;</span>
+            <span class="sa">f</span><span class="s2">&quot;because they are not present in </span><span class="si">{</span><span class="n">obj</span><span class="si">}</span><span class="s2">. &quot;</span><span class="p">,</span>
+            <span class="ne">RuntimeWarning</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">data</span><span class="p">:</span> <span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">field</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">flags</span><span class="p">:</span> <span class="n">Flags</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">Flags</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        This wraps a call to a saqc function.</span>
+
+<span class="sd">        Before the saqc function call it copies flags and maybe mask data (inplace).</span>
+<span class="sd">        After the call it maybe squeezes modified histories and maybe reinsert the</span>
+<span class="sd">        masked data locations.</span>
+
+<span class="sd">        If the squeezing and/or the masking and/or the demasking will happen, depends</span>
+<span class="sd">        on the decorator keywords `handles` and `datamask`. See ``_determineActions``,</span>
+<span class="sd">        for that.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># keep this the original values</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">data</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">flags</span> <span class="o">=</span> <span class="n">flags</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">fields</span> <span class="o">=</span> <span class="n">toSequence</span><span class="p">(</span><span class="n">field</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_checkKwargs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">mask_thresh</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_getMaskingThresh</span><span class="p">()</span>
+
+        <span class="c1"># skip (data, field, flags)</span>
+        <span class="n">names</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">func_signature</span><span class="o">.</span><span class="n">parameters</span><span class="o">.</span><span class="n">keys</span><span class="p">())[</span><span class="mi">3</span> <span class="p">:</span> <span class="mi">3</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">args</span><span class="p">)]</span>
+        <span class="n">all_args</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;field&quot;</span><span class="p">:</span> <span class="n">field</span><span class="p">,</span> <span class="o">**</span><span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">names</span><span class="p">,</span> <span class="n">args</span><span class="p">)),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">}</span>
+
+        <span class="c1"># find columns that need masking</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_argnamesToColumns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">decorator_mask</span><span class="p">,</span> <span class="n">all_args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="n">columns</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="o">.</span><span class="n">to_list</span><span class="p">(),</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;mask&quot;</span><span class="p">)</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">columns</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="n">masked</span><span class="p">,</span> <span class="n">stored</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_maskData</span><span class="p">(</span>
+            <span class="n">data</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span>
+            <span class="n">flags</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="p">,</span>
+            <span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">,</span>
+            <span class="n">thresh</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mask_thresh</span><span class="p">,</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">data</span> <span class="o">=</span> <span class="n">masked</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stored_data</span> <span class="o">=</span> <span class="n">stored</span>
+
+        <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_prepareArgs</span><span class="p">()</span>
+        <span class="n">data</span><span class="p">,</span> <span class="n">flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">func</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+
+        <span class="c1"># find columns that need squeezing</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_argnamesToColumns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">decorator_squeeze</span><span class="p">,</span> <span class="n">all_args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="n">columns</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">flags</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="o">.</span><span class="n">to_list</span><span class="p">(),</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;squeeze&quot;</span><span class="p">)</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">columns</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">flags</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="c1"># if the function did not want to set any flags at all,</span>
+        <span class="c1"># we assume a processing function that altered the flags</span>
+        <span class="c1"># in an unpredictable manner or do nothing with the flags.</span>
+        <span class="c1"># in either case we take the returned flags as the new truth.</span>
+        <span class="k">if</span> <span class="n">columns</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+            <span class="n">result_flags</span> <span class="o">=</span> <span class="n">flags</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># even if this looks like a noop for columns=[],</span>
+            <span class="c1"># it returns the old instead the new flags and</span>
+            <span class="c1"># therefore ignores any possible processing changes</span>
+            <span class="n">result_flags</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_squeezeFlags</span><span class="p">(</span><span class="n">flags</span><span class="p">,</span> <span class="n">columns</span><span class="p">)</span>
+
+        <span class="c1"># find columns that need demasking</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_argnamesToColumns</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">decorator_demask</span><span class="p">,</span> <span class="n">all_args</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_warn</span><span class="p">(</span><span class="n">columns</span><span class="o">.</span><span class="n">difference</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span><span class="o">.</span><span class="n">to_list</span><span class="p">(),</span> <span class="n">source</span><span class="o">=</span><span class="s2">&quot;demask&quot;</span><span class="p">)</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">columns</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="n">result_data</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_unmaskData</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">stored_data</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">result_data</span><span class="p">,</span> <span class="n">result_flags</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_checkKwargs</span><span class="p">(</span><span class="n">kwargs</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+        <span class="k">if</span> <span class="s2">&quot;dfilter&quot;</span> <span class="ow">in</span> <span class="n">kwargs</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span>
+            <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;dfilter&quot;</span><span class="p">],</span> <span class="p">(</span><span class="nb">bool</span><span class="p">,</span> <span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+        <span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&#39;dfilter&#39; must be of type bool or float&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">_prepareArgs</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">,</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Prepare the args and kwargs passed to the function</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        args: tuple</span>
+<span class="sd">            arguments to be passed to the actual call</span>
+<span class="sd">        kwargs: dict</span>
+<span class="sd">            keyword-arguments to be passed to the actual call</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">kwargs</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;dfilter&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">mask_thresh</span>
+
+        <span class="c1"># always pass a list to multivariate functions and</span>
+        <span class="c1"># unpack single element lists for univariate functions</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">multivariate</span><span class="p">:</span>
+            <span class="n">field</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">fields</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">field</span> <span class="o">=</span> <span class="n">squeezeSequence</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">fields</span><span class="p">)</span>
+
+        <span class="n">args</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">copy</span><span class="p">(),</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span>
+        <span class="k">return</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span>
+
+    <span class="k">def</span> <span class="nf">_getMaskingThresh</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">float</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate a float threshold by the value of the `dfilter` keyword</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        threshold: float</span>
+<span class="sd">            All data gets masked, if the flags are equal or worse than the threshold.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        If ``dfilter`` is **not** in the kwargs, the threshold defaults to `FILTER_ALL`.</span>
+<span class="sd">        For any floatish value, it is taken as the threshold.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;dfilter&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">FILTER_ALL</span>
+        <span class="k">return</span> <span class="nb">float</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;dfilter&quot;</span><span class="p">])</span>  <span class="c1"># handle int</span>
+
+    <span class="k">def</span> <span class="nf">_createMeta</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="s2">&quot;func&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">func_name</span><span class="p">,</span>
+            <span class="s2">&quot;args&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">,</span>
+            <span class="s2">&quot;kwargs&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="k">def</span> <span class="nf">_squeezeFlags</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">flags</span><span class="p">:</span> <span class="n">Flags</span><span class="p">,</span> <span class="n">columns</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Index</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Flags</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Generate flags from the temporary result-flags and the original flags.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        flags : Flags</span>
+<span class="sd">            The flags-frame, which is the result from a saqc-function</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Flags</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">flags</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>  <span class="c1"># the old flags</span>
+        <span class="n">meta</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_createMeta</span><span class="p">()</span>
+        <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
+
+            <span class="c1"># todo: shouldn&#39;t we fail or warn here or even have a explicit test upstream</span>
+            <span class="c1">#  because the function should ensure consistence, especially because</span>
+            <span class="c1">#  a empty history maybe issnt what is expected, but this happens silently</span>
+            <span class="k">if</span> <span class="n">col</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">out</span><span class="p">:</span>  <span class="c1"># ensure existence</span>
+                <span class="n">out</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">History</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">flags</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+            <span class="n">old_history</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">col</span><span class="p">]</span>
+            <span class="n">new_history</span> <span class="o">=</span> <span class="n">flags</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">col</span><span class="p">]</span>
+
+            <span class="c1"># We only want to add new columns, that were appended during the last</span>
+            <span class="c1"># function call. If no such columns exist, we end up with an empty</span>
+            <span class="c1"># new_history.</span>
+            <span class="n">start</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">old_history</span><span class="o">.</span><span class="n">columns</span><span class="p">)</span>
+            <span class="n">new_history</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_sliceHistory</span><span class="p">(</span><span class="n">new_history</span><span class="p">,</span> <span class="nb">slice</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="kc">None</span><span class="p">))</span>
+
+            <span class="n">squeezed</span> <span class="o">=</span> <span class="n">new_history</span><span class="o">.</span><span class="n">squeeze</span><span class="p">(</span><span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">out</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">=</span> <span class="n">out</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">squeezed</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">out</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_sliceHistory</span><span class="p">(</span><span class="n">history</span><span class="p">:</span> <span class="n">History</span><span class="p">,</span> <span class="n">sl</span><span class="p">:</span> <span class="nb">slice</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">History</span><span class="p">:</span>
+        <span class="n">history</span><span class="o">.</span><span class="n">hist</span> <span class="o">=</span> <span class="n">history</span><span class="o">.</span><span class="n">hist</span><span class="o">.</span><span class="n">iloc</span><span class="p">[:,</span> <span class="n">sl</span><span class="p">]</span>
+        <span class="n">history</span><span class="o">.</span><span class="n">meta</span> <span class="o">=</span> <span class="n">history</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="n">sl</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">history</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_maskData</span><span class="p">(</span>
+        <span class="n">data</span><span class="p">:</span> <span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">flags</span><span class="p">:</span> <span class="n">Flags</span><span class="p">,</span> <span class="n">columns</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="n">thresh</span><span class="p">:</span> <span class="nb">float</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">]:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Mask data with Nans, if the flags are worse than a threshold.</span>
+<span class="sd">            - mask only passed `columns` (preselected by `datamask`-kw from decorator)</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        masked : dios.DictOfSeries</span>
+<span class="sd">            masked data, same dim as original</span>
+<span class="sd">        mask : dios.DictOfSeries</span>
+<span class="sd">            dios holding iloc-data-pairs for every column in `data`</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">mask</span> <span class="o">=</span> <span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="c1"># we use numpy here because it is faster</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
+            <span class="n">col_mask</span> <span class="o">=</span> <span class="n">_isflagged</span><span class="p">(</span><span class="n">flags</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(),</span> <span class="n">thresh</span><span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">col_mask</span><span class="o">.</span><span class="n">any</span><span class="p">():</span>
+                <span class="n">col_data</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">)</span>
+
+                <span class="n">mask</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">col_data</span><span class="p">[</span><span class="n">col_mask</span><span class="p">],</span> <span class="n">index</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">col_mask</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
+
+                <span class="n">col_data</span><span class="p">[</span><span class="n">col_mask</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span>
+                <span class="n">data</span><span class="p">[</span><span class="n">c</span><span class="p">]</span> <span class="o">=</span> <span class="n">col_data</span>
+
+        <span class="k">return</span> <span class="n">data</span><span class="p">,</span> <span class="n">mask</span>
+
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">_unmaskData</span><span class="p">(</span>
+        <span class="n">data</span><span class="p">:</span> <span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">mask</span><span class="p">:</span> <span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">,</span> <span class="n">columns</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">Index</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">dios</span><span class="o">.</span><span class="n">DictOfSeries</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Restore the masked data.</span>
+
+<span class="sd">        Notes</span>
+<span class="sd">        -----</span>
+<span class="sd">        - Even if this returns data, it works inplace !</span>
+<span class="sd">        - `mask` is not a boolean mask, instead it holds the original values.</span>
+<span class="sd">          The index of mask is numeric and represent the integer location</span>
+<span class="sd">          in the original data.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">columns</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">columns</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">columns</span>  <span class="c1"># field was in old, is in mask and is in new</span>
+        <span class="n">columns</span> <span class="o">=</span> <span class="n">mask</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">intersection</span><span class="p">(</span><span class="n">columns</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">columns</span><span class="p">:</span>
+
+            <span class="c1"># ignore</span>
+            <span class="k">if</span> <span class="n">data</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">empty</span> <span class="ow">or</span> <span class="n">mask</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="k">continue</span>
+
+            <span class="c1"># get the positions of values to unmask</span>
+            <span class="n">candidates</span> <span class="o">=</span> <span class="n">mask</span><span class="p">[</span><span class="n">c</span><span class="p">]</span>
+            <span class="c1"># if the mask was removed during the function call, don&#39;t replace</span>
+            <span class="n">unmask</span> <span class="o">=</span> <span class="n">candidates</span><span class="p">[</span><span class="n">data</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">candidates</span><span class="o">.</span><span class="n">index</span><span class="p">]</span><span class="o">.</span><span class="n">isna</span><span class="p">()</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()]</span>
+            <span class="k">if</span> <span class="n">unmask</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+                <span class="k">continue</span>
+            <span class="n">data</span><span class="p">[</span><span class="n">c</span><span class="p">]</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="n">unmask</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="n">unmask</span>
+
+        <span class="k">return</span> <span class="n">data</span>
+
+
+<div class="viewcode-block" id="register"><a class="viewcode-back" href="../../../_api/saqc.core.register.html#saqc.core.register">[docs]</a><span class="k">def</span> <span class="nf">register</span><span class="p">(</span>
+    <span class="n">mask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">demask</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">squeeze</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span>
+    <span class="n">multivariate</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">handles_target</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+<span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Generalized decorator for any saqc functions.</span>
+
+<span class="sd">    Before the call of the decorated function:</span>
+<span class="sd">    - data gets masked by flags according to `dfilter`</span>
+
+<span class="sd">    After the call of the decorated function:</span>
+<span class="sd">    - data gets demasked (original data is written back)</span>
+<span class="sd">    - flags gets squeezed (only one history column append per call)</span>
+
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    mask : list of string</span>
+<span class="sd">        A list of all parameter of the decorated function, that specify a column in</span>
+<span class="sd">        data, that is read by the function and therefore should be masked by flags.</span>
+
+<span class="sd">        The masking takes place before the call of the decorated function and</span>
+<span class="sd">        temporary sets data to `NaN` at flagged locations. It is undone by ``demask``.</span>
+<span class="sd">        The threshold of which data is considered to be flagged can be controlled</span>
+<span class="sd">        via ``dfilter``, a parameter each function takes.</span>
+
+<span class="sd">    demask : list of string</span>
+<span class="sd">        A list of all parameter of the decorated function, that specify a column in</span>
+<span class="sd">        data, that was masked (see ``mask``) and needs unmasking after the call.</span>
+
+<span class="sd">        The unmasking replace all remaining(!) ``NaN`` by its original values from</span>
+<span class="sd">        before the call of the decorated function.</span>
+
+<span class="sd">    squeeze : list of string</span>
+<span class="sd">        A list of all parameter of the decorated function, that specify a column in</span>
+<span class="sd">        flags, that is written by the function.</span>
+
+<span class="sd">        The squeezing combines multiple columns in the history of flags to one</span>
+<span class="sd">        single column. This is because, multiple writes to flags, (eg. using</span>
+<span class="sd">        ``flags[:,&#39;a&#39;] = 255`` twice) will result in multiple history columns,</span>
+<span class="sd">        but should considered as a single column, because only one function call</span>
+<span class="sd">        happened.</span>
+
+<span class="sd">    multivariate : bool, default False</span>
+<span class="sd">        If ``True``, the decorated function, process multiple data or flags</span>
+<span class="sd">        columns at once. Therefore the decorated function must handle a list</span>
+<span class="sd">        of columns in the parameter ``field``.</span>
+
+<span class="sd">        If ``False``, the decorated function must take a single column (``str``)</span>
+<span class="sd">        in ``field``.</span>
+
+<span class="sd">    handles_target : bool, default False</span>
+<span class="sd">        If ``True``, the decorated function, handles the target parameter by</span>
+<span class="sd">        itself. Mandatory for multivariate functions.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">inner</span><span class="p">(</span><span class="n">func</span><span class="p">):</span>
+        <span class="n">wrapper</span> <span class="o">=</span> <span class="n">FunctionWrapper</span><span class="p">(</span>
+            <span class="n">func</span><span class="p">,</span> <span class="n">mask</span><span class="p">,</span> <span class="n">demask</span><span class="p">,</span> <span class="n">squeeze</span><span class="p">,</span> <span class="n">multivariate</span><span class="p">,</span> <span class="n">handles_target</span>
+        <span class="p">)</span>
+        <span class="n">FUNC_MAP</span><span class="p">[</span><span class="n">wrapper</span><span class="o">.</span><span class="n">func_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">wrapper</span>
+        <span class="k">return</span> <span class="n">wrapper</span>
+
+    <span class="k">return</span> <span class="n">inner</span></div>
+
+
+<div class="viewcode-block" id="flagging"><a class="viewcode-back" href="../../../_api/saqc.core.flagging.html#saqc.core.flagging">[docs]</a><span class="k">def</span> <span class="nf">flagging</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Default decorator for univariate flagging functions.</span>
+
+<span class="sd">    Before the call of the decorated function:</span>
+<span class="sd">    - `data[field]` gets masked by `flags[field]` according to `dfilter`</span>
+<span class="sd">    After the call of the decorated function:</span>
+<span class="sd">    - `data[field]` gets demasked (original data is written back)</span>
+<span class="sd">    - `flags[field]` gets squeezed (only one history column append per call) if needed</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    For full control over masking, demasking and squeezing or to implement</span>
+<span class="sd">    a multivariate function (multiple in- or outputs) use the `@register` decorator.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">        resister: generalization of of this function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;use &#39;@register&#39; to pass keywords&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">register</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;field&quot;</span><span class="p">],</span> <span class="n">demask</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;field&quot;</span><span class="p">],</span> <span class="n">squeeze</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;field&quot;</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="processing"><a class="viewcode-back" href="../../../_api/saqc.core.processing.html#saqc.core.processing">[docs]</a><span class="k">def</span> <span class="nf">processing</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Default decorator for univariate processing functions.</span>
+
+<span class="sd">    - no masking of data</span>
+<span class="sd">    - no demasking of data</span>
+<span class="sd">    - no squeezing of flags</span>
+
+<span class="sd">    Notes</span>
+<span class="sd">    -----</span>
+<span class="sd">    For full control over masking, demasking and squeezing or to implement</span>
+<span class="sd">    a multivariate function (multiple in- or outputs) use the `@register` decorator.</span>
+
+<span class="sd">    See Also</span>
+<span class="sd">    --------</span>
+<span class="sd">        resister: generalization of of this function</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="n">kwargs</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;use &#39;@register&#39; to pass keywords&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">register</span><span class="p">(</span><span class="n">mask</span><span class="o">=</span><span class="p">[],</span> <span class="n">demask</span><span class="o">=</span><span class="p">[],</span> <span class="n">squeeze</span><span class="o">=</span><span class="p">[])</span></div>
+
+
+<span class="k">def</span> <span class="nf">_isflagged</span><span class="p">(</span>
+    <span class="n">flagscol</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">,</span> <span class="n">thresh</span><span class="p">:</span> <span class="nb">float</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span> <span class="o">|</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Return a mask of flags accordingly to `thresh`. Return type is same as flags.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">thresh</span><span class="p">,</span> <span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="nb">int</span><span class="p">)):</span>
+        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;thresh must be of type float, not </span><span class="si">{</span><span class="nb">repr</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">thresh</span><span class="p">))</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">thresh</span> <span class="o">==</span> <span class="n">FILTER_ALL</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">flagscol</span> <span class="o">&gt;</span> <span class="n">UNFLAGGED</span>
+
+    <span class="k">return</span> <span class="n">flagscol</span> <span class="o">&gt;=</span> <span class="n">thresh</span>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../../index.html">
+              <img class="logo" src="../../../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../../../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.register</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

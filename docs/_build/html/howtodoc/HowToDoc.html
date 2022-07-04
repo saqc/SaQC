@@ -1,0 +1,440 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Documentation Guide &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Writing Functions" href="../documentation/WritingFunctions.html" />
+    <link rel="prev" title="SaQC" href="../modules/SaQCConstants.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../documentation/WritingFunctions.html" title="Writing Functions"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../modules/SaQCConstants.html" title="SaQC"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Documentation Guide</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="documentation-guide">
+<h1>Documentation Guide<a class="headerlink" href="#documentation-guide" title="Permalink to this headline">¶</a></h1>
+<p>We document our code via docstrings in numpy-style.
+Features, install and usage instructions and other more text intense stuff,
+is written in extra documents.
+The documents and the docstrings then are collected and rendered using <a class="reference external" href="https://www.sphinx-doc.org/">sphinx</a>.</p>
+<section id="documentation-strings">
+<h2>Documentation Strings<a class="headerlink" href="#documentation-strings" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p>Write docstrings for all public modules, functions, classes, and methods.
+Docstrings are not necessary for non-public methods,
+but you should have a comment that describes what the method does.
+This comment should appear after the def line.
+[<a class="reference external" href="https://www.python.org/dev/peps/pep-0008/#documentation-strings">PEP8</a>]</p></li>
+<li><p>Note that most importantly, the <code class="docutils literal notranslate"><span class="pre">&quot;&quot;&quot;</span></code> that ends a multiline docstring should be on a line by itself [<a class="reference external" href="https://www.python.org/dev/peps/pep-0008/#documentation-strings">PEP8</a>] :</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;Return a foobang</span>
+
+<span class="sd">Optional plotz says to frobnicate the bizbaz first.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+</pre></div>
+</div>
+</li>
+<li><p>For one liner docstrings, please keep the closing <code class="docutils literal notranslate"><span class="pre">&quot;&quot;&quot;</span></code> on the same line.
+[<a class="reference external" href="https://www.python.org/dev/peps/pep-0008/#documentation-strings">PEP8</a>]</p></li>
+</ul>
+<section id="pandas-style">
+<h3>Pandas Style<a class="headerlink" href="#pandas-style" title="Permalink to this headline">¶</a></h3>
+<p>We use <a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/development/contributing_docstring.html">Pandas-style</a> docstrings:</p>
+</section>
+</section>
+<section id="flagger-data-field-etc">
+<h2>Flagger, data, field, etc.<a class="headerlink" href="#flagger-data-field-etc" title="Permalink to this headline">¶</a></h2>
+<p>use this:</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="k">def</span> <span class="nf">foo</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="n">field</span><span class="p">,</span> <span class="n">flagger</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    data : dios.DictOfSeries</span>
+<span class="sd">    A saqc-data object.</span>
+
+<span class="sd">    field : str</span>
+<span class="sd">    A field denoting a column in data.</span>
+
+<span class="sd">    flagger : saqc.flagger.BaseFlagger</span>
+<span class="sd">    A saqc-flagger object.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+</pre></div>
+</div>
+<section id="ide-helper">
+<h3>IDE helper<a class="headerlink" href="#ide-helper" title="Permalink to this headline">¶</a></h3>
+<p>In pycharm one can activate autogeneration of numpy doc style like so:</p>
+<ol class="arabic simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">File-&gt;Settings...</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Tools-&gt;Python</span> <span class="pre">Integrated</span> <span class="pre">Tools</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Docstrings-&gt;Docstring</span> <span class="pre">format</span></code></p></li>
+<li><p>Choose <code class="docutils literal notranslate"><span class="pre">NumPy</span></code></p></li>
+</ol>
+</section>
+<section id="docstring-formatting-pitfalls">
+<h3>Docstring formatting pitfalls<a class="headerlink" href="#docstring-formatting-pitfalls" title="Permalink to this headline">¶</a></h3>
+<ul>
+<li><p>Latex is included via:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>:math:`&lt;latex_code&gt;`
+</pre></div>
+</div>
+</li>
+<li><p>Latex commands need to be signified with <strong>double</strong>   backlash! (<code class="docutils literal notranslate"><span class="pre">\\mu</span></code>)</p></li>
+<li><p>Nested lists need to be all of the same kind (either   numbered or marked - otherwise result is salad)</p></li>
+<li><p>List items covering several lines in the docstring have to be all aligned - (so, not only the superfluent ones, but ALL, including the first one - otherwise result is salad)</p></li>
+<li><p>Start of a list has to be seperated from preceding docstring code by <em>one blank line</em> - (otherwise list items get just chained in one line and result is salad)</p></li>
+<li><p>Most formatting signifiers are not allowed to start or end with a space.</p></li>
+<li><p>Do not include lines <em>only</em> containing two or more <code class="docutils literal notranslate"><span class="pre">-</span></code> signs, except it is the underscore line of the section heading (otherwise resulting html representation could be messed up)</p></li>
+</ul>
+</section>
+</section>
+<section id="hyperlinking-docstrings">
+<h2>hyperlinking docstrings<a class="headerlink" href="#hyperlinking-docstrings" title="Permalink to this headline">¶</a></h2>
+<ul>
+<li><p>Link code content/modules via python roles.</p></li>
+<li><p>Cite/link via the py domain roles. Link content <code class="docutils literal notranslate"><span class="pre">bar</span></code>, that is registered to the API with the adress <code class="docutils literal notranslate"><span class="pre">foo.bar</span></code> and
+shall be represented by the name <code class="docutils literal notranslate"><span class="pre">link_name</span></code>, via:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>:py:role:`link_name &lt;foo.bar&gt;`
+</pre></div>
+</div>
+</li>
+<li><p>Check out the <em>_api</em> folder in the <a class="reference external" href="https://git.ufz.de/rdm-software/saqc/-/tree/develop/sphinx-doc">repository</a> to get an
+overview of already registered paths. Most important may be:</p></li>
+<li><p>Constants are available via <code class="docutils literal notranslate"><span class="pre">saqc.constants</span></code> - for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>:py:const:`~saqc.constants.BAD`
+</pre></div>
+</div>
+</li>
+<li><p>The <code class="docutils literal notranslate"><span class="pre">~</span></code> is a shorthand for hiding the module path and only displaying <code class="docutils literal notranslate"><span class="pre">BAD</span></code>.</p></li>
+<li><p>Functions are available via the “simulated”  module <code class="docutils literal notranslate"><span class="pre">Functions.saqc</span></code> - for example:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>:py:func:`coolMethod &lt;saqc.SaQC.flagRange&gt;`
+</pre></div>
+</div>
+</li>
+<li><p>The saqc object and/or its content is available via:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>:py:class:`saqc.SaQC`
+:py:meth:`saqc.SaQC.flagRange`
+</pre></div>
+</div>
+</li>
+<li><p>The Flags object and/or its content is available via:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>:py:class:`saqc.Flags`
+</pre></div>
+</div>
+</li>
+<li><p>You can add .rst files containing <code class="docutils literal notranslate"><span class="pre">automodapi</span></code> directives to the modulesAPI folder to make available more modules via pyroles</p></li>
+<li><p>The Environment table, including variables available via config files is available as restfile located in the environment folder. (Use include directive to include, or linking syntax to link it.</p></li>
+</ul>
+</section>
+<section id="integrating-doctested-code-snippets">
+<h2>Integrating doctested code snippets<a class="headerlink" href="#integrating-doctested-code-snippets" title="Permalink to this headline">¶</a></h2>
+<section id="code-block">
+<h3>code-block<a class="headerlink" href="#code-block" title="Permalink to this headline">¶</a></h3>
+<p>If you want to ONLY RENDER code blocks, use the common <cite>code-block</cite> directive:</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span><span class="p">..</span> <span class="ow">code-block</span><span class="p">::</span> <span class="k">python</span>
+
+   <span class="n">a</span> <span class="o">=</span> <span class="mi">1</span>
+   <span class="n">b</span> <span class="o">=</span> <span class="mi">2</span>
+   <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+</pre></div>
+</div>
+<p>This results in:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">a</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">b</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+</pre></div>
+</div>
+</section>
+<section id="testcode">
+<h3>testcode<a class="headerlink" href="#testcode" title="Permalink to this headline">¶</a></h3>
+<p>If you want code to be RENDERED and TESTED, use the <cite>testcode</cite> directive. You can specify a group, where
+assignments and imports will be stored to, and available for later <cite>testcode</cite> directives
+of the same group and same document. Code is executed, and the doctest will fail, if execution causes an exception to be thrown.</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span><span class="p">..</span> <span class="ow">testcode</span><span class="p">::</span> group1
+
+   a = 1
+   b = 2
+   a + b
+</pre></div>
+</div>
+<p>This will be rendered as:</p>
+<div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">a</span> <span class="o">=</span> <span class="mi">1</span>
+<span class="n">b</span> <span class="o">=</span> <span class="mi">2</span>
+<span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+</pre></div>
+</div>
+<p>Assignments (and imports) will be available in any other <cite>testcode</cite> directive, that has the same group assigned.
+So the following wont fail, since <code class="docutils literal notranslate"><span class="pre">a</span></code> is known in <code class="docutils literal notranslate"><span class="pre">group1</span></code>:</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span><span class="p">..</span> <span class="ow">testcode</span><span class="p">::</span> group1
+
+   a - 4
+</pre></div>
+</div>
+</section>
+<section id="testsetup">
+<h3>testsetup<a class="headerlink" href="#testsetup" title="Permalink to this headline">¶</a></h3>
+<p>If you want to setup the example environment in a hidden manor, you can use the <cite>testsetup</cite> directive:</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span><span class="p">..</span> <span class="ow">testsetup</span><span class="p">::</span> group1
+
+   import scipy
+</pre></div>
+</div>
+<p>Will import scipy into the group environment, omitting rendering/display of the code.</p>
+</section>
+<section id="testoutput">
+<h3>testoutput<a class="headerlink" href="#testoutput" title="Permalink to this headline">¶</a></h3>
+<p>If you want to additionally check the final <em>std_out</em> output of a <cite>testcode</cite> block, you can use
+the <cite>testoutput</cite> directive:</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span><span class="p">..</span> <span class="ow">testcode</span><span class="p">::</span> group1
+
+   a - 4
+
+<span class="p">..</span> <span class="ow">testoutput</span><span class="p">::</span>
+
+   -3
+</pre></div>
+</div>
+<p>This will be rendered as follows:</p>
+<div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">a</span> <span class="o">-</span> <span class="mi">4</span>
+</pre></div>
+</div>
+<div class="highlight-none notranslate"><div class="highlight"><pre><span></span>-3
+</pre></div>
+</div>
+<p>You can omit displaying of the testoutput, by adding the <cite>hidden</cite> option.</p>
+</section>
+<section id="doctest">
+<h3>doctest<a class="headerlink" href="#doctest" title="Permalink to this headline">¶</a></h3>
+<p>If you want to have code tested and rendered in the doctest style rendering,
+(including <em>&gt;&gt;&gt;</em>), you can use doctest syntax:</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span>&gt;&gt;&gt; 1+1
+2
+</pre></div>
+</div>
+<p>This will be rendered as:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="mi">1</span><span class="o">+</span><span class="mi">1</span>
+<span class="go">2</span>
+</pre></div>
+</div>
+<p>It can be a little tricky, to match complexer std_out strings, like dios or DataFrames. There are some
+doctest flags that can mitigate frustration:</p>
+<ol class="arabic">
+<li><p>NORMALIZE_WHITESPACE will map all whitespace/tab combos onto a single whitespace. Use like:</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span>&gt;&gt;&gt; &#39;ab  c&#39; #doctest:+NORMALIZE_WHITESPACE
+&#39;ab c&#39;
+</pre></div>
+</div>
+</li>
+<li><p>ELLIPSIS will allow usage of the ‘…’-Wildcard in the expected output. (Usefull, if output contains unpredictable substrings, like memory adresses or filepaths</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span>&gt;&gt;&gt; &#39;abcdefg&#39; #doctest:+ELLIPSIS
+&#39;a...b&#39;
+</pre></div>
+</div>
+</li>
+<li><p>SKIP skips the check (and execution of the line) all together. (usually used, if display is demanded, but testing would somehow be unstable, due to random/unpredictable components)</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span>&gt;&gt;&gt; time #doctest:+SKIP
+CPU times: user 5 µs, sys: 3 µs, total: 8 µs
+Wall time: 13.8 µs
+</pre></div>
+</div>
+<div class="admonition caution">
+<p class="admonition-title">Caution</p>
+<p>Skipped lines are NOT tested! The execution of the line is skipped all together with the check against the
+expected output.</p>
+</div>
+</li>
+</ol>
+<p>To assign a group to doctest snippets, use the more verbose <cite>doctest</cite> directive:</p>
+<div class="highlight-rest notranslate"><div class="highlight"><pre><span></span><span class="p">..</span> <span class="ow">doctest</span><span class="p">::</span> group1
+
+   &gt;&gt;&gt; time #doctest:+SKIP
+   CPU times: user 5 µs, sys: 3 µs, total: 8 µs
+   Wall time: 13.8 µs
+</pre></div>
+</div>
+<p>Will be rendered, as:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">time</span> 
+<span class="go">CPU times: user 5 µs, sys: 3 µs, total: 8 µs</span>
+<span class="go">Wall time: 13.8 µs</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="run-doctest-locally">
+<h2>Run doctest locally<a class="headerlink" href="#run-doctest-locally" title="Permalink to this headline">¶</a></h2>
+<p>Since doctest checks guard the push to the develop branch, you might wish to chek if your local modification passes
+all doctests beforehand.</p>
+<p>There for go to the docs directory and run:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">make</span> <span class="n">test</span>
+</pre></div>
+</div>
+<p>To only run the doctests.</p>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Documentation Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#documentation-strings">Documentation Strings</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#pandas-style">Pandas Style</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#flagger-data-field-etc">Flagger, data, field, etc.</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#ide-helper">IDE helper</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#docstring-formatting-pitfalls">Docstring formatting pitfalls</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#hyperlinking-docstrings">hyperlinking docstrings</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#integrating-doctested-code-snippets">Integrating doctested code snippets</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#code-block">code-block</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testcode">testcode</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testsetup">testsetup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#testoutput">testoutput</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#doctest">doctest</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#run-doctest-locally">Run doctest locally</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="../modules/SaQCConstants.html"
+                          title="previous chapter">SaQC</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="../documentation/WritingFunctions.html"
+                          title="next chapter">Writing Functions</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/howtodoc/HowToDoc.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../documentation/WritingFunctions.html" title="Writing Functions"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../modules/SaQCConstants.html" title="SaQC"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Documentation Guide</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

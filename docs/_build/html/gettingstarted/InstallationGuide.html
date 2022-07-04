@@ -1,0 +1,239 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Installation Guide &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Python API" href="TutorialAPI.html" />
+    <link rel="prev" title="SaQC - System for automated Quality Control" href="../index.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="TutorialAPI.html" title="Python API"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="../index.html" title="SaQC - System for automated Quality Control"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Installation Guide</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="installation-guide">
+<h1>Installation Guide<a class="headerlink" href="#installation-guide" title="Permalink to this headline">¶</a></h1>
+<p>SaQC is written in Python, so the easiest way to set up your system to use SaQC
+for your needs is using the Python Package Index (PyPI). It might be a good idea
+to install SaQC into its own virtual environment.</p>
+<section id="system-requirements">
+<h2>System Requirements<a class="headerlink" href="#system-requirements" title="Permalink to this headline">¶</a></h2>
+<p>SaQC is tested to run with Python version from 3.7 to 3.9 on 64-bit operating systems (Linux and Windows).</p>
+</section>
+<section id="set-up-a-virtual-environment">
+<h2>Set up a virtual environment<a class="headerlink" href="#set-up-a-virtual-environment" title="Permalink to this headline">¶</a></h2>
+<p>It is good practice to create new virtual environments for different projects. This
+helps keeping dependencies separated and avoids issues with conflicting versions of
+a single module. The exact process to setup such an environment depends on your operating
+system and python version/distribution. The following sections should get you started on
+UNIX-like Systems and Windows.</p>
+<section id="on-unix-mac-systems">
+<h3>On Unix/Mac-systems<a class="headerlink" href="#on-unix-mac-systems" title="Permalink to this headline">¶</a></h3>
+<p>On Unix-like systems the process is usually rather easy. Open up a terminal window and
+copy-paste the following commands</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># create virtual environment called &quot;saqc-env&quot;</span>
+python -m venv saqc-env
+
+<span class="c1"># activate the virtual environment</span>
+<span class="nb">source</span> saqc-env/bin/activate
+</pre></div>
+</div>
+</section>
+<section id="on-windows-systems">
+<h3>On Windows-systems<a class="headerlink" href="#on-windows-systems" title="Permalink to this headline">¶</a></h3>
+<p>On windows, things are a bit more evolved however. The first hurdle to take is usually an
+installation of Python itself. There are many options available, one popular solution is
+the <a class="reference external" href="https://docs.conda.io/en/latest/">Conda package management system</a>. After its
+<a class="reference external" href="https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html">installation</a>
+type in the following:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="c1"># create virtual environment called &quot;saqc-env&quot;</span>
+conda create -n saqc-enc
+
+<span class="c1"># activate the virtual environment</span>
+conda activate saqc-env
+
+<span class="c1"># install pip, we will need it later</span>
+conda install pip
+</pre></div>
+</div>
+</section>
+</section>
+<section id="install-saqc">
+<h2>Install SaQC<a class="headerlink" href="#install-saqc" title="Permalink to this headline">¶</a></h2>
+<p>We currently distribute SaQC via the <a class="reference external" href="https://pypi.org/">Python Package Index (PyPI)</a>
+or through our <a class="reference external" href="https://git.ufz.de/rdm-software/saqc">GitLab-repository</a>.</p>
+<p>The latest stable versions are available with</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python -m pip install saqc
+</pre></div>
+</div>
+<p>or</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip install git+https://git.ufz.de/rdm-software/saqc@master
+</pre></div>
+</div>
+<p>If you feel more adventurous feel free to use the latest development version from our
+<a class="reference external" href="https://git.ufz.de/rdm-software/saqc">GitLab-repository</a>. While we try to keep the
+develop branch in a workable state, we sill won’t make any guarantees here.</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>pip install git+https://git.ufz.de/rdm-software/saqc@develop
+</pre></div>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Installation Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#system-requirements">System Requirements</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#set-up-a-virtual-environment">Set up a virtual environment</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#on-unix-mac-systems">On Unix/Mac-systems</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#on-windows-systems">On Windows-systems</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#install-saqc">Install SaQC</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="../index.html"
+                          title="previous chapter">SaQC - System for automated Quality Control</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="TutorialAPI.html"
+                          title="next chapter">Python API</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/gettingstarted/InstallationGuide.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="TutorialAPI.html" title="Python API"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="../index.html" title="SaQC - System for automated Quality Control"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Installation Guide</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

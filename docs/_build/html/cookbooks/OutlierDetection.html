@@ -1,0 +1,537 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Outlier Detection and Flagging &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Multivariate Flagging" href="MultivariateFlagging.html" />
+    <link rel="prev" title="Data Regularisation" href="DataRegularisation.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="MultivariateFlagging.html" title="Multivariate Flagging"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="DataRegularisation.html" title="Data Regularisation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Outlier Detection and Flagging</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="outlier-detection-and-flagging">
+<h1>Outlier Detection and Flagging<a class="headerlink" href="#outlier-detection-and-flagging" title="Permalink to this headline">¶</a></h1>
+<p>The tutorial aims to introduce the usage of <code class="docutils literal notranslate"><span class="pre">saqc</span></code> methods in order to detect outliers in an uni-variate set up.
+The tutorial guides through the following steps:</p>
+<ol class="arabic simple">
+<li><p>We checkout and load the example data set. Subsequently, we initialise an <a class="reference internal" href="../_api/saqc.core.SaQC.html#saqc.core.SaQC" title="saqc.core.core.SaQC"><code class="xref py py-class docutils literal notranslate"><span class="pre">SaQC</span></code></a> object.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#preparation"><span class="std std-ref">Preparation</span></a></p>
+<ul>
+<li><p><a class="reference internal" href="#data"><span class="std std-ref">Data</span></a></p></li>
+<li><p><a class="reference internal" href="#initialisation"><span class="std std-ref">Initialisation</span></a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>We will see how to apply different smoothing methods and models to the data in order to obtain usefull residual
+variables.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#modelling"><span class="std std-ref">Modelling</span></a></p>
+<ul>
+<li><p><a class="reference internal" href="#rolling-mean"><span class="std std-ref">Rolling Mean</span></a></p></li>
+<li><p><a class="reference internal" href="#rolling-median"><span class="std std-ref">Rolling Median</span></a></p></li>
+<li><p><a class="reference internal" href="#polynomial-fit"><span class="std std-ref">Polynomial Fit</span></a></p></li>
+<li><p><a class="reference internal" href="#custom-models"><span class="std std-ref">Custom Models</span></a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#visualisation"><span class="std std-ref">Evaluation and Visualisation</span></a></p></li>
+</ul>
+</li>
+<li><p>We will see how we can obtain residuals and scores from the calculated model curves.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#residuals-and-scores"><span class="std std-ref">Residuals and Scores</span></a></p>
+<ul>
+<li><p><a class="reference internal" href="#residuals"><span class="std std-ref">Residuals</span></a></p></li>
+<li><p><a class="reference internal" href="#scores"><span class="std std-ref">Scores</span></a></p></li>
+<li><p><a class="reference internal" href="#optimization-by-decomposition"><span class="std std-ref">Optimization by Decomposition</span></a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+<li><p>Finally, we will see how to derive flags from the scores itself and impose additional conditions, functioning as
+correctives.</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#setting-and-correcting-flags"><span class="std std-ref">Setting and Correcting Flags</span></a></p>
+<ul>
+<li><p><a class="reference internal" href="#flagging-the-scores"><span class="std std-ref">Flagging the Scores</span></a></p></li>
+<li><p><a class="reference external" href="#Additional-Conditions">Additional Conditions (“unflagging”)</a></p></li>
+<li><p><a class="reference internal" href="#including-multiple-conditions"><span class="std std-ref">Including Multiple Conditions</span></a></p></li>
+</ul>
+</li>
+</ul>
+</li>
+</ol>
+<section id="preparation">
+<h2>Preparation<a class="headerlink" href="#preparation" title="Permalink to this headline">¶</a></h2>
+<section id="data">
+<h3>Data<a class="headerlink" href="#data" title="Permalink to this headline">¶</a></h3>
+<p>The example <a class="reference external" href="https://git.ufz.de/rdm-software/saqc/-/blob/cookBux/sphinx-doc/resources/data/incidentsLKG.csv">data set</a>
+is selected to be small, comprehendable and its single anomalous outlier
+can be identified easily visually:</p>
+<figure class="align-default">
+<a class="plot-directive center reference internal image-reference" href="../_images/OutlierDetection-2.png"><img alt="../_images/OutlierDetection-2.png" class="plot-directive center" src="../_images/OutlierDetection-2.png" style="width: 80%;" /></a>
+</figure>
+<p>It can be downloaded from the saqc git <a class="reference external" href="https://git.ufz.de/rdm-software/saqc/-/blob/cookBux/sphinx-doc/resources/data/incidentsLKG.csv">repository</a>.</p>
+<p>The data represents incidents of SARS-CoV-2 infections, on a daily basis, as reported by the
+<a class="reference external" href="https://www.rki.de/DE/Home/homepage_node.html">RKI</a> in 2020.</p>
+<p>In June, an extreme spike can be observed. This spike relates to an incidence of so called “superspreading” in a local
+<a class="reference external" href="https://www.heise.de/tp/features/Superspreader-bei-Toennies-identifiziert-4852400.html">meat factory</a>.</p>
+<p>For the sake of modelling the spread of Covid, it can be of advantage, to filter the data for such extreme events, since
+they may not be consistent with underlying distributional assumptions and thus interfere with the parameter learning
+process of the modelling. Also it can help to learn about the conditions severely facilitating infection rates.</p>
+<p>To introduce into some basic <code class="docutils literal notranslate"><span class="pre">saqc</span></code> workflows, we will concentrate on classic variance based outlier detection approaches.</p>
+</section>
+<section id="initialisation">
+<h3>Initialisation<a class="headerlink" href="#initialisation" title="Permalink to this headline">¶</a></h3>
+<p>We initially want to import the data into our workspace. Therefore we import the <a class="reference external" href="https://pandas.pydata.org/">pandas</a>
+library and use its csv file parser <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.read_csv.html">pd.read_csv</a>.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data_path</span> <span class="o">=</span> <span class="s1">&#39;./resources/data/incidentsLKG.csv&#39;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">data_path</span><span class="p">,</span> <span class="n">index_col</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The resulting <code class="docutils literal notranslate"><span class="pre">data</span></code> variable is a pandas <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html">data frame</a>
+object. We can generate an <a class="reference internal" href="../_api/saqc.core.SaQC.html#saqc.core.SaQC" title="saqc.core.core.SaQC"><code class="xref py py-class docutils literal notranslate"><span class="pre">SaQC</span></code></a> object directly from that. Beforehand we have to make sure, the index
+of <code class="docutils literal notranslate"><span class="pre">data</span></code> is of the right type.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data</span><span class="o">.</span><span class="n">index</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DatetimeIndex</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now we do load the saqc package into the workspace and generate an instance of <a class="reference internal" href="../_api/saqc.core.SaQC.html#saqc.core.SaQC" title="saqc.core.core.SaQC"><code class="xref py py-class docutils literal notranslate"><span class="pre">SaQC</span></code></a> object,
+that refers to the loaded data.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">saqc</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">saqc</span><span class="o">.</span><span class="n">SaQC</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The only timeseries have here, is the <em>incidents</em> dataset. We can have a look at the data and obtain the above plot through
+the method <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.plot" title="saqc.SaQC.plot"><code class="xref py py-meth docutils literal notranslate"><span class="pre">plot()</span></code></a>:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;incidents&#39;</span><span class="p">)</span> 
+</pre></div>
+</div>
+</section>
+</section>
+<section id="modelling">
+<h2>Modelling<a class="headerlink" href="#modelling" title="Permalink to this headline">¶</a></h2>
+<p>First, we want to model our data in order to obtain a stationary, residuish variable with zero mean.</p>
+<section id="rolling-mean">
+<h3>Rolling Mean<a class="headerlink" href="#rolling-mean" title="Permalink to this headline">¶</a></h3>
+<p>Easiest thing to do, would be, to apply some rolling mean
+model via the method <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.roll" title="saqc.SaQC.roll"><code class="xref py py-meth docutils literal notranslate"><span class="pre">saqc.SaQC.roll()</span></code></a>.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;incidents&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents_mean&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="s1">&#39;13D&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">field</span></code> parameter is passed the variable name, we want to calculate the rolling mean of.
+The <code class="docutils literal notranslate"><span class="pre">target</span></code> parameter holds the name, we want to store the results of the calculation to.
+The <code class="docutils literal notranslate"><span class="pre">window</span></code> parameter controlls the size of the rolling window. It can be fed any so called <a class="reference external" href="https://pandas.pydata.org/pandas-docs/stable/user_guide/timeseries.html#offset-aliases">date alias</a> string. We chose the rolling window to have a 13 days span.</p>
+</section>
+<section id="rolling-median">
+<h3>Rolling Median<a class="headerlink" href="#rolling-median" title="Permalink to this headline">¶</a></h3>
+<p>You can pass arbitrary function objects to the <code class="docutils literal notranslate"><span class="pre">func</span></code> parameter, to be applied to calculate every single windows “score”.
+For example, you could go for the <em>median</em> instead of the <em>mean</em>. The numpy library provides a <a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.median.html">median</a> function
+under the name <code class="docutils literal notranslate"><span class="pre">np.median</span></code>. We just calculate another model curve for the <code class="docutils literal notranslate"><span class="pre">&quot;incidents&quot;</span></code> data with the <code class="docutils literal notranslate"><span class="pre">np.median</span></code> function from the <code class="docutils literal notranslate"><span class="pre">numpy</span></code> library.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;incidents&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents_median&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">median</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="s1">&#39;13D&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>We chose another <code class="xref py py-attr docutils literal notranslate"><span class="pre">target</span></code> value for the rolling <em>median</em> calculation, in order to not override our results from
+the previous rolling <em>mean</em> calculation.
+The <code class="xref py py-attr docutils literal notranslate"><span class="pre">target</span></code> parameter can be passed to any call of a function from the
+saqc functions pool and will determine the result of the function to be written to the
+data, under the fieldname specified by it. If there already exists a field with the name passed to <code class="docutils literal notranslate"><span class="pre">target</span></code>,
+the data stored to this field will be overridden.</p>
+<p>We will evaluate and visualize the different model curves <a class="reference internal" href="#visualisation"><span class="std std-ref">later</span></a>.
+Beforehand, we will generate some more model data.</p>
+</section>
+<section id="polynomial-fit">
+<h3>Polynomial Fit<a class="headerlink" href="#polynomial-fit" title="Permalink to this headline">¶</a></h3>
+<p>Another common approach, is, to fit polynomials of certain degrees to the data.
+<code class="xref py py-class docutils literal notranslate"><span class="pre">SaQC</span></code> provides the polynomial fit function <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.fitPolynomial" title="saqc.SaQC.fitPolynomial"><code class="xref py py-meth docutils literal notranslate"><span class="pre">fitPolynomial()</span></code></a>:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">fitPolynomial</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;incidents&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents_polynomial&#39;</span><span class="p">,</span> <span class="n">order</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="s1">&#39;13D&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>It also takes a <code class="xref py py-attr docutils literal notranslate"><span class="pre">window</span></code> parameter, determining the size of the fitting window.
+The parameter, <code class="xref py py-attr docutils literal notranslate"><span class="pre">order</span></code> refers to the size of the rolling window, the polynomials get fitted to.</p>
+</section>
+<section id="custom-models">
+<h3>Custom Models<a class="headerlink" href="#custom-models" title="Permalink to this headline">¶</a></h3>
+<p>If you want to apply a completely arbitrary function to your data, without pre-chunking it by a rolling window,
+you can make use of the more general <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.processGeneric" title="saqc.SaQC.processGeneric"><code class="xref py py-meth docutils literal notranslate"><span class="pre">processGeneric()</span></code></a> function.</p>
+<p>Lets apply a smoothing filter from the <a class="reference external" href="https://docs.scipy.org/doc/scipy/reference/signal.html">scipy.signal</a>
+module. We wrap the filter generator up into a function first:</p>
+<div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">scipy.signal</span> <span class="kn">import</span> <span class="n">filtfilt</span><span class="p">,</span> <span class="n">butter</span>
+<span class="k">def</span> <span class="nf">butterFilter</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">filter_order</span><span class="p">,</span> <span class="n">nyq</span><span class="p">,</span> <span class="n">cutoff</span><span class="p">,</span> <span class="n">filter_type</span><span class="o">=</span><span class="s2">&quot;lowpass&quot;</span><span class="p">):</span>
+    <span class="n">b</span><span class="p">,</span> <span class="n">a</span> <span class="o">=</span> <span class="n">butter</span><span class="p">(</span><span class="n">N</span><span class="o">=</span><span class="n">filter_order</span><span class="p">,</span> <span class="n">Wn</span><span class="o">=</span><span class="n">cutoff</span> <span class="o">/</span> <span class="n">nyq</span><span class="p">,</span> <span class="n">btype</span><span class="o">=</span><span class="n">filter_type</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">filtfilt</span><span class="p">(</span><span class="n">b</span><span class="p">,</span> <span class="n">a</span><span class="p">,</span> <span class="n">x</span><span class="p">),</span> <span class="n">index</span><span class="o">=</span><span class="n">x</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>This function object, we can pass on to the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.processGeneric" title="saqc.SaQC.processGeneric"><code class="xref py py-meth docutils literal notranslate"><span class="pre">processGeneric()</span></code></a> methods <code class="docutils literal notranslate"><span class="pre">func</span></code> argument.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">processGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;incidents&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents_lowPass&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">butterFilter</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">cutoff</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">nyq</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span> <span class="n">filter_order</span><span class="o">=</span><span class="mi">2</span><span class="p">))</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section id="visualisation">
+<h2>Visualisation<a class="headerlink" href="#visualisation" title="Permalink to this headline">¶</a></h2>
+<p>We can obtain those updated informations by generating a <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html">pandas dataframe</a>
+representation of it, with the <code class="xref py py-attr docutils literal notranslate"><span class="pre">data</span></code> method:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">data</span>
+</pre></div>
+</div>
+<p>To see all the results obtained so far, plotted in one figure window, we make use of the dataframes <a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.plot.html">plot</a> method.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">data</span><span class="o">.</span><span class="n">to_df</span><span class="p">()</span><span class="o">.</span><span class="n">plot</span><span class="p">()</span>
+<span class="go">&lt;AxesSubplot:&gt;</span>
+</pre></div>
+</div>
+<figure class="align-default">
+<a class="plot-directive center reference internal image-reference" href="../_images/OutlierDetection-10.png"><img alt="../_images/OutlierDetection-10.png" class="plot-directive center" src="../_images/OutlierDetection-10.png" style="width: 80%;" /></a>
+</figure>
+</section>
+<section id="residuals-and-scores">
+<h2>Residuals and Scores<a class="headerlink" href="#residuals-and-scores" title="Permalink to this headline">¶</a></h2>
+<section id="residuals">
+<h3>Residuals<a class="headerlink" href="#residuals" title="Permalink to this headline">¶</a></h3>
+<p>We want to evaluate the residuals of one of our models model, in order to score the outlierish-nes of every point.
+Therefor we just stick to the initially calculated rolling mean curve.</p>
+<p>First, we retrieve the residuals via the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.processGeneric" title="saqc.SaQC.processGeneric"><code class="xref py py-meth docutils literal notranslate"><span class="pre">processGeneric()</span></code></a> method.
+This method always comes into play, when we want to obtain variables, resulting from basic algebraic
+manipulations of one or more input variables.</p>
+<p>For obtaining the models residuals, we just subtract the model data from the original data and assign the result
+of this operation to a new variable, called <code class="docutils literal notranslate"><span class="pre">incidents_residuals</span></code>. This Assignment, we, as usual,
+control via the <code class="docutils literal notranslate"><span class="pre">target</span></code> parameter.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">processGeneric</span><span class="p">([</span><span class="s1">&#39;incidents&#39;</span><span class="p">,</span> <span class="s1">&#39;incidents_mean&#39;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents_residuals&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">x</span> <span class="o">-</span> <span class="n">y</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="scores">
+<h3>Scores<a class="headerlink" href="#scores" title="Permalink to this headline">¶</a></h3>
+<p>Next, we score the residuals simply by computing their <a class="reference external" href="https://en.wikipedia.org/wiki/Standard_score">Z-scores</a>.
+The <em>Z</em>-score of a point <span class="math notranslate nohighlight">\(x\)</span>, relative to its surrounding <span class="math notranslate nohighlight">\(D\)</span>,
+evaluates to <span class="math notranslate nohighlight">\(Z(x) = \frac{x - \mu(D)}{\sigma(D)}\)</span>.</p>
+<p>So, if we would like to roll with a window of a fixed size of <em>27</em> periods through the data and calculate the <em>Z</em>-score
+for the point lying in the center of every window, we would define our function <code class="docutils literal notranslate"><span class="pre">z_score</span></code>:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">z_score</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">D</span><span class="p">:</span> <span class="nb">abs</span><span class="p">((</span><span class="n">D</span><span class="p">[</span><span class="mi">14</span><span class="p">]</span> <span class="o">-</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">D</span><span class="p">))</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">D</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>And subsequently, use the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.roll" title="saqc.SaQC.roll"><code class="xref py py-meth docutils literal notranslate"><span class="pre">roll()</span></code></a> method to make a rolling window application with the scoring
+function:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;incidents_residuals&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents_scores&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">z_score</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="s1">&#39;27D&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="optimization-by-decomposition">
+<h3>Optimization by Decomposition<a class="headerlink" href="#optimization-by-decomposition" title="Permalink to this headline">¶</a></h3>
+<p>There are 2 problems with the attempt presented <a class="reference internal" href="#scores"><span class="std std-ref">above</span></a>.</p>
+<p>First, the rolling application of the customly
+defined function, might get really slow for large data sets, because our function <code class="docutils literal notranslate"><span class="pre">z_scores</span></code> does not get decomposed into optimized building blocks.</p>
+<p>Second, and maybe more important, it relies heavily on every window having a fixed number of values and a fixed temporal extension.
+Otherwise, <code class="docutils literal notranslate"><span class="pre">D[14]</span></code> might not always be the value in the middle of the window, or it might not even exist,
+and an error will be thrown.</p>
+<p>So the attempt works fine, only because our data set is small and strictly regularily sampled.
+Meaning that it has constant temporal distances between subsequent meassurements.</p>
+<p>In order to tweak our calculations and make them much more stable, it might be useful to decompose the scoring
+into seperate calls to the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.roll" title="saqc.SaQC.roll"><code class="xref py py-meth docutils literal notranslate"><span class="pre">roll()</span></code></a> function, by calculating the series of the
+residuals <em>mean</em> and <em>standard deviation</em> seperately:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;incidents_residuals&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;residuals_mean&#39;</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="s1">&#39;27D&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">roll</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s1">&#39;incidents_residuals&#39;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;residuals_std&#39;</span><span class="p">,</span> <span class="n">window</span><span class="o">=</span><span class="s1">&#39;27D&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">processGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;incidents_scores&#39;</span><span class="p">,</span> <span class="s2">&quot;residuals_mean&quot;</span><span class="p">,</span> <span class="s2">&quot;residuals_std&quot;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;residuals_norm&quot;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">this</span><span class="p">,</span> <span class="n">mean</span><span class="p">,</span> <span class="n">std</span><span class="p">:</span> <span class="p">(</span><span class="n">this</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span> <span class="o">/</span> <span class="n">std</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>With huge datasets, this will be noticably faster, compared to the method presented <a class="reference internal" href="#scores"><span class="std std-ref">initially</span></a>,
+because <code class="docutils literal notranslate"><span class="pre">saqc</span></code> dispatches the rolling with the basic numpy statistic methods to an optimized pandas built-in.</p>
+<p>Also, as a result of the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.roll" title="saqc.SaQC.roll"><code class="xref py py-meth docutils literal notranslate"><span class="pre">roll()</span></code></a> assigning its results to the center of every window,
+all the values are centered and we dont have to care about window center indices when we are generating
+the <em>Z</em>-Scores from the two series.</p>
+<p>We simply combine them via the
+<a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.processGeneric" title="saqc.SaQC.processGeneric"><code class="xref py py-meth docutils literal notranslate"><span class="pre">processGeneric()</span></code></a> method, in order to obtain the scores:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">processGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;incidents_residuals&#39;</span><span class="p">,</span><span class="s1">&#39;residuals_mean&#39;</span><span class="p">,</span><span class="s1">&#39;residuals_std&#39;</span><span class="p">],</span>
+<span class="gp">... </span><span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents_scores&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">:</span> <span class="nb">abs</span><span class="p">((</span><span class="n">x</span><span class="o">-</span><span class="n">y</span><span class="p">)</span> <span class="o">/</span> <span class="n">z</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Let’s have a look at the resulting scores:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;incidents_scores&#39;</span><span class="p">)</span> 
+</pre></div>
+</div>
+<figure class="align-default">
+<a class="plot-directive center reference internal image-reference" href="../_images/OutlierDetection-16.png"><img alt="../_images/OutlierDetection-16.png" class="plot-directive center" src="../_images/OutlierDetection-16.png" style="width: 80%;" /></a>
+</figure>
+</section>
+</section>
+<section id="setting-and-correcting-flags">
+<h2>Setting and correcting Flags<a class="headerlink" href="#setting-and-correcting-flags" title="Permalink to this headline">¶</a></h2>
+<section id="flagging-the-scores">
+<h3>Flagging the Scores<a class="headerlink" href="#flagging-the-scores" title="Permalink to this headline">¶</a></h3>
+<p>We can now implement the common <a class="reference external" href="https://en.wikipedia.org/wiki/68%E2%80%9395%E2%80%9399.7_rule">rule of thumb</a>,
+that any <em>Z</em>-score value above <em>3</em> may indicate an outlierish data point,
+by applying the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.flagRange" title="saqc.SaQC.flagRange"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flagRange()</span></code></a> method with a <cite>max</cite> value of <em>3</em>.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagRange</span><span class="p">(</span><span class="s1">&#39;incidents_scores&#39;</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Now flags have been calculated for the scores:</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;incidents_scores&#39;</span><span class="p">)</span> 
+</pre></div>
+</div>
+<figure class="align-default">
+<a class="plot-directive center reference internal image-reference" href="../_images/OutlierDetection-18.png"><img alt="../_images/OutlierDetection-18.png" class="plot-directive center" src="../_images/OutlierDetection-18.png" style="width: 80%;" /></a>
+</figure>
+</section>
+<section id="projecting-flags">
+<h3>Projecting Flags<a class="headerlink" href="#projecting-flags" title="Permalink to this headline">¶</a></h3>
+<p>We now can project those flags onto our original incidents timeseries:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;incidents_scores&#39;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">isflagged</span><span class="p">(</span><span class="n">x</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Note, that we could have skipped the <a class="reference internal" href="#flagging-the-scores"><span class="std std-ref">range flagging step</span></a>, by including the cutting off in our</p>
+<p>generic expression:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;incidents_scores&#39;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents&#39;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Lets check out the results:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s1">&#39;incidents&#39;</span><span class="p">)</span> 
+</pre></div>
+</div>
+<figure class="align-default">
+<a class="plot-directive center reference internal image-reference" href="../_images/OutlierDetection-20.png"><img alt="../_images/OutlierDetection-20.png" class="plot-directive center" src="../_images/OutlierDetection-20.png" style="width: 80%;" /></a>
+</figure>
+<p>Obveously, there are some flags set, that, relative to their 13 days surrounding, might relate to minor incidents spikes,
+but may not relate to superspreading events we are looking for.</p>
+<p>Especially the left most flag seems not to relate to an extreme event at all.
+This overflagging stems from those values having a surrounding with very low data variance, and thus, evaluate to a relatively high Z-score.</p>
+<p>There are a lot of possibilities to tackle the issue. In the next section, we will see how we can improve the flagging results
+by incorporating additional domain knowledge.</p>
+</section>
+</section>
+<section id="additional-conditions">
+<h2>Additional Conditions<a class="headerlink" href="#additional-conditions" title="Permalink to this headline">¶</a></h2>
+<p>In order to improve our flagging result, we could additionally assume, that the events we are interested in,
+are those with an incidents count that is deviating by a margin of more than
+<em>20</em> from the 2 week average.</p>
+<p>This is equivalent to imposing the additional condition, that an outlier must relate to a sufficiently large residual.</p>
+<section id="unflagging">
+<h3>Unflagging<a class="headerlink" href="#unflagging" title="Permalink to this headline">¶</a></h3>
+<p>We can do that posterior to the preceeding flagging step, by <em>removing</em>
+some flags based on some condition.</p>
+<p>In order want to <em>unflag</em> those values, that do not relate to
+sufficiently large residuals, we assign them the <code class="xref py py-const docutils literal notranslate"><span class="pre">UNFLAGGED</span></code> flag.</p>
+<p>Therefore, we make use of the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.flagGeneric" title="saqc.SaQC.flagGeneric"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flagGeneric()</span></code></a> method.
+This method usually comes into play, when we want to assign flags based on the evaluation of logical expressions.</p>
+<p>So, we check out, which residuals evaluate to a level below <em>20</em>, and assign the
+flag value for <code class="xref py py-const docutils literal notranslate"><span class="pre">UNFLAGGED</span></code>. This value defaults to
+to <code class="docutils literal notranslate"><span class="pre">-np.inf</span></code> in the default translation scheme, wich we selected implicitly by not specifying any special scheme in the
+generation of the <code class="xref py py-class docutils literal notranslate"><span class="pre">SaQC&gt;</span></code> object in the <a class="reference internal" href="#initialisation"><span class="std std-ref">beginning</span></a>.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;incidents&#39;</span><span class="p">,</span><span class="s1">&#39;incidents_residuals&#39;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;incidents&quot;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">:</span> <span class="n">isflagged</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">y</span> <span class="o">&lt;</span> <span class="mi">50</span><span class="p">),</span> <span class="n">flag</span><span class="o">=-</span><span class="n">np</span><span class="o">.</span><span class="n">inf</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Notice, that we passed the desired flag level to the <code class="xref py py-attr docutils literal notranslate"><span class="pre">flag</span></code> keyword in order to perform an
+“unflagging” instead of the usual flagging. The <code class="xref py py-attr docutils literal notranslate"><span class="pre">flag</span></code> keyword can be passed to all the functions
+and defaults to the selected translation schemes <code class="xref py py-const docutils literal notranslate"><span class="pre">BAD</span></code> flag level.</p>
+<p>Plotting proofs the tweaking did in deed improve the flagging result:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;incidents&quot;</span><span class="p">)</span> 
+</pre></div>
+</div>
+<figure class="align-default">
+<a class="plot-directive center reference internal image-reference" href="../_images/OutlierDetection-22.png"><img alt="../_images/OutlierDetection-22.png" class="plot-directive center" src="../_images/OutlierDetection-22.png" style="width: 80%;" /></a>
+</figure>
+</section>
+<section id="including-multiple-conditions">
+<h3>Including multiple conditions<a class="headerlink" href="#including-multiple-conditions" title="Permalink to this headline">¶</a></h3>
+<p>If we do not want to first set flags, only to remove the majority of them in the next step, we also
+could circumvent the <a class="reference internal" href="#unflagging"><span class="std std-ref">unflagging</span></a> step, by adding to the call to
+<a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.flagRange" title="saqc.SaQC.flagRange"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flagRange()</span></code></a> the condition for the residuals having to be above <em>20</em></p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;incidents_scores&#39;</span><span class="p">,</span> <span class="s1">&#39;incidents_residuals&#39;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s1">&#39;incidents&#39;</span><span class="p">,</span>
+<span class="gp">... </span><span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span> <span class="o">&gt;</span> <span class="mi">3</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">20</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="s2">&quot;incidents&quot;</span><span class="p">)</span> 
+</pre></div>
+</div>
+<figure class="align-default">
+<a class="plot-directive center reference internal image-reference" href="../_images/OutlierDetection-23.png"><img alt="../_images/OutlierDetection-23.png" class="plot-directive center" src="../_images/OutlierDetection-23.png" style="width: 80%;" /></a>
+</figure>
+</section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Outlier Detection and Flagging</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#preparation">Preparation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#data">Data</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#initialisation">Initialisation</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#modelling">Modelling</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#rolling-mean">Rolling Mean</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rolling-median">Rolling Median</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#polynomial-fit">Polynomial Fit</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#custom-models">Custom Models</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#visualisation">Visualisation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#residuals-and-scores">Residuals and Scores</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#residuals">Residuals</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#scores">Scores</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#optimization-by-decomposition">Optimization by Decomposition</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#setting-and-correcting-flags">Setting and correcting Flags</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#flagging-the-scores">Flagging the Scores</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#projecting-flags">Projecting Flags</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#additional-conditions">Additional Conditions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#unflagging">Unflagging</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#including-multiple-conditions">Including multiple conditions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="DataRegularisation.html"
+                          title="previous chapter">Data Regularisation</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="MultivariateFlagging.html"
+                          title="next chapter">Multivariate Flagging</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/cookbooks/OutlierDetection.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="MultivariateFlagging.html" title="Multivariate Flagging"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="DataRegularisation.html" title="Data Regularisation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Outlier Detection and Flagging</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

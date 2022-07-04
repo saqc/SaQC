@@ -1,2 +1,2 @@
 name,model_type,metric_type,metric_value,train_time
-1_Default_NeuralNetwork,Neural Network,logloss,0.35307658695074007,1.28
+1_Default_NeuralNetwork,Neural Network,logloss,0.35307658695074007,1.37

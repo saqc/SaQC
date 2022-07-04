@@ -1,0 +1,395 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Command Line Application &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Data Regularisation" href="../cookbooks/DataRegularisation.html" />
+    <link rel="prev" title="Python API" href="TutorialAPI.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../cookbooks/DataRegularisation.html" title="Data Regularisation"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="TutorialAPI.html" title="Python API"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Command Line Application</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="command-line-application">
+<h1>Command Line Application<a class="headerlink" href="#command-line-application" title="Permalink to this headline">¶</a></h1>
+<section id="contents">
+<h2>Contents<a class="headerlink" href="#contents" title="Permalink to this headline">¶</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="#get-toy-data-and-configuration">1. Get toy data and configuration</a></p></li>
+<li><p><a class="reference internal" href="#run-saqc">2. Run SaQC</a></p></li>
+<li><p><a class="reference internal" href="#configure-saqc">3. Configure SaQC</a></p>
+<ul>
+<li><p><a class="reference internal" href="#change-test-parameters">Change test parameters</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#explore-the-functionality">4. Explore the functionality</a></p>
+<ul>
+<li><p><a class="reference internal" href="#process-multiple-variables">Process multiple variables</a></p></li>
+<li><p><a class="reference internal" href="#data-harmonization-and-custom-functions">Data harmonization and custom functions</a></p></li>
+</ul>
+</li>
+</ul>
+<p>The following passage guides you through the essentials of the usage of SaQC via
+a toy dataset and a toy configuration.</p>
+</section>
+<section id="get-toy-data-and-configuration">
+<h2>1. Get toy data and configuration<a class="headerlink" href="#get-toy-data-and-configuration" title="Permalink to this headline">¶</a></h2>
+<p>If you take a look into the folder <code class="docutils literal notranslate"><span class="pre">saqc/resources/data</span></code> you will find a toy
+dataset <code class="docutils literal notranslate"><span class="pre">data.csv</span></code> which contains the following data:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Date</span><span class="p">,</span><span class="n">Battery</span><span class="p">,</span><span class="n">SM1</span><span class="p">,</span><span class="n">SM2</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">05</span><span class="p">:</span><span class="mi">48</span><span class="p">,</span><span class="mi">3573</span><span class="p">,</span><span class="mf">32.685</span><span class="p">,</span><span class="mf">29.3157</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">20</span><span class="p">:</span><span class="mi">42</span><span class="p">,</span><span class="mi">3572</span><span class="p">,</span><span class="mf">32.7428</span><span class="p">,</span><span class="mf">29.3157</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">35</span><span class="p">:</span><span class="mi">37</span><span class="p">,</span><span class="mi">3572</span><span class="p">,</span><span class="mf">32.6186</span><span class="p">,</span><span class="mf">29.3679</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">50</span><span class="p">:</span><span class="mi">32</span><span class="p">,</span><span class="mi">3572</span><span class="p">,</span><span class="mf">32.736999999999995</span><span class="p">,</span><span class="mf">29.3679</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">01</span><span class="p">:</span><span class="mi">05</span><span class="p">:</span><span class="mi">26</span><span class="p">,</span><span class="mi">3572</span><span class="p">,</span><span class="mf">32.736999999999995</span><span class="p">,</span><span class="mf">29.3131</span>
+</pre></div>
+</div>
+<p>These are the first entries of two timeseries of soil moisture (SM1+2) and the battery voltage of the
+measuring device over time. Generally, this is the way that your data should
+look like to run saqc. Note, however, that you do not necessarily need a series
+of dates to reference to and that you are free to use more columns of any name
+that you like.</p>
+<p>Now have a look at a basic sonfiguration file, as
+<a class="reference external" href="https://git.ufz.de/rdm-software/saqc/-/blob/develop/docs/resources/data/myconfig.csv">this one</a>.
+It contains the following lines:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span><span class="p">;</span><span class="n">test</span>
+<span class="c1">#------;--------------------------</span>
+<span class="n">SM2</span>    <span class="p">;</span><span class="n">flagRange</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+<span class="n">SM2</span>    <span class="p">;</span><span class="n">flagMAD</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="s2">&quot;30d&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="mf">3.5</span><span class="p">)</span>
+<span class="n">SM2</span>    <span class="p">;</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>These lines illustrate how different quality control tests can be specified for
+different variables, for a more detailed explanation of the configuration format, please refer
+to respective <a class="reference internal" href="../documentation/ConfigurationFiles.html"><span class="doc">documentation page</span></a></p>
+<p>In this case, we trigger a <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.flagRange" title="saqc.SaQC.flagRange"><code class="xref py py-meth docutils literal notranslate"><span class="pre">range</span></code></a> test, that flags all values exceeding
+the range of the bounds of the interval <em>[10,60]</em>. Subsequently, a test to detect spikes, is applied,
+using the MAD-method. (<a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.flagMAD" title="saqc.SaQC.flagMAD"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flagMAD()</span></code></a>).
+You can find an overview of all available quality control tests
+<a class="reference internal" href="../modules/SaQCFunctions.html#test-functions"><span class="std std-ref">here</span></a>. Note that the tests are
+<em>executed in the order that you define in the configuration file</em>. The quality
+flags that are set during one test are always passed on to the subsequent one.</p>
+</section>
+<section id="run-saqc">
+<h2>2. Run SaQC<a class="headerlink" href="#run-saqc" title="Permalink to this headline">¶</a></h2>
+<section id="on-unix-mac-systems">
+<h3>On Unix/Mac-systems<a class="headerlink" href="#on-unix-mac-systems" title="Permalink to this headline">¶</a></h3>
+<p>Remember to have your virtual environment activated:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">source</span> env_saqc/bin/activate
+</pre></div>
+</div>
+<p>From here, you can run saqc and tell it to run the tests from the toy
+config-file on the toy dataset via the <code class="docutils literal notranslate"><span class="pre">-c</span></code> and <code class="docutils literal notranslate"><span class="pre">-d</span></code> options:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>python3 -m saqc -c resources/data/myconfig.csv -d resources/data/data.csv
+</pre></div>
+</div>
+</section>
+<section id="on-windows">
+<h3>On Windows<a class="headerlink" href="#on-windows" title="Permalink to this headline">¶</a></h3>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> env_saqc/Scripts
+./activate
+</pre></div>
+</div>
+<p>Via your console, move into the folder you downloaded saqc into:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> saqc
+</pre></div>
+</div>
+<p>From here, you can run saqc and tell it to run the tests from the toy
+config-file on the toy dataset via the <code class="docutils literal notranslate"><span class="pre">-c</span></code> and <code class="docutils literal notranslate"><span class="pre">-d</span></code> options:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>py -3 -m saqc -c resources/data/myconfig.csv -d resources/data/data.csv
+</pre></div>
+</div>
+<p>If you installed saqc via PYPi, you can omit <code class="docutils literal notranslate"><span class="pre">sh</span> <span class="pre">python</span> <span class="pre">-m</span></code>.</p>
+<p>The command will output this plot:</p>
+<figure class="align-center">
+<a class="plot-directive reference internal image-reference" href="../_images/TutorialCLI-3.png"><img alt="../_images/TutorialCLI-3.png" class="plot-directive" src="../_images/TutorialCLI-3.png" style="width: 80%;" /></a>
+</figure>
+<p>So, what do we see here?</p>
+<ul class="simple">
+<li><p>The plot shows the data as well as the quality flags that were set by the
+tests for the variable <code class="docutils literal notranslate"><span class="pre">SM2</span></code>, as defined in the config-file</p></li>
+<li><p>Following our definition in the config-file, first the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.flagRange" title="saqc.SaQC.flagRange"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flagRange()</span></code></a> -test that flags
+all values outside the range [10,60] was executed and after that,
+the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.flagMAD" title="saqc.SaQC.flagMAD"><code class="xref py py-meth docutils literal notranslate"><span class="pre">flagMAD()</span></code></a> -test to identify spikes in the data</p></li>
+<li><p>Finally we triggered the generation of a plot, by adding the <a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.plot" title="saqc.SaQC.plot"><code class="xref py py-meth docutils literal notranslate"><span class="pre">plot()</span></code></a> function in the last line.</p></li>
+</ul>
+<section id="save-outputs-to-file">
+<h4>Save outputs to file<a class="headerlink" href="#save-outputs-to-file" title="Permalink to this headline">¶</a></h4>
+<p>If you want the final results to be saved to a csv-file, you can do so by the
+use of the <code class="docutils literal notranslate"><span class="pre">-o</span></code> option:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>saqc -c resources/data/config.csv -d resources/data/data.csv -o resources/data/out.csv
+</pre></div>
+</div>
+<p>Which saves a dataframe that contains both the original data and the quality
+flags that were assigned by SaQC for each of the variables:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Date</span><span class="p">,</span><span class="n">SM1</span><span class="p">,</span><span class="n">SM1_flags</span><span class="p">,</span><span class="n">SM2</span><span class="p">,</span><span class="n">SM2_flags</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">05</span><span class="p">:</span><span class="mi">48</span><span class="p">,</span><span class="mf">32.685</span><span class="p">,</span><span class="n">OK</span><span class="p">,</span><span class="mf">29.3157</span><span class="p">,</span><span class="n">OK</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">20</span><span class="p">:</span><span class="mi">42</span><span class="p">,</span><span class="mf">32.7428</span><span class="p">,</span><span class="n">OK</span><span class="p">,</span><span class="mf">29.3157</span><span class="p">,</span><span class="n">OK</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">35</span><span class="p">:</span><span class="mi">37</span><span class="p">,</span><span class="mf">32.6186</span><span class="p">,</span><span class="n">OK</span><span class="p">,</span><span class="mf">29.3679</span><span class="p">,</span><span class="n">OK</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">50</span><span class="p">:</span><span class="mi">32</span><span class="p">,</span><span class="mf">32.736999999999995</span><span class="p">,</span><span class="n">OK</span><span class="p">,</span><span class="mf">29.3679</span><span class="p">,</span><span class="n">OK</span>
+<span class="o">...</span>
+</pre></div>
+</div>
+</section>
+</section>
+</section>
+<section id="configure-saqc">
+<h2>3. Configure SaQC<a class="headerlink" href="#configure-saqc" title="Permalink to this headline">¶</a></h2>
+<section id="change-test-parameters">
+<h3>Change test parameters<a class="headerlink" href="#change-test-parameters" title="Permalink to this headline">¶</a></h3>
+<p>Now you can start to change the settings in the config-file and investigate the
+effect that has on how many datapoints are flagged as “BAD”. When using your
+own data, this is your way to configure the tests according to your needs. For
+example, you could modify your <code class="docutils literal notranslate"><span class="pre">myconfig.csv</span></code> and change the parameters of the
+range-test:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span><span class="p">;</span><span class="n">test</span>
+<span class="c1">#------;--------------------------</span>
+<span class="n">SM2</span>    <span class="p">;</span><span class="n">flagRange</span><span class="p">(</span><span class="nb">min</span><span class="o">=-</span><span class="mi">20</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+<span class="n">SM2</span>    <span class="p">;</span><span class="n">flagMAD</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="s2">&quot;30d&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="mf">3.5</span><span class="p">)</span>
+<span class="n">SM2</span>    <span class="p">;</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>Rerunning SaQC as above produces the following plot:</p>
+<figure class="align-center">
+<a class="plot-directive reference internal image-reference" href="../_images/TutorialCLI-5.png"><img alt="../_images/TutorialCLI-5.png" class="plot-directive" src="../_images/TutorialCLI-5.png" style="width: 80%;" /></a>
+</figure>
+<p>You can see that the changes that we made to the parameters of the range test
+take effect so that only the values &gt; 60 are flagged by it (black points). This,
+in turn, leaves more erroneous data that is then identified by the proceeding
+spike-test (red points).</p>
+</section>
+</section>
+<section id="explore-the-functionality">
+<h2>4. Explore the functionality<a class="headerlink" href="#explore-the-functionality" title="Permalink to this headline">¶</a></h2>
+<section id="process-multiple-variables">
+<h3>Process multiple variables<a class="headerlink" href="#process-multiple-variables" title="Permalink to this headline">¶</a></h3>
+<p>You can also define multiple tests for multiple variables in your data. These
+are then executed sequentially and can be plotted seperately. To not interrupt processing, the plots
+get stored to files. (We route the storage to the repos resources folder…)</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span><span class="p">;</span><span class="n">test</span>
+<span class="c1">#------;--------------------------</span>
+<span class="n">SM1</span><span class="p">;</span><span class="n">flagRange</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+<span class="n">SM2</span><span class="p">;</span><span class="n">flagRange</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+<span class="n">SM1</span><span class="p">;</span><span class="n">flagMAD</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="s2">&quot;15d&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="mf">3.5</span><span class="p">)</span>
+<span class="n">SM2</span><span class="p">;</span><span class="n">flagMAD</span><span class="p">(</span><span class="n">window</span><span class="o">=</span><span class="s2">&quot;30d&quot;</span><span class="p">,</span> <span class="n">z</span><span class="o">=</span><span class="mf">3.5</span><span class="p">)</span>
+<span class="n">SM1</span><span class="p">;</span><span class="n">plot</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s1">&#39;../resources/temp/SM1processingResults&#39;</span><span class="p">)</span>
+<span class="n">SM2</span><span class="p">;</span><span class="n">plot</span><span class="p">(</span><span class="n">path</span><span class="o">=</span><span class="s1">&#39;../resources/temp/SM2processingResults&#39;</span><span class="p">)</span>
+
+</pre></div>
+</div>
+<figure class="align-center">
+<a class="plot-directive reference internal image-reference" href="../_images/TutorialCLI-7.png"><img alt="../_images/TutorialCLI-7.png" class="plot-directive" src="../_images/TutorialCLI-7.png" style="width: 80%;" /></a>
+</figure>
+<figure class="align-center">
+<a class="plot-directive reference internal image-reference" href="../_images/TutorialCLI-8.png"><img alt="../_images/TutorialCLI-8.png" class="plot-directive" src="../_images/TutorialCLI-8.png" style="width: 80%;" /></a>
+</figure>
+</section>
+<section id="data-harmonization-and-custom-functions">
+<h3>Data harmonization and custom functions<a class="headerlink" href="#data-harmonization-and-custom-functions" title="Permalink to this headline">¶</a></h3>
+<p>SaQC includes functionality to harmonize the timestamps of one or more data
+series. Also, you can write your own tests using a python-based
+<a class="reference internal" href="../documentation/GenericFunctions.html#generic-functions"><span class="std std-ref">extension language</span></a>. This would look like this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span><span class="p">;</span><span class="n">test</span>
+<span class="c1">#------;--------------------------</span>
+<span class="n">SM2</span>    <span class="p">;</span><span class="n">shift</span><span class="p">(</span><span class="n">freq</span><span class="o">=</span><span class="s2">&quot;15Min&quot;</span><span class="p">)</span>
+<span class="n">SM2</span>    <span class="p">;</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="p">(</span><span class="n">SM2</span> <span class="o">&lt;</span> <span class="mi">30</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="s1">&#39;Value too low&#39;</span><span class="p">)</span>
+<span class="n">SM2</span>    <span class="p">;</span><span class="n">plot</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>The above executes an internal framework that aligns the timestamps of SM2
+to a 15min-grid (<a class="reference internal" href="../_api/saqc.SaQC.html#saqc.SaQC.shift" title="saqc.SaQC.shift"><code class="xref py py-meth docutils literal notranslate"><span class="pre">saqc.SaQC.shift()</span></code></a>). Further information on harmonization can be
+found in the <a class="reference internal" href="../cookbooks/DataRegularisation.html"><span class="doc">Resampling cookbook</span></a>.</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">Date</span><span class="p">,</span><span class="n">Battery</span><span class="p">,</span><span class="n">SM1</span><span class="p">,</span><span class="n">SM2</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">,,,</span><span class="mf">29.3157</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">05</span><span class="p">:</span><span class="mi">48</span><span class="p">,</span><span class="mf">3573.0</span><span class="p">,</span><span class="mf">32.685</span><span class="p">,</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">15</span><span class="p">:</span><span class="mi">00</span><span class="p">,,,</span><span class="mf">29.3157</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">20</span><span class="p">:</span><span class="mi">42</span><span class="p">,</span><span class="mf">3572.0</span><span class="p">,</span><span class="mf">32.7428</span><span class="p">,</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">30</span><span class="p">:</span><span class="mi">00</span><span class="p">,,,</span><span class="mf">29.3679</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">35</span><span class="p">:</span><span class="mi">37</span><span class="p">,</span><span class="mf">3572.0</span><span class="p">,</span><span class="mf">32.6186</span><span class="p">,</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">45</span><span class="p">:</span><span class="mi">00</span><span class="p">,,,</span><span class="mf">29.3679</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">00</span><span class="p">:</span><span class="mi">50</span><span class="p">:</span><span class="mi">32</span><span class="p">,</span><span class="mf">3572.0</span><span class="p">,</span><span class="mf">32.736999999999995</span><span class="p">,</span>
+<span class="mi">2016</span><span class="o">-</span><span class="mi">04</span><span class="o">-</span><span class="mi">01</span> <span class="mi">01</span><span class="p">:</span><span class="mi">00</span><span class="p">:</span><span class="mi">00</span><span class="p">,,,</span><span class="mf">29.3131</span>
+</pre></div>
+</div>
+<p>Also, all values where SM2 is below 30 are flagged via the custom function (see
+plot below) and the plot is labeled with the string passed to the <cite>label</cite> keyword.
+You can learn more about the syntax of these custom functions
+<a class="reference internal" href="../documentation/GenericFunctions.html#generic-functions"><span class="std std-ref">here</span></a>.</p>
+<figure class="align-center">
+<a class="plot-directive reference internal image-reference" href="../_images/TutorialCLI-10.png"><img alt="../_images/TutorialCLI-10.png" class="plot-directive" src="../_images/TutorialCLI-10.png" style="width: 80%;" /></a>
+</figure>
+</section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Command Line Application</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#contents">Contents</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#get-toy-data-and-configuration">1. Get toy data and configuration</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#run-saqc">2. Run SaQC</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#on-unix-mac-systems">On Unix/Mac-systems</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#on-windows">On Windows</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#save-outputs-to-file">Save outputs to file</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#configure-saqc">3. Configure SaQC</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#change-test-parameters">Change test parameters</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#explore-the-functionality">4. Explore the functionality</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#process-multiple-variables">Process multiple variables</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#data-harmonization-and-custom-functions">Data harmonization and custom functions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="TutorialAPI.html"
+                          title="previous chapter">Python API</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="../cookbooks/DataRegularisation.html"
+                          title="next chapter">Data Regularisation</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/gettingstarted/TutorialCLI.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../cookbooks/DataRegularisation.html" title="Data Regularisation"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="TutorialAPI.html" title="Python API"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Command Line Application</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

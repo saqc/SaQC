@@ -1,0 +1,353 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>saqc.core.translation.dmpscheme &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../../../../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../../../../_static/tabs.css" />
+    <script data-url_root="../../../../" id="documentation_options" src="../../../../_static/documentation_options.js"></script>
+    <script src="../../../../_static/jquery.js"></script>
+    <script src="../../../../_static/underscore.js"></script>
+    <script src="../../../../_static/doctools.js"></script>
+    <script src="../../../../_static/thebelab-helper.js"></script>
+    <script src="../../../../_static/tabs.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../../../../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../../search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" accesskey="U">Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.translation.dmpscheme</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <h1>Source code for saqc.core.translation.dmpscheme</h1><div class="highlight"><pre>
+<span></span><span class="ch">#! /usr/bin/env python</span>
+
+<span class="c1"># SPDX-FileCopyrightText: 2021 Helmholtz-Zentrum für Umweltforschung GmbH - UFZ</span>
+<span class="c1">#</span>
+<span class="c1"># SPDX-License-Identifier: GPL-3.0-or-later</span>
+
+<span class="c1"># -*- coding: utf-8 -*-</span>
+
+<span class="kn">from</span> <span class="nn">__future__</span> <span class="kn">import</span> <span class="n">annotations</span>
+
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">functools</span> <span class="kn">import</span> <span class="n">reduce</span>
+
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+
+<span class="kn">from</span> <span class="nn">saqc.constants</span> <span class="kn">import</span> <span class="n">BAD</span><span class="p">,</span> <span class="n">DOUBTFUL</span><span class="p">,</span> <span class="n">GOOD</span><span class="p">,</span> <span class="n">UNFLAGGED</span>
+<span class="kn">from</span> <span class="nn">saqc.core.flags</span> <span class="kn">import</span> <span class="n">Flags</span>
+<span class="kn">from</span> <span class="nn">saqc.core.history</span> <span class="kn">import</span> <span class="n">History</span>
+<span class="kn">from</span> <span class="nn">saqc.core.translation.basescheme</span> <span class="kn">import</span> <span class="n">BackwardMap</span><span class="p">,</span> <span class="n">ForwardMap</span><span class="p">,</span> <span class="n">TranslationScheme</span>
+
+<span class="n">_QUALITY_CAUSES</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BATTERY_LOW&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BELOW_MINIMUM&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ABOVE_MAXIMUM&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;BELOW_OR_ABOVE_MIN_MAX&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;ISOLATED_SPIKE&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;DEFECTIVE_SENSOR&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;LEFT_CENSORED_DATA&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;RIGHT_CENSORED_DATA&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;OTHER&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;AUTOFLAGGED&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+<span class="n">_QUALITY_LABELS</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s2">&quot;quality_flag&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;quality_cause&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;quality_comment&quot;</span><span class="p">,</span>
+<span class="p">]</span>
+
+
+<div class="viewcode-block" id="DmpScheme"><a class="viewcode-back" href="../../../../_api/saqc.core.translation.DmpScheme.html#saqc.core.DmpScheme">[docs]</a><span class="k">class</span> <span class="nc">DmpScheme</span><span class="p">(</span><span class="n">TranslationScheme</span><span class="p">):</span>
+
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Implements the translation from and to the flagging scheme implemented in</span>
+<span class="sd">    the UFZ - Datamanagementportal</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">ARGUMENTS</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;comment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="s2">&quot;cause&quot;</span><span class="p">:</span> <span class="s2">&quot;OTHER&quot;</span><span class="p">}</span>
+
+    <span class="n">DFILTER_DEFAULT</span> <span class="o">=</span> <span class="n">GOOD</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="n">_FORWARD</span><span class="p">:</span> <span class="n">ForwardMap</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;NIL&quot;</span><span class="p">:</span> <span class="n">UNFLAGGED</span><span class="p">,</span>
+        <span class="s2">&quot;OK&quot;</span><span class="p">:</span> <span class="n">GOOD</span><span class="p">,</span>
+        <span class="s2">&quot;DOUBTFUL&quot;</span><span class="p">:</span> <span class="n">DOUBTFUL</span><span class="p">,</span>
+        <span class="s2">&quot;BAD&quot;</span><span class="p">:</span> <span class="n">BAD</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="n">_BACKWARD</span><span class="p">:</span> <span class="n">BackwardMap</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="n">UNFLAGGED</span><span class="p">:</span> <span class="s2">&quot;NIL&quot;</span><span class="p">,</span>
+        <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">:</span> <span class="s2">&quot;NIL&quot;</span><span class="p">,</span>
+        <span class="n">GOOD</span><span class="p">:</span> <span class="s2">&quot;OK&quot;</span><span class="p">,</span>
+        <span class="n">DOUBTFUL</span><span class="p">:</span> <span class="s2">&quot;DOUBTFUL&quot;</span><span class="p">,</span>
+        <span class="n">BAD</span><span class="p">:</span> <span class="s2">&quot;BAD&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">forward</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_FORWARD</span><span class="p">,</span> <span class="n">backward</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">_BACKWARD</span><span class="p">)</span>
+
+<div class="viewcode-block" id="DmpScheme.toHistory"><a class="viewcode-back" href="../../../../_api/saqc.core.translation.DmpScheme.html#saqc.core.DmpScheme.toHistory">[docs]</a>    <span class="k">def</span> <span class="nf">toHistory</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">field_flags</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Translate a single field of external ``Flags`` to a ``History``</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">field_history</span> <span class="o">=</span> <span class="n">History</span><span class="p">(</span><span class="n">field_flags</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+        <span class="k">for</span> <span class="p">(</span><span class="n">flag</span><span class="p">,</span> <span class="n">cause</span><span class="p">,</span> <span class="n">comment</span><span class="p">),</span> <span class="n">values</span> <span class="ow">in</span> <span class="n">field_flags</span><span class="o">.</span><span class="n">groupby</span><span class="p">(</span><span class="n">_QUALITY_LABELS</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">comment</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">comment</span><span class="p">)</span>
+            <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">decoder</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+                <span class="n">comment</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;test&quot;</span><span class="p">:</span> <span class="s2">&quot;unknown&quot;</span><span class="p">,</span> <span class="s2">&quot;comment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">}</span>
+
+            <span class="n">histcol</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">index</span><span class="o">=</span><span class="n">field_flags</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+            <span class="n">histcol</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">values</span><span class="o">.</span><span class="n">index</span><span class="p">]</span> <span class="o">=</span> <span class="bp">self</span><span class="p">(</span><span class="n">flag</span><span class="p">)</span>
+
+            <span class="n">meta</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;func&quot;</span><span class="p">:</span> <span class="n">comment</span><span class="p">[</span><span class="s2">&quot;test&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;kwargs&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;comment&quot;</span><span class="p">:</span> <span class="n">comment</span><span class="p">[</span><span class="s2">&quot;comment&quot;</span><span class="p">],</span> <span class="s2">&quot;cause&quot;</span><span class="p">:</span> <span class="n">cause</span><span class="p">},</span>
+            <span class="p">}</span>
+            <span class="n">field_history</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">histcol</span><span class="p">,</span> <span class="n">meta</span><span class="o">=</span><span class="n">meta</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">field_history</span></div>
+
+<div class="viewcode-block" id="DmpScheme.forward"><a class="viewcode-back" href="../../../../_api/saqc.core.translation.DmpScheme.html#saqc.core.DmpScheme.forward">[docs]</a>    <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Flags</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Translate from &#39;external flags&#39; to &#39;internal flags&#39;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        df : pd.DataFrame</span>
+<span class="sd">            The external flags to translate</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Flags object</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">validityCheck</span><span class="p">(</span><span class="n">df</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="p">{}</span>
+
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="o">.</span><span class="n">drop_duplicates</span><span class="p">():</span>
+            <span class="n">data</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">field</span><span class="p">)]</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">toHistory</span><span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="n">field</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">Flags</span><span class="p">(</span><span class="n">data</span><span class="p">)</span></div>
+
+<div class="viewcode-block" id="DmpScheme.backward"><a class="viewcode-back" href="../../../../_api/saqc.core.translation.DmpScheme.html#saqc.core.DmpScheme.backward">[docs]</a>    <span class="k">def</span> <span class="nf">backward</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span> <span class="n">flags</span><span class="p">:</span> <span class="n">Flags</span><span class="p">,</span> <span class="n">attrs</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Translate from &#39;internal flags&#39; to &#39;external flags&#39;</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        flags : The external flags to translate</span>
+
+<span class="sd">        attrs : dict or None, default None</span>
+<span class="sd">            global meta information of saqc-object</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        translated flags</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">tflags</span> <span class="o">=</span> <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">backward</span><span class="p">(</span><span class="n">flags</span><span class="p">,</span> <span class="n">raw</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">attrs</span><span class="o">=</span><span class="n">attrs</span><span class="p">)</span>
+
+        <span class="n">out</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+            <span class="n">index</span><span class="o">=</span><span class="n">reduce</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="n">y</span><span class="p">),</span> <span class="n">tflags</span><span class="o">.</span><span class="n">indexes</span><span class="p">)</span><span class="o">.</span><span class="n">sort_values</span><span class="p">(),</span>
+            <span class="n">columns</span><span class="o">=</span><span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="o">.</span><span class="n">from_product</span><span class="p">([</span><span class="n">flags</span><span class="o">.</span><span class="n">columns</span><span class="p">,</span> <span class="n">_QUALITY_LABELS</span><span class="p">]),</span>
+        <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">tflags</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+
+            <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;quality_flag&quot;</span><span class="p">:</span> <span class="n">tflags</span><span class="p">[</span><span class="n">field</span><span class="p">],</span>
+                    <span class="s2">&quot;quality_cause&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;quality_comment&quot;</span><span class="p">:</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+
+            <span class="n">history</span> <span class="o">=</span> <span class="n">flags</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="n">field</span><span class="p">]</span>
+            <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">history</span><span class="o">.</span><span class="n">columns</span><span class="p">:</span>
+
+                <span class="n">valid</span> <span class="o">=</span> <span class="p">(</span><span class="n">history</span><span class="o">.</span><span class="n">hist</span><span class="p">[</span><span class="n">col</span><span class="p">]</span> <span class="o">!=</span> <span class="n">UNFLAGGED</span><span class="p">)</span> <span class="o">&amp;</span> <span class="n">history</span><span class="o">.</span><span class="n">hist</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">notna</span><span class="p">()</span>
+
+                <span class="c1"># extract from meta</span>
+                <span class="n">meta</span> <span class="o">=</span> <span class="n">history</span><span class="o">.</span><span class="n">meta</span><span class="p">[</span><span class="n">col</span><span class="p">]</span>
+                <span class="n">keywords</span> <span class="o">=</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;kwargs&quot;</span><span class="p">,</span> <span class="p">{})</span>
+                <span class="n">comment</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span>
+                    <span class="p">{</span>
+                        <span class="s2">&quot;test&quot;</span><span class="p">:</span> <span class="n">meta</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;func&quot;</span><span class="p">,</span> <span class="s2">&quot;unknown&quot;</span><span class="p">),</span>
+                        <span class="s2">&quot;comment&quot;</span><span class="p">:</span> <span class="n">keywords</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;comment&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ARGUMENTS</span><span class="p">[</span><span class="s2">&quot;comment&quot;</span><span class="p">]),</span>
+                    <span class="p">}</span>
+                <span class="p">)</span>
+                <span class="n">cause</span> <span class="o">=</span> <span class="n">keywords</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;cause&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">ARGUMENTS</span><span class="p">[</span><span class="s2">&quot;cause&quot;</span><span class="p">])</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">valid</span><span class="p">,</span> <span class="s2">&quot;quality_comment&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">comment</span>
+                <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[</span><span class="n">valid</span><span class="p">,</span> <span class="s2">&quot;quality_cause&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">cause</span>
+
+            <span class="n">out</span><span class="p">[</span><span class="n">field</span><span class="p">]</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">reindex</span><span class="p">(</span><span class="n">out</span><span class="o">.</span><span class="n">index</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">validityCheck</span><span class="p">(</span><span class="n">out</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">out</span></div>
+
+<div class="viewcode-block" id="DmpScheme.validityCheck"><a class="viewcode-back" href="../../../../_api/saqc.core.translation.DmpScheme.html#saqc.core.DmpScheme.validityCheck">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">validityCheck</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">df</span><span class="p">:</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Check wether the given causes and comments are valid.</span>
+
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        df : external flags</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">cols</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">cols</span><span class="p">,</span> <span class="n">pd</span><span class="o">.</span><span class="n">MultiIndex</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="s2">&quot;DMP-Flags need multi-index columns&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">cols</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">_QUALITY_LABELS</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;DMP-Flags expect the labels </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">_QUALITY_LABELS</span><span class="p">)</span><span class="si">}</span><span class="s2"> in the secondary level&quot;</span>
+            <span class="p">)</span>
+
+        <span class="k">for</span> <span class="n">field</span> <span class="ow">in</span> <span class="n">df</span><span class="o">.</span><span class="n">columns</span><span class="o">.</span><span class="n">get_level_values</span><span class="p">(</span><span class="mi">0</span><span class="p">):</span>
+
+            <span class="c1"># we might have NaN injected by DictOfSeries -&gt; DataFrame conversions</span>
+            <span class="n">field_df</span> <span class="o">=</span> <span class="n">df</span><span class="p">[</span><span class="n">field</span><span class="p">]</span><span class="o">.</span><span class="n">dropna</span><span class="p">(</span><span class="n">how</span><span class="o">=</span><span class="s2">&quot;all&quot;</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="s2">&quot;index&quot;</span><span class="p">)</span>
+            <span class="n">flags</span> <span class="o">=</span> <span class="n">field_df</span><span class="p">[</span><span class="s2">&quot;quality_flag&quot;</span><span class="p">]</span>
+            <span class="n">causes</span> <span class="o">=</span> <span class="n">field_df</span><span class="p">[</span><span class="s2">&quot;quality_cause&quot;</span><span class="p">]</span>
+            <span class="n">comments</span> <span class="o">=</span> <span class="n">field_df</span><span class="p">[</span><span class="s2">&quot;quality_comment&quot;</span><span class="p">]</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">flags</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_FORWARD</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;invalid quality flag(s) found, only the following values are supported: </span><span class="si">{</span><span class="nb">set</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">_FORWARD</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">causes</span><span class="o">.</span><span class="n">isin</span><span class="p">(</span><span class="n">_QUALITY_CAUSES</span><span class="p">)</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;invalid quality cause(s) found, only the following values are supported: </span><span class="si">{</span><span class="n">_QUALITY_CAUSES</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="o">~</span><span class="n">flags</span><span class="o">.</span><span class="n">isin</span><span class="p">((</span><span class="s2">&quot;OK&quot;</span><span class="p">,</span> <span class="s2">&quot;NIL&quot;</span><span class="p">))</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">causes</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;quality flags other than &#39;OK and &#39;NIL&#39; need a non-empty quality cause&quot;</span>
+                <span class="p">)</span>
+
+            <span class="k">if</span> <span class="p">((</span><span class="n">causes</span> <span class="o">==</span> <span class="s2">&quot;OTHER&quot;</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">comments</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">))</span><span class="o">.</span><span class="n">any</span><span class="p">(</span><span class="kc">None</span><span class="p">):</span>
+                <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
+                    <span class="s2">&quot;quality cause &#39;OTHER&#39; needs a non-empty quality comment&quot;</span>
+                <span class="p">)</span></div></div>
+</pre></div>
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../../../../index.html">
+              <img class="logo" src="../../../../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../../../../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../../../../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../../../../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../../../../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../../../index.html" >Module code</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">saqc.core.translation.dmpscheme</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

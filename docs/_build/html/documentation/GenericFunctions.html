@@ -1,0 +1,798 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Generic Functions &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="../_static/tabs.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Global Keywords" href="GlobalKeywords.html" />
+    <link rel="prev" title="Configuration Files" href="ConfigurationFiles.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="GlobalKeywords.html" title="Global Keywords"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="ConfigurationFiles.html" title="Configuration Files"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Generic Functions</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="generic-functions">
+<h1>Generic Functions<a class="headerlink" href="#generic-functions" title="Permalink to this headline">¶</a></h1>
+<section id="generic-flagging-functions">
+<h2>Generic Flagging Functions<a class="headerlink" href="#generic-flagging-functions" title="Permalink to this headline">¶</a></h2>
+<p>Generic flagging functions provide for custom cross-variable quality constraints, directly
+implemented using the <a class="reference internal" href="../gettingstarted/TutorialAPI.html"><span class="doc">Python API</span></a> or the
+<a class="reference internal" href="ConfigurationFiles.html"><span class="doc">Configuration System</span></a>.</p>
+<section id="why">
+<h3>Why?<a class="headerlink" href="#why" title="Permalink to this headline">¶</a></h3>
+<p>In most real world datasets many errors can be explained by the dataset itself. Think of a an
+active, fan-cooled measurement device: no matter how precise the instrument may work, problems
+are to be expected when the fan stops working or the power supply drops below a certain threshold.
+While these dependencies are easy to <a class="reference internal" href="#a-real-world-example"><span class="std std-ref">formalize</span></a>
+on a per dataset basis, it is quite challenging to translate them into generic source code. That
+is why we instrumented SaQC to cope with such situations.</p>
+</section>
+<section id="generic-flagging-specification">
+<h3>Generic Flagging - Specification<a class="headerlink" href="#generic-flagging-specification" title="Permalink to this headline">¶</a></h3>
+<p>Generic flagging functions are used in the same manner as their
+non-generic counterparts. The basic signature looks like that:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="p">,</span> <span class="n">func</span><span class="o">=&lt;</span><span class="n">expression</span><span class="o">&gt;</span><span class="p">,</span> <span class="n">flag</span><span class="o">=&lt;</span><span class="n">flag_constant</span><span class="o">&gt;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">&lt;expression&gt;</span></code> is either a callable (Python API) or an expression
+composed of the <a class="reference internal" href="#supported-constructs">supported constructs</a>
+and <code class="docutils literal notranslate"><span class="pre">&lt;flag_constant&gt;</span></code> is either one of the predefined
+<a class="reference internal" href="../modules/SaQCConstants.html#flagging-constants"><span class="std std-ref">flagging constants</span></a>
+(default: <code class="docutils literal notranslate"><span class="pre">BAD</span></code>) or a valid value of the chosen flagging scheme. Generic flagging functions
+are expected to return a collection of boolean values, i.e. one <code class="docutils literal notranslate"><span class="pre">True</span></code> or <code class="docutils literal notranslate"><span class="pre">False</span></code> for every
+value in <code class="docutils literal notranslate"><span class="pre">field</span></code>. All other expressions will fail during runtime of SaQC.</p>
+</section>
+<section id="examples">
+<h3>Examples<a class="headerlink" href="#examples" title="Permalink to this headline">¶</a></h3>
+<p>The following sections show some contrived but realistic examples, highlighting the
+potential of <code class="xref py py-meth docutils literal notranslate"><span class="pre">flagGeneric</span></code>. Let’s first generate a
+dummy dataset, to lead us through the following code snippets:</p>
+<div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">saqc</span> <span class="kn">import</span> <span class="n">SaQC</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">12</span><span class="p">,</span> <span class="mi">87</span><span class="p">,</span> <span class="mi">45</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">99</span><span class="p">])</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">33</span><span class="p">,</span> <span class="mi">133</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">33</span><span class="p">])</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">34</span><span class="p">,</span> <span class="mi">23</span><span class="p">,</span> <span class="mi">89</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+<span class="n">dates</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="s2">&quot;2020-01-01&quot;</span><span class="p">,</span> <span class="n">periods</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;D&quot;</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">:</span> <span class="n">z</span><span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="n">dates</span><span class="p">)</span>
+
+<span class="n">qc</span> <span class="o">=</span> <span class="n">SaQC</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span>  
+<span class="go">             x |               y |              z |</span>
+<span class="go">============== | =============== | ============== |</span>
+<span class="go">2020-01-01  12 | 2020-01-01    2 | 2020-01-01  34 |</span>
+<span class="go">2020-01-02  87 | 2020-01-02   12 | 2020-01-02  23 |</span>
+<span class="go">2020-01-03  45 | 2020-01-03   33 | 2020-01-03  89 |</span>
+<span class="go">2020-01-04  31 | 2020-01-04  133 | 2020-01-04  56 |</span>
+<span class="go">2020-01-05  18 | 2020-01-05    8 | 2020-01-05   5 |</span>
+<span class="go">2020-01-06  99 | 2020-01-06   33 | 2020-01-06   1 |</span>
+</pre></div>
+</div>
+<section id="simple-constraints">
+<h4>Simple constraints<a class="headerlink" href="#simple-constraints" title="Permalink to this headline">¶</a></h4>
+<p><strong>Task</strong>: Flag all values of <code class="docutils literal notranslate"><span class="pre">x</span></code> where <code class="docutils literal notranslate"><span class="pre">x</span></code> is smaller than 30</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-0-0-0" aria-selected="true" class="sphinx-tabs-tab" id="tab-0-0-0" name="0-0" role="tab" tabindex="0">API</button><button aria-controls="panel-0-0-1" aria-selected="false" class="sphinx-tabs-tab" id="tab-0-0-1" name="0-1" role="tab" tabindex="-1">Configuration</button></div><div aria-labelledby="tab-0-0-0" class="sphinx-tabs-panel" id="panel-0-0-0" name="0-0" role="tabpanel" tabindex="0"><div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">qc1</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="mi">30</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc1</span><span class="o">.</span><span class="n">flags</span>  
+<span class="go">                x |               y |               z |</span>
+<span class="go">================= | =============== | =============== |</span>
+<span class="go">2020-01-01  255.0 | 2020-01-01 -inf | 2020-01-01 -inf |</span>
+<span class="go">2020-01-02   -inf | 2020-01-02 -inf | 2020-01-02 -inf |</span>
+<span class="go">2020-01-03   -inf | 2020-01-03 -inf | 2020-01-03 -inf |</span>
+<span class="go">2020-01-04   -inf | 2020-01-04 -inf | 2020-01-04 -inf |</span>
+<span class="go">2020-01-05  255.0 | 2020-01-05 -inf | 2020-01-05 -inf |</span>
+<span class="go">2020-01-06   -inf | 2020-01-06 -inf | 2020-01-06 -inf |</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-0-0-1" class="sphinx-tabs-panel" hidden="true" id="panel-0-0-1" name="0-1" role="tabpanel" tabindex="0"><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span> <span class="p">;</span> <span class="n">test</span>
+<span class="c1">#-------;------------------------</span>
+<span class="n">x</span>       <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">x</span> <span class="o">&lt;</span> <span class="mi">30</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+<p>As to be expected, the usual <a class="reference internal" href="#comparison-operators">comparison operators</a> are supported.</p>
+</section>
+<section id="cross-variable-constraints">
+<h4>Cross variable constraints<a class="headerlink" href="#cross-variable-constraints" title="Permalink to this headline">¶</a></h4>
+<p><strong>Task</strong>: Flag all values of <code class="docutils literal notranslate"><span class="pre">x</span></code> where <code class="docutils literal notranslate"><span class="pre">y</span></code> is larger than 30</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-1-1-0" aria-selected="true" class="sphinx-tabs-tab" id="tab-1-1-0" name="1-0" role="tab" tabindex="0">API</button><button aria-controls="panel-1-1-1" aria-selected="false" class="sphinx-tabs-tab" id="tab-1-1-1" name="1-1" role="tab" tabindex="-1">Configuration</button></div><div aria-labelledby="tab-1-1-0" class="sphinx-tabs-panel" id="panel-1-1-0" name="1-0" role="tabpanel" tabindex="0"><div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">qc2</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">y</span><span class="p">:</span> <span class="n">y</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc2</span><span class="o">.</span><span class="n">flags</span>  
+<span class="go">                x |               y |               z |</span>
+<span class="go">================= | =============== | =============== |</span>
+<span class="go">2020-01-01   -inf | 2020-01-01 -inf | 2020-01-01 -inf |</span>
+<span class="go">2020-01-02   -inf | 2020-01-02 -inf | 2020-01-02 -inf |</span>
+<span class="go">2020-01-03  255.0 | 2020-01-03 -inf | 2020-01-03 -inf |</span>
+<span class="go">2020-01-04  255.0 | 2020-01-04 -inf | 2020-01-04 -inf |</span>
+<span class="go">2020-01-05   -inf | 2020-01-05 -inf | 2020-01-05 -inf |</span>
+<span class="go">2020-01-06  255.0 | 2020-01-06 -inf | 2020-01-06 -inf |</span>
+</pre></div>
+</div>
+<p>We introduce another selection parameter, namely <code class="docutils literal notranslate"><span class="pre">target</span></code>. While <code class="docutils literal notranslate"><span class="pre">field</span></code> is still used to select
+a variable from the dataset, which is subsequently passed to the given function <code class="docutils literal notranslate"><span class="pre">func</span></code>, <code class="docutils literal notranslate"><span class="pre">target</span></code> names the
+variable to which SaQC writes the produced flags.</p>
+</div><div aria-labelledby="tab-1-1-1" class="sphinx-tabs-panel" hidden="true" id="panel-1-1-1" name="1-1" role="tabpanel" tabindex="0"><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span> <span class="p">;</span> <span class="n">test</span>
+<span class="c1">#-------;------------------------------------</span>
+<span class="n">x</span>       <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Here the value in the first config column acts as the <code class="docutils literal notranslate"><span class="pre">target</span></code>, while <code class="docutils literal notranslate"><span class="pre">field</span></code> needs to be given
+as function argument. In case <code class="docutils literal notranslate"><span class="pre">field</span></code> is not explicitly given, the first column acts as both,
+<code class="docutils literal notranslate"><span class="pre">field</span></code> and <code class="docutils literal notranslate"><span class="pre">target</span></code>.</p>
+</div></div>
+</section>
+<section id="multiple-cross-variable-constraints">
+<h4>Multiple cross variable constraints<a class="headerlink" href="#multiple-cross-variable-constraints" title="Permalink to this headline">¶</a></h4>
+<p><strong>Task</strong>: Flag all values of <code class="docutils literal notranslate"><span class="pre">x</span></code> where <code class="docutils literal notranslate"><span class="pre">y</span></code> is larger than 30 and <code class="docutils literal notranslate"><span class="pre">z</span></code> is smaller than 50:</p>
+<p>In order to pass multiple variables to <code class="docutils literal notranslate"><span class="pre">func</span></code>, we need to also specify multiple <code class="docutils literal notranslate"><span class="pre">field</span></code> elements.
+Note: to combine boolean expressions using one the available <a class="reference internal" href="#logical-operators">logical operators</a>, they single expressions
+need to be put in parentheses.</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-2-2-0" aria-selected="true" class="sphinx-tabs-tab" id="tab-2-2-0" name="2-0" role="tab" tabindex="0">API</button><button aria-controls="panel-2-2-1" aria-selected="false" class="sphinx-tabs-tab" id="tab-2-2-1" name="2-1" role="tab" tabindex="-1">Configuration</button></div><div aria-labelledby="tab-2-2-0" class="sphinx-tabs-panel" id="panel-2-2-0" name="2-0" role="tabpanel" tabindex="0"><div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">qc3</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="p">(</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">z</span> <span class="o">&lt;</span> <span class="mi">50</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc3</span><span class="o">.</span><span class="n">flags</span>  
+<span class="go">                x |               y |               z |</span>
+<span class="go">================= | =============== | =============== |</span>
+<span class="go">2020-01-01   -inf | 2020-01-01 -inf | 2020-01-01 -inf |</span>
+<span class="go">2020-01-02   -inf | 2020-01-02 -inf | 2020-01-02 -inf |</span>
+<span class="go">2020-01-03   -inf | 2020-01-03 -inf | 2020-01-03 -inf |</span>
+<span class="go">2020-01-04   -inf | 2020-01-04 -inf | 2020-01-04 -inf |</span>
+<span class="go">2020-01-05   -inf | 2020-01-05 -inf | 2020-01-05 -inf |</span>
+<span class="go">2020-01-06  255.0 | 2020-01-06 -inf | 2020-01-06 -inf |</span>
+</pre></div>
+</div>
+<p>The mapping
+from <code class="docutils literal notranslate"><span class="pre">field</span></code> to the <code class="docutils literal notranslate"><span class="pre">lambda</span></code> function parameters is positional and not bound to names. That means
+that the function parameters can be named arbitrarily.</p>
+</div><div aria-labelledby="tab-2-2-1" class="sphinx-tabs-panel" hidden="true" id="panel-2-2-1" name="2-1" role="tabpanel" tabindex="0"><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span> <span class="p">;</span> <span class="n">test</span>
+<span class="c1">#-------;--------------------------------------------------------</span>
+<span class="n">x</span>       <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span> <span class="n">func</span><span class="o">=</span><span class="p">(</span><span class="n">y</span> <span class="o">&gt;</span> <span class="mi">30</span><span class="p">)</span> <span class="o">&amp;</span> <span class="p">(</span><span class="n">z</span> <span class="o">&lt;</span> <span class="mi">50</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>Here the value in the first config column acts as the <code class="docutils literal notranslate"><span class="pre">target</span></code>, while <code class="docutils literal notranslate"><span class="pre">field</span></code> needs to be given
+as a function argument. In case <code class="docutils literal notranslate"><span class="pre">field</span></code> is not explicitly given, the first column acts as both,
+<code class="docutils literal notranslate"><span class="pre">field</span></code> and <code class="docutils literal notranslate"><span class="pre">target</span></code>.
+The mapping from <code class="docutils literal notranslate"><span class="pre">field</span></code> to the names used in <code class="docutils literal notranslate"><span class="pre">func</span></code> is positional, i.e. the first value in <code class="docutils literal notranslate"><span class="pre">field</span></code>
+is mapped to the first variable found in <code class="docutils literal notranslate"><span class="pre">func</span></code>.</p>
+</div></div>
+</section>
+<section id="arithmetics">
+<h4>Arithmetics<a class="headerlink" href="#arithmetics" title="Permalink to this headline">¶</a></h4>
+<p><strong>Task</strong>: Flag all values of <code class="docutils literal notranslate"><span class="pre">x</span></code>, that exceed the arithmetic mean of <code class="docutils literal notranslate"><span class="pre">y</span></code> and <code class="docutils literal notranslate"><span class="pre">z</span></code></p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-3-3-0" aria-selected="true" class="sphinx-tabs-tab" id="tab-3-3-0" name="3-0" role="tab" tabindex="0">API</button><button aria-controls="panel-3-3-1" aria-selected="false" class="sphinx-tabs-tab" id="tab-3-3-1" name="3-1" role="tab" tabindex="-1">Configuration</button></div><div aria-labelledby="tab-3-3-0" class="sphinx-tabs-panel" id="panel-3-3-0" name="3-0" role="tabpanel" tabindex="0"><div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">qc4</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">x</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc4</span><span class="o">.</span><span class="n">flags</span>  
+<span class="go">                x |               y |               z |</span>
+<span class="go">================= | =============== | =============== |</span>
+<span class="go">2020-01-01   -inf | 2020-01-01 -inf | 2020-01-01 -inf |</span>
+<span class="go">2020-01-02  255.0 | 2020-01-02 -inf | 2020-01-02 -inf |</span>
+<span class="go">2020-01-03   -inf | 2020-01-03 -inf | 2020-01-03 -inf |</span>
+<span class="go">2020-01-04   -inf | 2020-01-04 -inf | 2020-01-04 -inf |</span>
+<span class="go">2020-01-05  255.0 | 2020-01-05 -inf | 2020-01-05 -inf |</span>
+<span class="go">2020-01-06  255.0 | 2020-01-06 -inf | 2020-01-06 -inf |</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-3-3-1" class="sphinx-tabs-panel" hidden="true" id="panel-3-3-1" name="3-1" role="tabpanel" tabindex="0"><blockquote>
+<div><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span> <span class="p">;</span> <span class="n">test</span>
+<span class="c1">#-------;-------------------------------------------------------</span>
+<span class="n">x</span>       <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span> <span class="n">func</span><span class="o">=</span><span class="n">x</span> <span class="o">&gt;</span> <span class="p">(</span><span class="n">y</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="xref py py-meth docutils literal notranslate"><span class="pre">flagGeneric</span></code> supports the usual <a class="reference internal" href="#arithmetic-operators">arithmetic operators</a>.</p>
+</div></blockquote>
+</div></div>
+</section>
+<section id="special-functions">
+<h4>Special functions<a class="headerlink" href="#special-functions" title="Permalink to this headline">¶</a></h4>
+<p><strong>Task</strong>: Flag all values of <code class="docutils literal notranslate"><span class="pre">x</span></code>, that exceed 2 standard deviations of <code class="docutils literal notranslate"><span class="pre">z</span></code>.</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-4-4-0" aria-selected="true" class="sphinx-tabs-tab" id="tab-4-4-0" name="4-0" role="tab" tabindex="0">API</button><button aria-controls="panel-4-4-1" aria-selected="false" class="sphinx-tabs-tab" id="tab-4-4-1" name="4-1" role="tab" tabindex="-1">Configuration</button></div><div aria-labelledby="tab-4-4-0" class="sphinx-tabs-panel" id="panel-4-4-0" name="4-0" role="tabpanel" tabindex="0"><div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">qc5</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="n">x</span> <span class="o">&gt;</span> <span class="n">np</span><span class="o">.</span><span class="n">std</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc5</span><span class="o">.</span><span class="n">flags</span>  
+<span class="go">                x |               y |               z |</span>
+<span class="go">================= | =============== | =============== |</span>
+<span class="go">2020-01-01   -inf | 2020-01-01 -inf | 2020-01-01 -inf |</span>
+<span class="go">2020-01-02  255.0 | 2020-01-02 -inf | 2020-01-02 -inf |</span>
+<span class="go">2020-01-03   -inf | 2020-01-03 -inf | 2020-01-03 -inf |</span>
+<span class="go">2020-01-04   -inf | 2020-01-04 -inf | 2020-01-04 -inf |</span>
+<span class="go">2020-01-05   -inf | 2020-01-05 -inf | 2020-01-05 -inf |</span>
+<span class="go">2020-01-06  255.0 | 2020-01-06 -inf | 2020-01-06 -inf |</span>
+</pre></div>
+</div>
+<p>The selected variables are passed to <code class="docutils literal notranslate"><span class="pre">func</span></code> as arguments of type <code class="docutils literal notranslate"><span class="pre">pd.Series</span></code>, so all functions
+accepting such an argument can be used in generic expressions.</p>
+</div><div aria-labelledby="tab-4-4-1" class="sphinx-tabs-panel" hidden="true" id="panel-4-4-1" name="4-1" role="tabpanel" tabindex="0"><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span> <span class="p">;</span> <span class="n">test</span>
+<span class="c1">#-------;---------------------------------------------------</span>
+<span class="n">x</span>       <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span> <span class="n">func</span><span class="o">=</span><span class="n">x</span> <span class="o">&gt;</span> <span class="n">std</span><span class="p">(</span><span class="n">z</span><span class="p">)</span> <span class="o">*</span> <span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>In configurations files, the number of available mathematical functions is more restricted. Instead
+of basically all functions accepting array-like inputs, only certain built in
+<a class="reference external" href="mathematicalfunctions">mathematicalfunctions</a> can be used.</p>
+</div></div>
+<p><strong>Task</strong>: Flag all values of <code class="docutils literal notranslate"><span class="pre">x</span></code> where <code class="docutils literal notranslate"><span class="pre">y</span></code> is flagged.</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-5-5-0" aria-selected="true" class="sphinx-tabs-tab" id="tab-5-5-0" name="5-0" role="tab" tabindex="0">API</button><button aria-controls="panel-5-5-1" aria-selected="false" class="sphinx-tabs-tab" id="tab-5-5-1" name="5-1" role="tab" tabindex="-1">Configuration</button></div><div aria-labelledby="tab-5-5-0" class="sphinx-tabs-panel" id="panel-5-5-0" name="5-0" role="tabpanel" tabindex="0"><div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">qc6</span> <span class="o">=</span> <span class="p">(</span><span class="n">qc</span>
+       <span class="o">.</span><span class="n">flagRange</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="nb">min</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+       <span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">y</span><span class="p">:</span> <span class="n">isflagged</span><span class="p">(</span><span class="n">y</span><span class="p">)))</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc6</span><span class="o">.</span><span class="n">flags</span>  
+<span class="go">                x |                 y |               z |</span>
+<span class="go">================= | ================= | =============== |</span>
+<span class="go">2020-01-01  255.0 | 2020-01-01  255.0 | 2020-01-01 -inf |</span>
+<span class="go">2020-01-02   -inf | 2020-01-02   -inf | 2020-01-02 -inf |</span>
+<span class="go">2020-01-03   -inf | 2020-01-03   -inf | 2020-01-03 -inf |</span>
+<span class="go">2020-01-04  255.0 | 2020-01-04  255.0 | 2020-01-04 -inf |</span>
+<span class="go">2020-01-05  255.0 | 2020-01-05  255.0 | 2020-01-05 -inf |</span>
+<span class="go">2020-01-06   -inf | 2020-01-06   -inf | 2020-01-06 -inf |</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-5-5-1" class="sphinx-tabs-panel" hidden="true" id="panel-5-5-1" name="5-1" role="tabpanel" tabindex="0"><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span> <span class="p">;</span> <span class="n">test</span>
+<span class="c1">#-------;------------------------------------------</span>
+<span class="n">y</span>       <span class="p">;</span> <span class="n">flagRange</span><span class="p">(</span><span class="nb">min</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="nb">max</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+<span class="n">x</span>       <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">isflagged</span><span class="p">(</span><span class="n">y</span><span class="p">))</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+<section id="a-real-world-example">
+<h4>A real world example<a class="headerlink" href="#a-real-world-example" title="Permalink to this headline">¶</a></h4>
+<p>Let’s consider the following dataset:</p>
+<div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">saqc</span> <span class="kn">import</span> <span class="n">SaQC</span>
+
+<span class="n">meas</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">3.56</span><span class="p">,</span> <span class="mf">4.7</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">,</span> <span class="mf">3.62</span><span class="p">])</span>
+<span class="n">fan</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="n">volt</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mf">12.1</span><span class="p">,</span> <span class="mf">12.0</span><span class="p">,</span> <span class="mf">11.5</span><span class="p">,</span> <span class="mf">12.1</span><span class="p">])</span>
+
+<span class="n">dates</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">to_datetime</span><span class="p">([</span><span class="s2">&quot;2018-06-01 12:00&quot;</span><span class="p">,</span> <span class="s2">&quot;2018-06-01 12:10&quot;</span><span class="p">,</span> <span class="s2">&quot;2018-06-01 12:20&quot;</span><span class="p">,</span> <span class="s2">&quot;2018-06-01 12:30&quot;</span><span class="p">])</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;meas&quot;</span><span class="p">:</span> <span class="n">meas</span><span class="p">,</span> <span class="s2">&quot;fan&quot;</span><span class="p">:</span> <span class="n">fan</span><span class="p">,</span> <span class="s2">&quot;volt&quot;</span><span class="p">:</span> <span class="n">volt</span><span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="n">dates</span><span class="p">)</span>
+
+<span class="n">qc</span> <span class="o">=</span> <span class="n">SaQC</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc</span><span class="o">.</span><span class="n">data</span>  
+<span class="go">                     meas |                     fan |                      volt |</span>
+<span class="go">========================= | ======================= | ========================= |</span>
+<span class="go">2018-06-01 12:00:00  3.56 | 2018-06-01 12:00:00   1 | 2018-06-01 12:00:00  12.1 |</span>
+<span class="go">2018-06-01 12:10:00  4.70 | 2018-06-01 12:10:00   0 | 2018-06-01 12:10:00  12.0 |</span>
+<span class="go">2018-06-01 12:20:00  0.10 | 2018-06-01 12:20:00   1 | 2018-06-01 12:20:00  11.5 |</span>
+<span class="go">2018-06-01 12:30:00  3.62 | 2018-06-01 12:30:00   1 | 2018-06-01 12:30:00  12.1 |</span>
+</pre></div>
+</div>
+<p><strong>Task</strong>: Flag <code class="docutils literal notranslate"><span class="pre">meas</span></code> where <code class="docutils literal notranslate"><span class="pre">fan</span></code> equals 0 and <code class="docutils literal notranslate"><span class="pre">volt</span></code> is lower than <code class="docutils literal notranslate"><span class="pre">12.0</span></code>.</p>
+<p><strong>Configuration file</strong>: There are various options. We can directly implement the condition as follows:</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-6-6-0" aria-selected="true" class="sphinx-tabs-tab" id="tab-6-6-0" name="6-0" role="tab" tabindex="0">API</button><button aria-controls="panel-6-6-1" aria-selected="false" class="sphinx-tabs-tab" id="tab-6-6-1" name="6-1" role="tab" tabindex="-1">Configuration</button></div><div aria-labelledby="tab-6-6-0" class="sphinx-tabs-panel" id="panel-6-6-0" name="6-0" role="tabpanel" tabindex="0"><div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">qc7</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;fan&quot;</span><span class="p">,</span> <span class="s2">&quot;volt&quot;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;meas&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">y</span> <span class="o">&lt;</span> <span class="mi">12</span><span class="p">))</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc7</span><span class="o">.</span><span class="n">flags</span>  
+<span class="go">                      meas |                      fan |                     volt |</span>
+<span class="go">========================== | ======================== | ======================== |</span>
+<span class="go">2018-06-01 12:00:00   -inf | 2018-06-01 12:00:00 -inf | 2018-06-01 12:00:00 -inf |</span>
+<span class="go">2018-06-01 12:10:00  255.0 | 2018-06-01 12:10:00 -inf | 2018-06-01 12:10:00 -inf |</span>
+<span class="go">2018-06-01 12:20:00  255.0 | 2018-06-01 12:20:00 -inf | 2018-06-01 12:20:00 -inf |</span>
+<span class="go">2018-06-01 12:30:00   -inf | 2018-06-01 12:30:00 -inf | 2018-06-01 12:30:00 -inf |</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-6-6-1" class="sphinx-tabs-panel" hidden="true" id="panel-6-6-1" name="6-1" role="tabpanel" tabindex="0"><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span> <span class="p">;</span> <span class="n">test</span>
+<span class="c1">#-------;---------------------------------------------------------------</span>
+<span class="n">meas</span>    <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;fan&quot;</span><span class="p">,</span> <span class="s2">&quot;volt&quot;</span><span class="p">],</span> <span class="n">func</span><span class="o">=</span><span class="p">(</span><span class="n">x</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">y</span> <span class="o">&lt;</span> <span class="mf">12.0</span><span class="p">))</span>
+</pre></div>
+</div>
+</div></div>
+<p>But we could also quality check our independent variables first and than leverage this information later on:</p>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-7-7-0" aria-selected="true" class="sphinx-tabs-tab" id="tab-7-7-0" name="7-0" role="tab" tabindex="0">API</button><button aria-controls="panel-7-7-1" aria-selected="false" class="sphinx-tabs-tab" id="tab-7-7-1" name="7-1" role="tab" tabindex="-1">Configuration</button></div><div aria-labelledby="tab-7-7-0" class="sphinx-tabs-panel" id="panel-7-7-0" name="7-0" role="tabpanel" tabindex="0"><div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">qc8</span> <span class="o">=</span> <span class="p">(</span><span class="n">qc</span>
+       <span class="o">.</span><span class="n">flagMissing</span><span class="p">(</span><span class="s2">&quot;.*&quot;</span><span class="p">,</span> <span class="n">regex</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+       <span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;fan&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+       <span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="s2">&quot;volt&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span> <span class="o">&lt;</span> <span class="mi">12</span><span class="p">)</span>
+       <span class="o">.</span><span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;fan&quot;</span><span class="p">,</span> <span class="s2">&quot;volt&quot;</span><span class="p">],</span> <span class="n">target</span><span class="o">=</span><span class="s2">&quot;meas&quot;</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">:</span> <span class="n">isflagged</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">|</span> <span class="n">isflagged</span><span class="p">(</span><span class="n">y</span><span class="p">)))</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc8</span><span class="o">.</span><span class="n">flags</span>  
+<span class="go">                      meas |                        fan |                       volt |</span>
+<span class="go">========================== | ========================== | ========================== |</span>
+<span class="go">2018-06-01 12:00:00   -inf | 2018-06-01 12:00:00   -inf | 2018-06-01 12:00:00   -inf |</span>
+<span class="go">2018-06-01 12:10:00  255.0 | 2018-06-01 12:10:00  255.0 | 2018-06-01 12:10:00   -inf |</span>
+<span class="go">2018-06-01 12:20:00  255.0 | 2018-06-01 12:20:00   -inf | 2018-06-01 12:20:00  255.0 |</span>
+<span class="go">2018-06-01 12:30:00   -inf | 2018-06-01 12:30:00   -inf | 2018-06-01 12:30:00   -inf |</span>
+</pre></div>
+</div>
+</div><div aria-labelledby="tab-7-7-1" class="sphinx-tabs-panel" hidden="true" id="panel-7-7-1" name="7-1" role="tabpanel" tabindex="0"><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span> <span class="p">;</span> <span class="n">test</span>
+<span class="c1">#-------;--------------------------------------------------------------------------</span>
+<span class="s1">&#39;.*&#39;</span>    <span class="p">;</span> <span class="n">flagMissing</span><span class="p">()</span>
+<span class="n">fan</span>     <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">fan</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+<span class="n">volt</span>    <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">func</span><span class="o">=</span><span class="n">volt</span> <span class="o">&lt;</span> <span class="mf">12.0</span><span class="p">)</span>
+<span class="n">meas</span>    <span class="p">;</span> <span class="n">flagGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;fan&quot;</span><span class="p">,</span> <span class="s2">&quot;volt&quot;</span><span class="p">],</span> <span class="n">func</span><span class="o">=</span><span class="n">isflagged</span><span class="p">(</span><span class="n">fan</span><span class="p">)</span> <span class="o">|</span> <span class="n">isflagged</span><span class="p">(</span><span class="n">volt</span><span class="p">))</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+</section>
+</section>
+<section id="generic-processing">
+<h2>Generic Processing<a class="headerlink" href="#generic-processing" title="Permalink to this headline">¶</a></h2>
+<p>Generic processing functions provide a way to evaluate mathematical operations
+and functions on the variables of a given dataset.</p>
+<section id="id1">
+<h3>Why<a class="headerlink" href="#id1" title="Permalink to this headline">¶</a></h3>
+<p>In many real-world use cases, quality control is embedded into a larger data
+processing pipeline. It is not unusual to even have certain processing
+requirements as a part of the quality control itself. Generic processing
+functions make it easy to enrich a dataset through the evaluation of a
+given expression.</p>
+</section>
+<section id="generic-processing-specification">
+<h3>Generic Processing - Specification<a class="headerlink" href="#generic-processing-specification" title="Permalink to this headline">¶</a></h3>
+<p>The basic signature looks like that:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>processGeneric<span class="o">(</span>field, <span class="nv">func</span><span class="o">=</span>&lt;expression&gt;<span class="o">)</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">&lt;expression&gt;</span></code> is either a callable (Python API) or an expression composed of the
+<a class="reference internal" href="#supported-constructs">supported constructs</a> (Configuration File).</p>
+</section>
+<section id="example">
+<h3>Example<a class="headerlink" href="#example" title="Permalink to this headline">¶</a></h3>
+<p>Let’s use <code class="xref py py-meth docutils literal notranslate"><span class="pre">flagGeneric</span></code> to calculate the mean value of several
+variables in a given dataset. We start with dummy data again:</p>
+<div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span> <span class="nn">saqc</span> <span class="kn">import</span> <span class="n">SaQC</span>
+
+<span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">12</span><span class="p">,</span> <span class="mi">87</span><span class="p">,</span> <span class="mi">45</span><span class="p">,</span> <span class="mi">31</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">99</span><span class="p">])</span>
+<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">2</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">33</span><span class="p">,</span> <span class="mi">133</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">33</span><span class="p">])</span>
+<span class="n">z</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="mi">34</span><span class="p">,</span> <span class="mi">23</span><span class="p">,</span> <span class="mi">89</span><span class="p">,</span> <span class="mi">56</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+
+<span class="n">dates</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">date_range</span><span class="p">(</span><span class="n">start</span><span class="o">=</span><span class="s2">&quot;2020-01-01&quot;</span><span class="p">,</span> <span class="n">periods</span><span class="o">=</span><span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="n">freq</span><span class="o">=</span><span class="s2">&quot;D&quot;</span><span class="p">)</span>
+<span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="n">x</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="n">y</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">:</span> <span class="n">z</span><span class="p">},</span> <span class="n">index</span><span class="o">=</span><span class="n">dates</span><span class="p">)</span>
+
+<span class="n">qc</span> <span class="o">=</span> <span class="n">SaQC</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphinx-tabs docutils container">
+<div aria-label="Tabbed content" class="closeable" role="tablist"><button aria-controls="panel-8-8-0" aria-selected="true" class="sphinx-tabs-tab" id="tab-8-8-0" name="8-0" role="tab" tabindex="0">API</button><button aria-controls="panel-8-8-1" aria-selected="false" class="sphinx-tabs-tab" id="tab-8-8-1" name="8-1" role="tab" tabindex="-1">Configuration</button></div><div aria-labelledby="tab-8-8-0" class="sphinx-tabs-panel" id="panel-8-8-0" name="8-0" role="tabpanel" tabindex="0"><div class="highlight-python3 notranslate"><div class="highlight"><pre><span></span><span class="n">qc1</span> <span class="o">=</span> <span class="n">qc</span><span class="o">.</span><span class="n">processGeneric</span><span class="p">(</span>
+           <span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span>
+           <span class="n">target</span><span class="o">=</span><span class="s2">&quot;mean&quot;</span><span class="p">,</span>
+           <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span><span class="p">:</span> <span class="p">(</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span> <span class="o">+</span> <span class="n">z</span><span class="p">)</span> <span class="o">/</span> <span class="mi">2</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">qc1</span><span class="o">.</span><span class="n">data</span>  
+<span class="go">             x |               y |              z |              mean |</span>
+<span class="go">============== | =============== | ============== | ================= |</span>
+<span class="go">2020-01-01  12 | 2020-01-01    2 | 2020-01-01  34 | 2020-01-01   24.0 |</span>
+<span class="go">2020-01-02  87 | 2020-01-02   12 | 2020-01-02  23 | 2020-01-02   61.0 |</span>
+<span class="go">2020-01-03  45 | 2020-01-03   33 | 2020-01-03  89 | 2020-01-03   83.5 |</span>
+<span class="go">2020-01-04  31 | 2020-01-04  133 | 2020-01-04  56 | 2020-01-04  110.0 |</span>
+<span class="go">2020-01-05  18 | 2020-01-05    8 | 2020-01-05   5 | 2020-01-05   15.5 |</span>
+<span class="go">2020-01-06  99 | 2020-01-06   33 | 2020-01-06   1 | 2020-01-06   66.5 |</span>
+</pre></div>
+</div>
+<p>The call to <code class="xref py py-meth docutils literal notranslate"><span class="pre">flagGeneric</span></code> added the new variable <code class="docutils literal notranslate"><span class="pre">mean</span></code>
+to the dataset.</p>
+</div><div aria-labelledby="tab-8-8-1" class="sphinx-tabs-panel" hidden="true" id="panel-8-8-1" name="8-1" role="tabpanel" tabindex="0"><div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">varname</span> <span class="p">;</span> <span class="n">test</span>
+<span class="c1">#-------;------------------------------------------------------</span>
+<span class="n">mean</span>    <span class="p">;</span> <span class="n">processGeneric</span><span class="p">(</span><span class="n">field</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">],</span> <span class="n">func</span><span class="o">=</span><span class="p">(</span><span class="n">x</span><span class="o">+</span><span class="n">y</span><span class="o">+</span><span class="n">z</span><span class="p">)</span><span class="o">/</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+</div></div>
+</section>
+</section>
+<section id="supported-constructs">
+<h2>Supported constructs<a class="headerlink" href="#supported-constructs" title="Permalink to this headline">¶</a></h2>
+<section id="operators">
+<h3>Operators<a class="headerlink" href="#operators" title="Permalink to this headline">¶</a></h3>
+<section id="comparison-operators">
+<h4>Comparison Operators<a class="headerlink" href="#comparison-operators" title="Permalink to this headline">¶</a></h4>
+<p>The following comparison operators are available:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Operator</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">==</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if the values of the operands are equal</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">!=</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if the values of the operands are not equal</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&gt;</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if the values of the left operand are greater than the values of the right operand</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if the values of the left operand are smaller than the values of the right operand</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&gt;=</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if the values of the left operand are greater or equal than the values of the right operand</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&lt;=</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if the values of the left operand are smaller or equal than the values of the right operand</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="logical-operators">
+<h4>Logical operators<a class="headerlink" href="#logical-operators" title="Permalink to this headline">¶</a></h4>
+<p>The bitwise operators act as logical operators in comparison chains</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Operator</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&amp;</span></code></p></td>
+<td><p>binary and</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">|</span></code></p></td>
+<td><p>binary or</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">^</span></code></p></td>
+<td><p>binary xor</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">~</span></code></p></td>
+<td><p>binary complement</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="arithmetic-operators">
+<h4>Arithmetic Operators<a class="headerlink" href="#arithmetic-operators" title="Permalink to this headline">¶</a></h4>
+<p>The following arithmetic operators are supported:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Operator</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">+</span></code></p></td>
+<td><p>addition</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">-</span></code></p></td>
+<td><p>subtraction</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">*</span></code></p></td>
+<td><p>multiplication</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">/</span></code></p></td>
+<td><p>division</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">**</span></code></p></td>
+<td><p>exponentiation</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">%</span></code></p></td>
+<td><p>modulus</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="functions">
+<h3>Functions<a class="headerlink" href="#functions" title="Permalink to this headline">¶</a></h3>
+<section id="mathematical-functions">
+<h4>Mathematical Functions<a class="headerlink" href="#mathematical-functions" title="Permalink to this headline">¶</a></h4>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">abs</span></code></p></td>
+<td><p>absolute values of a variable</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">max</span></code></p></td>
+<td><p>maximum value of a variable</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">min</span></code></p></td>
+<td><p>minimum value of a variable</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">mean</span></code></p></td>
+<td><p>mean value of a variable</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sum</span></code></p></td>
+<td><p>sum of a variable</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">std</span></code></p></td>
+<td><p>standard deviation of a variable</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">abs</span></code></p></td>
+<td><p>Pointwise absolute Value Function.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">max</span></code></p></td>
+<td><p>Maximum Value Function. Ignores NaN.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">min</span></code></p></td>
+<td><p>Minimum Value Function. Ignores NaN.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">mean</span></code></p></td>
+<td><p>Mean Value Function. Ignores NaN.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">sum</span></code></p></td>
+<td><p>Summation. Ignores NaN.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">len</span></code></p></td>
+<td><p>Standart Deviation. Ignores NaN.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">exp</span></code></p></td>
+<td><p>Pointwise Exponential.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">log</span></code></p></td>
+<td><p>Pointwise Logarithm.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">nanLog</span></code></p></td>
+<td><p>Logarithm, returning NaN for zero input, instead of -inf.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">std</span></code></p></td>
+<td><p>Standart Deviation. Ignores NaN.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">var</span></code></p></td>
+<td><p>Variance. Ignores NaN.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">median</span></code></p></td>
+<td><p>Median. Ignores NaN.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">count</span></code></p></td>
+<td><p>Count Number of values. Ignores NaNs.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">id</span></code></p></td>
+<td><p>Identity.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">diff</span></code></p></td>
+<td><p>Returns a Series` diff.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">scale</span></code></p></td>
+<td><p>Scales data to [0,1] Interval.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">zScore</span></code></p></td>
+<td><p>Standardize with Standart Deviation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">madScore</span></code></p></td>
+<td><p>Standardize with Median and MAD.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">iqsScore</span></code></p></td>
+<td><p>Standardize with Median and inter quantile range.</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="miscellaneous-functions">
+<h4>Miscellaneous Functions<a class="headerlink" href="#miscellaneous-functions" title="Permalink to this headline">¶</a></h4>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 50%" />
+<col style="width: 50%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">isflagged</span></code></p></td>
+<td><p>Pointwise, checks if a value is flagged</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">len</span></code></p></td>
+<td><p>Returns the length of passed series</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Generic Functions</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#generic-flagging-functions">Generic Flagging Functions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#why">Why?</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generic-flagging-specification">Generic Flagging - Specification</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#examples">Examples</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#simple-constraints">Simple constraints</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#cross-variable-constraints">Cross variable constraints</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#multiple-cross-variable-constraints">Multiple cross variable constraints</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#arithmetics">Arithmetics</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#special-functions">Special functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#a-real-world-example">A real world example</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#generic-processing">Generic Processing</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#id1">Why</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#generic-processing-specification">Generic Processing - Specification</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#example">Example</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#supported-constructs">Supported constructs</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#operators">Operators</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#comparison-operators">Comparison Operators</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#logical-operators">Logical operators</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#arithmetic-operators">Arithmetic Operators</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#functions">Functions</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#mathematical-functions">Mathematical Functions</a></li>
+<li class="toctree-l4"><a class="reference internal" href="#miscellaneous-functions">Miscellaneous Functions</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="ConfigurationFiles.html"
+                          title="previous chapter">Configuration Files</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="GlobalKeywords.html"
+                          title="next chapter">Global Keywords</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/documentation/GenericFunctions.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="GlobalKeywords.html" title="Global Keywords"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="ConfigurationFiles.html" title="Configuration Files"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Generic Functions</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

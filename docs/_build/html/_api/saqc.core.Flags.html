@@ -1,0 +1,451 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Flags &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="FloatScheme" href="saqc.core.FloatScheme.html" />
+    <link rel="prev" title="DmpScheme" href="saqc.core.DmpScheme.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="saqc.core.FloatScheme.html" title="FloatScheme"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="saqc.core.DmpScheme.html" title="DmpScheme"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../modules/SaQCCore.html" accesskey="U">SaQC</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Flags</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="flags">
+<h1>Flags<a class="headerlink" href="#flags" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="saqc.core.Flags">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">Flags</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raw_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">copy</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/saqc/core/flags.html#Flags"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#saqc.core.Flags" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>SaQC’s flags container.</p>
+<p>This container class holds the quality flags associated with the data. It hold key-value pairs, where
+the key is the name of the column and the value is a <code class="docutils literal notranslate"><span class="pre">pandas.Series</span></code> of flags. The index of the series
+and the key-value pair can be assumed to be immutable, which means, only the <em>values</em> of the series can
+be change, once the series exist.
+In other words: <strong>an existing column can not be overwritten by a column with a different index.</strong></p>
+<p>The flags can be accessed via <code class="docutils literal notranslate"><span class="pre">__getitem__</span></code> and <code class="docutils literal notranslate"><span class="pre">__setitem__</span></code>, in real life known as the <cite>[]</cite>-operator.</p>
+<dl class="simple">
+<dt>For the curious:</dt><dd><p>Under the hood, the series are stored in a <cite>history</cite>, which allows the advanced user to retrieve all flags
+once was set in this object, but in the most cases this is irrelevant. For simplicity one can safely assume,
+that this class works just stores the flag-series one sets.</p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="saqc.core.initFlagsLike.html#saqc.core.initFlagsLike" title="saqc.core.initFlagsLike"><code class="xref py py-obj docutils literal notranslate"><span class="pre">initFlagsLike</span></code></a></dt><dd><p>create a Flags instance, with same dimensions as a reference object.</p>
+</dd>
+<dt><a class="reference internal" href="saqc.core.History.html#saqc.core.History" title="saqc.core.History"><code class="xref py py-obj docutils literal notranslate"><span class="pre">History</span></code></a></dt><dd><p>class that actually store the flags</p>
+</dd>
+</dl>
+</div>
+<p class="rubric">Examples</p>
+<p>We create an empty instance, by calling <code class="docutils literal notranslate"><span class="pre">Flags</span></code> without any arguments and then add a column to it.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="kn">from</span> <span class="nn">saqc.constants</span> <span class="kn">import</span> <span class="n">UNFLAGGED</span><span class="p">,</span> <span class="n">BAD</span><span class="p">,</span> <span class="n">DOUBTFUL</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span> <span class="o">=</span> <span class="n">saqc</span><span class="o">.</span><span class="n">Flags</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span>
+<span class="go">Empty Flags</span>
+<span class="go">Columns: []</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span><span class="p">[</span><span class="s1">&#39;v0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">BAD</span><span class="p">,</span><span class="n">BAD</span><span class="p">,</span><span class="n">UNFLAGGED</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span> 
+<span class="go">      v0 |</span>
+<span class="go">======== |</span>
+<span class="go">0  255.0 |</span>
+<span class="go">1  255.0 |</span>
+<span class="go">2   -inf |</span>
+</pre></div>
+</div>
+<p>Once the column exist, we cannot overwrite it anymore, with a different series.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span><span class="p">[</span><span class="s1">&#39;v0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="mf">666.</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span> 
+<span class="gt">Traceback (most recent call last):</span>
+  <span class="c">...</span>
+<span class="gr">ValueError</span>: <span class="n">Index does not match</span>
+</pre></div>
+</div>
+<p>But if we pass a series, which index match it will work,
+because the series now is interpreted as value-to-set.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span><span class="p">[</span><span class="s1">&#39;v0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">DOUBTFUL</span><span class="p">,</span><span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span><span class="n">DOUBTFUL</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span> 
+<span class="go">      v0 |</span>
+<span class="go">======== |</span>
+<span class="go">0   25.0 |</span>
+<span class="go">1  255.0 |</span>
+<span class="go">2   25.0 |</span>
+</pre></div>
+</div>
+<p>As we see above, the column now holds a combination from the values from the
+first and the second set. This is, because <code class="docutils literal notranslate"><span class="pre">numpy.nan</span></code> was used.
+We can inspect all the updates that was
+made by looking in the history.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span><span class="p">[</span><span class="s1">&#39;v0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">Series</span><span class="p">([</span><span class="n">DOUBTFUL</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">nan</span><span class="p">,</span> <span class="n">DOUBTFUL</span><span class="p">],</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s1">&#39;v0&#39;</span><span class="p">]</span> 
+<span class="go">      0     1     2</span>
+<span class="go">0  255.0  25.0  25.0</span>
+<span class="go">1  255.0   nan   nan</span>
+<span class="go">2   -inf  25.0  25.0</span>
+</pre></div>
+</div>
+<p>As we see now, the second call sets <code class="docutils literal notranslate"><span class="pre">25.0</span></code> and shadows (represented by the parentheses) <code class="docutils literal notranslate"><span class="pre">(255.0)</span></code> in the
+first row and <code class="docutils literal notranslate"><span class="pre">(-inf)</span></code> in the last, but in the second row <code class="docutils literal notranslate"><span class="pre">255.0</span></code> still is valid, because it was
+<cite>not touched</cite> by the set.</p>
+<p>It is also possible to set values by a mask, which can be interpreted as condidional setting.
+Imagine we want to <cite>reset</cite> all flags to <code class="docutils literal notranslate"><span class="pre">0.</span></code> if the existing flags are lower that <code class="docutils literal notranslate"><span class="pre">255.</span></code>.</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span> <span class="o">=</span> <span class="n">flags</span><span class="p">[</span><span class="s1">&#39;v0&#39;</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">BAD</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">mask</span> 
+<span class="go">0     True</span>
+<span class="go">1    False</span>
+<span class="go">2     True</span>
+<span class="go">Name: 2, dtype: bool</span>
+</pre></div>
+</div>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span><span class="p">[</span><span class="n">mask</span><span class="p">,</span> <span class="s1">&#39;v0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span> 
+<span class="go">      v0 |</span>
+<span class="go">======== |</span>
+<span class="go">0    0.0 |</span>
+<span class="go">1  255.0 |</span>
+<span class="go">2    0.0 |</span>
+</pre></div>
+</div>
+<p>The objects you can pass as a row selector (<code class="docutils literal notranslate"><span class="pre">flags[rows,</span> <span class="pre">column]</span></code>) are:</p>
+<ul class="simple">
+<li><p>boolen arraylike, with or without index. Must have same length than the undeliing series.</p></li>
+<li><p>slices working on the index</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">pd.Index</span></code>, which must be a subset of the existing index</p></li>
+</ul>
+<p>For example, to set <cite>all</cite> values to a scalar value, use a Null-slice:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span><span class="p">[:,</span> <span class="s1">&#39;v0&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">99.0</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span> 
+<span class="go">     v0 |</span>
+<span class="go">======= |</span>
+<span class="go">0  99.0 |</span>
+<span class="go">1  99.0 |</span>
+<span class="go">2  99.0 |</span>
+</pre></div>
+</div>
+<p>After all calls presented here, the history looks like this:</p>
+<div class="highlight-pycon3 notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">flags</span><span class="o">.</span><span class="n">history</span><span class="p">[</span><span class="s1">&#39;v0&#39;</span><span class="p">]</span>
+<span class="go">      0     1     2    3     4</span>
+<span class="go">0  255.0  25.0  25.0  0.0  99.0</span>
+<span class="go">1  255.0   nan   nan  nan  99.0</span>
+<span class="go">2   -inf  25.0  25.0  0.0  99.0</span>
+</pre></div>
+</div>
+<p class="rubric">Attributes Summary</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#saqc.core.Flags.columns" title="saqc.core.Flags.columns"><code class="xref py py-obj docutils literal notranslate"><span class="pre">columns</span></code></a></p></td>
+<td><p>Column index of the flags container</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#saqc.core.Flags.empty" title="saqc.core.Flags.empty"><code class="xref py py-obj docutils literal notranslate"><span class="pre">empty</span></code></a></p></td>
+<td><p>True if flags has no columns.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#saqc.core.Flags.history" title="saqc.core.Flags.history"><code class="xref py py-obj docutils literal notranslate"><span class="pre">history</span></code></a></p></td>
+<td><p>Accessor for the flags history.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods Summary</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#saqc.core.Flags.copy" title="saqc.core.Flags.copy"><code class="xref py py-obj docutils literal notranslate"><span class="pre">copy</span></code></a>([deep])</p></td>
+<td><p>Copy the flags container.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#saqc.core.Flags.drop" title="saqc.core.Flags.drop"><code class="xref py py-obj docutils literal notranslate"><span class="pre">drop</span></code></a>(key)</p></td>
+<td><p>Delete a flags column.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#saqc.core.Flags.toDios" title="saqc.core.Flags.toDios"><code class="xref py py-obj docutils literal notranslate"><span class="pre">toDios</span></code></a>()</p></td>
+<td><p>Transform the flags container to a <code class="docutils literal notranslate"><span class="pre">dios.DictOfSeries</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#saqc.core.Flags.toFrame" title="saqc.core.Flags.toFrame"><code class="xref py py-obj docutils literal notranslate"><span class="pre">toFrame</span></code></a>()</p></td>
+<td><p>Transform the flags container to a <code class="docutils literal notranslate"><span class="pre">pd.DataFrame</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes Documentation</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="saqc.core.Flags.columns">
+<span class="sig-name descname"><span class="pre">columns</span></span><a class="headerlink" href="#saqc.core.Flags.columns" title="Permalink to this definition">¶</a></dt>
+<dd><p>Column index of the flags container</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>columns</strong> – The columns index</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>pd.Index</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="saqc.core.Flags.empty">
+<span class="sig-name descname"><span class="pre">empty</span></span><a class="headerlink" href="#saqc.core.Flags.empty" title="Permalink to this definition">¶</a></dt>
+<dd><p>True if flags has no columns.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><code class="docutils literal notranslate"><span class="pre">True</span></code> if the container has no columns, otherwise <code class="docutils literal notranslate"><span class="pre">False</span></code>.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="saqc.core.Flags.history">
+<span class="sig-name descname"><span class="pre">history</span></span><a class="headerlink" href="#saqc.core.Flags.history" title="Permalink to this definition">¶</a></dt>
+<dd><p>Accessor for the flags history.</p>
+<p>Access via <code class="docutils literal notranslate"><span class="pre">flags.history['var']</span></code>.
+To set a new history use <code class="docutils literal notranslate"><span class="pre">flags.history['var']</span> <span class="pre">=</span> <span class="pre">value</span></code>.
+The passed value must be a instance of History or must be convertible to a
+history.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p><strong>history</strong> – Accessor for the flags history</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference internal" href="saqc.core.History.html#saqc.core.History" title="saqc.core.History">History</a></p>
+</dd>
+</dl>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<dl class="simple">
+<dt><a class="reference internal" href="saqc.core.History.html#saqc.core.History" title="saqc.core.History"><code class="xref py py-obj docutils literal notranslate"><span class="pre">saqc.core.History</span></code></a></dt><dd><p>History storage class.</p>
+</dd>
+</dl>
+</div>
+</dd></dl>
+
+<p class="rubric">Methods Documentation</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="saqc.core.Flags.copy">
+<span class="sig-name descname"><span class="pre">copy</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">deep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/saqc/core/flags.html#Flags.copy"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#saqc.core.Flags.copy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Copy the flags container.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>deep</strong> (<em>bool</em><em>, </em><em>default True</em>) – If False, a new reference to the Flags container is returned,
+otherwise the underlying data is also copied.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>copy of flags</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="saqc.core.Flags.drop">
+<span class="sig-name descname"><span class="pre">drop</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/saqc/core/flags.html#Flags.drop"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#saqc.core.Flags.drop" title="Permalink to this definition">¶</a></dt>
+<dd><p>Delete a flags column.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>key</strong> (<em>str</em>) – column name</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>flags object with dropped column, not a copy</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="saqc.core.Flags.toDios">
+<span class="sig-name descname"><span class="pre">toDios</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/saqc/core/flags.html#Flags.toDios"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#saqc.core.Flags.toDios" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transform the flags container to a <code class="docutils literal notranslate"><span class="pre">dios.DictOfSeries</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dios.DictOfSeries</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="saqc.core.Flags.toFrame">
+<span class="sig-name descname"><span class="pre">toFrame</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/saqc/core/flags.html#Flags.toFrame"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#saqc.core.Flags.toFrame" title="Permalink to this definition">¶</a></dt>
+<dd><p>Transform the flags container to a <code class="docutils literal notranslate"><span class="pre">pd.DataFrame</span></code>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../modules/SaQCCore.html">Core</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../modules/SaQCCore.html#module-saqc.core">saqc.core Package</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="../modules/SaQCCore.html#functions">Functions</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="../modules/SaQCCore.html#classes">Classes</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.DmpScheme.html">DmpScheme</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">Flags</a></li>
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.FloatScheme.html">FloatScheme</a></li>
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.History.html">History</a></li>
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.PositionalScheme.html">PositionalScheme</a></li>
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.SaQC.html">SaQC</a></li>
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.SimpleScheme.html">SimpleScheme</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCTranslation.html">Translations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="saqc.core.DmpScheme.html"
+                          title="previous chapter">DmpScheme</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="saqc.core.FloatScheme.html"
+                          title="next chapter">FloatScheme</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/_api/saqc.core.Flags.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="saqc.core.FloatScheme.html" title="FloatScheme"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="saqc.core.DmpScheme.html" title="DmpScheme"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../modules/SaQCCore.html" >SaQC</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Flags</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>

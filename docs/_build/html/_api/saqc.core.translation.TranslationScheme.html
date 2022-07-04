@@ -1,0 +1,298 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>TranslationScheme &#8212; SaQC 2.0.1 documentation</title>
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/nature.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/plot_directive.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/jupyter-sphinx.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/thebelab.css" />
+    <link rel="stylesheet" type="text/css" href="../_static/tabs.css" />
+    <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+    <script src="../_static/jquery.js"></script>
+    <script src="../_static/underscore.js"></script>
+    <script src="../_static/doctools.js"></script>
+    <script src="../_static/thebelab-helper.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+    <script src="https://unpkg.com/@jupyter-widgets/html-manager@^0.20.1/dist/embed-amd.js"></script>
+    <link rel="shortcut icon" href="../_static/SaQCLogoSmall.png"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="SaQC" href="../modules/SaQCConstants.html" />
+    <link rel="prev" title="SimpleScheme" href="saqc.core.translation.SimpleScheme.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../modules/SaQCConstants.html" title="SaQC"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="saqc.core.translation.SimpleScheme.html" title="SimpleScheme"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../modules/SaQCTranslation.html" accesskey="U">SaQC</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">TranslationScheme</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <p><a class="reference external" href="https://www.ufz.de/"><img alt="ufzLogo" src="../_images/UFZLogo.png" style="width: 40%;" /></a> <a class="reference external" href="https://www.ufz.de/index.php?de=45348"><img alt="rdmLogo" class="align-right" src="../_images/RDMLogo.png" style="width: 22%;" /></a></p>
+<section id="translationscheme">
+<h1>TranslationScheme<a class="headerlink" href="#translationscheme" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="saqc.core.translation.TranslationScheme">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">TranslationScheme</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">forward</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">backward</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/saqc/core/translation/basescheme.html#TranslationScheme"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#saqc.core.translation.TranslationScheme" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class provides the basic translation mechanism and should serve as
+a base class for every other translation scheme.</p>
+<p>The general translation is realized through dictionary lookups, altough
+we might need to extend this logic to also allow calls to translation
+functions in the future. Currently at least one <cite>dict</cite> defining the
+‘forward’ translation  from ‘user flags’ -&gt; ‘internal flags’ needs to be
+provided.
+Optionally a second <cite>dict</cite> can be passed to map ‘internal flags’ -&gt; ‘user flags’,
+if the latter is not given, this ‘backward’ translation will inferred as
+the inverse of the ‘forward’ translation.</p>
+<p>The translation mechanism imposes a few restrictions:</p>
+<ul class="simple">
+<li><p>The scheme must be well definied, i.e. we need a backward translation for
+every forward translation (each value in <cite>self._forward</cite> needs a key in
+<cite>self._backward</cite>).</p></li>
+<li><p>We need translations for the special flags <cite>saqc.constants.UNFLAGGED</cite> and
+<cite>saqc.constants.BAD</cite>. That implies, that every valid translation scheme
+provides at least one user flag that maps to <cite>BAD</cite> and one that maps to
+<cite>UNFLAGGED</cite>.</p></li>
+</ul>
+<p class="rubric">Attributes Summary</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#saqc.core.translation.TranslationScheme.ARGUMENTS" title="saqc.core.translation.TranslationScheme.ARGUMENTS"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ARGUMENTS</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#saqc.core.translation.TranslationScheme.DFILTER_DEFAULT" title="saqc.core.translation.TranslationScheme.DFILTER_DEFAULT"><code class="xref py py-obj docutils literal notranslate"><span class="pre">DFILTER_DEFAULT</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Methods Summary</p>
+<table class="autosummary longtable docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 90%" />
+</colgroup>
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#saqc.core.translation.TranslationScheme.__call__" title="saqc.core.translation.TranslationScheme.__call__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__call__</span></code></a>(flag)</p></td>
+<td><p>Translate a scalar 'external flag' to an 'internal flag'</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#saqc.core.translation.TranslationScheme.backward" title="saqc.core.translation.TranslationScheme.backward"><code class="xref py py-obj docutils literal notranslate"><span class="pre">backward</span></code></a>(flags[, raw, attrs])</p></td>
+<td><p>Translate from 'internal flags' to 'external flags'</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#saqc.core.translation.TranslationScheme.forward" title="saqc.core.translation.TranslationScheme.forward"><code class="xref py py-obj docutils literal notranslate"><span class="pre">forward</span></code></a>(flags)</p></td>
+<td><p>Translate from 'external flags' to 'internal flags'</p></td>
+</tr>
+</tbody>
+</table>
+<p class="rubric">Attributes Documentation</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="saqc.core.translation.TranslationScheme.ARGUMENTS">
+<span class="sig-name descname"><span class="pre">ARGUMENTS</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">{}</span></em><a class="headerlink" href="#saqc.core.translation.TranslationScheme.ARGUMENTS" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="saqc.core.translation.TranslationScheme.DFILTER_DEFAULT">
+<span class="sig-name descname"><span class="pre">DFILTER_DEFAULT</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">-inf</span></em><a class="headerlink" href="#saqc.core.translation.TranslationScheme.DFILTER_DEFAULT" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<p class="rubric">Methods Documentation</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="saqc.core.translation.TranslationScheme.__call__">
+<span class="sig-name descname"><span class="pre">__call__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">flag</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/saqc/core/translation/basescheme.html#TranslationScheme.__call__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#saqc.core.translation.TranslationScheme.__call__" title="Permalink to this definition">¶</a></dt>
+<dd><p>Translate a scalar ‘external flag’ to an ‘internal flag’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>flag</strong> (<em>float</em><em>, </em><em>int</em><em>, </em><em>str</em>) – The external flag to translate</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="saqc.core.translation.TranslationScheme.backward">
+<span class="sig-name descname"><span class="pre">backward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">flags</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">raw</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attrs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/saqc/core/translation/basescheme.html#TranslationScheme.backward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#saqc.core.translation.TranslationScheme.backward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Translate from ‘internal flags’ to ‘external flags’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>flags</strong> (<em>pd.DataFrame</em>) – The external flags to translate</p></li>
+<li><p><strong>raw</strong> (<em>bool</em><em>, </em><em>default False</em>) – if True return data as DictOfSeries, otherwise as pandas DataFrame.</p></li>
+<li><p><strong>attrs</strong> (<em>dict</em><em> or </em><em>None</em><em>, </em><em>default None</em>) – global meta information of saqc-object</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>pd.DataFrame</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="saqc.core.translation.TranslationScheme.forward">
+<span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">flags</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/saqc/core/translation/basescheme.html#TranslationScheme.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#saqc.core.translation.TranslationScheme.forward" title="Permalink to this definition">¶</a></dt>
+<dd><p>Translate from ‘external flags’ to ‘internal flags’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>flags</strong> (<em>pd.DataFrame</em>) – The external flags to translate</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p>Flags object</p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+            <p class="logo"><a href="../index.html">
+              <img class="logo" src="../_static/SaQCLogo.png" alt="Logo"/>
+            </a></p>
+  <div>
+    <h3><a href="../index.html">Table of Contents</a></h3>
+    <ul>
+<li class="toctree-l1"><a class="reference external" href="https://git.ufz.de/rdm-software/saqc">Repository</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Getting started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/InstallationGuide.html">Installation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialAPI.html">Python API</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../gettingstarted/TutorialCLI.html">Command Line Application</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Cookbooks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/DataRegularisation.html">Data Regularisation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/OutlierDetection.html">Outlier Detection and Flagging</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../cookbooks/MultivariateFlagging.html">Multivariate Flagging</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Documentation</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/ConfigurationFiles.html">Configuration Files</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GenericFunctions.html">Generic Functions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/GlobalKeywords.html">Global Keywords</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/Customizations.html">Customizations</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/SourceTarget.html">Assigning results to new variables</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/FlaggingTranslation.html">Flags, History and Translations</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">SaQC</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQC.html">Package</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCCore.html">Core</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCFunctions.html">Test Functions</a></li>
+<li class="toctree-l1 current"><a class="reference internal" href="../modules/SaQCTranslation.html">Translations</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="../modules/SaQCTranslation.html#module-saqc.core.translation">saqc.core.translation Package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="../modules/SaQCTranslation.html#classes">Classes</a><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.translation.DmpScheme.html">DmpScheme</a></li>
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.translation.FloatScheme.html">FloatScheme</a></li>
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.translation.PositionalScheme.html">PositionalScheme</a></li>
+<li class="toctree-l4"><a class="reference internal" href="saqc.core.translation.SimpleScheme.html">SimpleScheme</a></li>
+<li class="toctree-l4 current"><a class="current reference internal" href="#">TranslationScheme</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="../modules/SaQCConstants.html">Constants</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer Resources</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../howtodoc/HowToDoc.html">Documentation Guide</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../documentation/WritingFunctions.html">Writing Functions</a></li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="saqc.core.translation.SimpleScheme.html"
+                          title="previous chapter">SimpleScheme</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="../modules/SaQCConstants.html"
+                          title="next chapter">SaQC</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/_api/saqc.core.translation.TranslationScheme.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="../py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="../modules/SaQCConstants.html" title="SaQC"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="saqc.core.translation.SimpleScheme.html" title="SimpleScheme"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">SaQC 2.0.1 documentation</a> &#187;</li>
+          <li class="nav-item nav-item-1"><a href="../modules/SaQCTranslation.html" >SaQC</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">TranslationScheme</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2020, Bert Palm, David Schäfer, Peter Lünenschloß, Florian Gransee.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 4.5.0.
+    </div>
+  </body>
+</html>
