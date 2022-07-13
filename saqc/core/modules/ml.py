@@ -30,7 +30,7 @@ class Ml:
         test_split: Optional[Union[float, str]] = None,
         feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
         dropna: bool = True,
-        training_kwargs: Optional[dict] = None,
+        ini_kwargs: Optional[dict] = None,
         multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
         base_estimater: Optional[callable] = None,
         errors: Literal['coerce', 'raise'] = 'raise',

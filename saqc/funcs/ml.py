@@ -187,7 +187,7 @@ def _generateSamples(
     # filter samples prior to flattening
     i_filter = np.ones(i_map_samples.shape[0], dtype=bool)
     if sfilter is not None:
-        f_wrap = lambda x: sfilter(np.where(x_mask, x, np.nan))
+        f_wrap = lambda x: sfilter(np.where(x_mask, x, np.nan), x)
         i_filter &= np.fromiter(map(f_wrap, x_samples), dtype=bool, count=x_samples.shape[0])
 
 
@@ -328,28 +328,29 @@ def _samplesToSplits(data_in, samples, test_split):
     return x_train, x_test, y_train, y_test
 
 
-def _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs, y_train, model_folder, mode):
+def _modelSelector(multi_target_model, base_estimator, target_idx, ini_kwargs, y_train, model_folder, mode):
     if multi_target_model == "chain":
-        multi_train_kwargs = {"order": train_kwargs.pop("order", None)}
+        multi_train_kwargs = {"order": ini_kwargs.pop("order", None)}
     else:
         multi_train_kwargs = {}
 
     if not base_estimator:
         for k in AUTO_ML_DEFAULT:
-            train_kwargs.setdefault(k, AUTO_ML_DEFAULT[k])
-            train_kwargs.update({"results_path": model_folder})
+            ini_kwargs.setdefault(k, AUTO_ML_DEFAULT[k])
+            ini_kwargs.update({"results_path": model_folder})
         if len(target_idx) > 1:
-            train_kwargs.pop("results_path", None)
-        model = AutoML(**train_kwargs)
+            ini_kwargs.pop("results_path", None)
+        model = AutoML(**ini_kwargs)
     else:
-        model = base_estimator(**train_kwargs)
+        model = base_estimator(**ini_kwargs)
+
 
     if y_train.max() == y_train.min():
         model = getattr(sklearn.dummy, f"Dummy{mode.capitalize()}")(
             strategy="constant", constant=y_train[0, 0]
         )
 
-    if len(target_idx) > 1:
+    if (len(target_idx) > 1):
         if mode == "regressor":
             model = MULTI_TARGET_REGRESSOR[multi_target_model](
                 model, **multi_train_kwargs
@@ -422,7 +423,7 @@ def trainModel(
     test_split: Optional[Union[float, str]] = None,
     feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
     dropna: bool = True,
-    train_kwargs: Optional[dict] = None,
+    ini_kwargs: Optional[dict] = None,
     multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
     base_estimator: Optional[BaseEstimator] = None,
     errors: Literal['coerce', 'raise'] = 'raise',
@@ -498,16 +499,16 @@ def trainModel(
         Drop samples that contain NaN values.
         In case of a multi target model, fitting with NaN containing samples is not supported.
 
-    train_kwargs : dict, default None
+    ini_kwargs : dict, default None
         Keywords to be passed on to the base estimators instantiation method.
         If the base estimator is an ``AutoML`` model (default), the train kwargs default to training an `Xgboost` model
         in "perform" mode. (``Algorithms=["Xgboost"]``, ``mode="Perform"``)
-        If multiple features get fitted, one can control the wrappers fitting order by passing the ``train_kwargs``
+        If multiple features get fitted, one can control the wrappers fitting order by passing the ``ini_kwargs``
         an "order" keyword. (If the wrapper is a Chain Model (default))
 
     multi_target_model : {"chain", "multi"}, default "chain"
         Which multi target wrapper to use for fitting multiple features.
-        To alter order in case of chain wrapper (default), add an "order" keyword to the ``train_kwargs``.
+        To alter order in case of chain wrapper (default), add an "order" keyword to the ``ini_kwargs``.
         The wrappers instantiated are the ``sklearn.multioutput`` models.
 
     base_estimator : BaseEstimator, default None
@@ -533,6 +534,8 @@ def trainModel(
         mapping 2 dimension `ndarrays` onto booleans.
         The filter function will be applied on samples of the shape ``(window, len(field))``.
         The columns of the samples directly correspond to the indices of ``fields``.
+        Use first argument to get masked samples, use second argument to get unmasked samples.
+
 
     Returns
     -------
@@ -567,7 +570,7 @@ def trainModel(
         shutil.rmtree(path)
         os.makedirs(path)
 
-    train_kwargs = train_kwargs or {}
+    ini_kwargs = ini_kwargs or {}
 
     if feature_mask is None:
         feature_mask = "target" if mode in ["classifier", "regressor"] else None
@@ -613,7 +616,7 @@ def trainModel(
     if not check_val:
         return data, flags
 
-    model = _modelSelector(multi_target_model, base_estimator, target_idx, train_kwargs, y_train, path, mode)
+    model = _modelSelector(multi_target_model, base_estimator, target_idx, ini_kwargs, y_train, path, mode)
 
     fitted = _modelFitting(x_train, y_train, model, mode)
 
