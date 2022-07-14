@@ -31,6 +31,7 @@ import shutil
 from saqc.funcs.outliers import flagRange
 from saqc.funcs.flagtools import clearFlags, transferFlags
 from saqc.funcs.tools import dropField
+import tqdm
 
 MULTI_TARGET_REGRESSOR = {"chain": sklearn.multioutput.RegressorChain,
                            "multi": sklearn.multioutput.MultiOutputRegressor}
@@ -147,7 +148,8 @@ def _generateSamples(
     x_mask: str = [],
     na_filter_x: bool = True,
     na_filter_y: bool = True,
-    sfilter: Optional[Callable] = None
+    sfilter: Optional[Callable] = None,
+    strafo: Optional[Callable] = None
 ):
 
     X = toSequence(X)
@@ -189,6 +191,18 @@ def _generateSamples(
     if sfilter is not None:
         f_wrap = lambda x: sfilter(np.where(x_mask, x, np.nan), x)
         i_filter &= np.fromiter(map(f_wrap, x_samples), dtype=bool, count=x_samples.shape[0])
+
+    # process samples prior to flattening - DWD project temp
+    if strafo is not None:
+        x_samples = x_samples.copy()
+        i_filter &= ~(np.isnan(x_samples).any(axis=(1,2)))
+        print(f'Warping {i_filter.sum()} samples.')
+        print(f'Sample Shape: {x_samples[0,:].shape}')
+        for i in enumerate(i_filter):
+            if i[1]:
+                O=strafo(x_samples[i[0],:,:])
+                x_samples[i[0],:,:] = O
+
 
 
     # flatten feature samples
@@ -324,7 +338,8 @@ def _samplesToSplits(data_in, samples, test_split):
     if x_test.shape[0] == 0:
         x_test = np.zeros_like(samples[3])
         y_test = np.zeros_like(samples[4])
-
+    print(f'No. Test Samples: {x_test.shape[0]}')
+    print(f'No. Train Samples: {x_train.shape[0]}')
     return x_train, x_test, y_train, y_test
 
 
@@ -430,6 +445,7 @@ def trainModel(
     dfilter: float = BAD,
     override: bool = False,
     sfilter: Optional[Callable] = None,
+    strafo: Optional[Callable] = None,
     **kwargs,
 ) -> Tuple[DictOfSeries, Flags]:
     """
@@ -536,6 +552,8 @@ def trainModel(
         The columns of the samples directly correspond to the indices of ``fields``.
         Use first argument to get masked samples, use second argument to get unmasked samples.
 
+    strafo : Callable, default None
+
 
     Returns
     -------
@@ -607,7 +625,8 @@ def trainModel(
         x_mask=feature_mask,
         na_filter_x=na_filter_x,
         na_filter_y=True,
-        sfilter=sfilter
+        sfilter=sfilter,
+        strafo=strafo,
     )
 
     x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, test_split)

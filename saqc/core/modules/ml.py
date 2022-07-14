@@ -6,7 +6,7 @@
 
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 from typing_extensions import Literal
 
 from saqc.constants import BAD, FILTER_ALL, FILTER_NONE
@@ -37,6 +37,7 @@ class Ml:
         dfilter: float = BAD,
         override: bool = False,
         sfilter: Optional[Callable] = None,
+        strafo: Optional[Callable] = None,
         **kwargs,
     ) -> saqc.SaQC:
         return self._defer("trainModel", locals())
