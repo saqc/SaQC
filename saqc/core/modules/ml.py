@@ -18,6 +18,32 @@ import pandas as pd
 
 
 class Ml:
+    @doc(saqc.funcs.ml.trainDeepModel.__doc__)
+    def trainDeepModel(
+        self,
+        field: str,
+        target: str,
+        window: Union[str, int],
+        target_idx: Union[int, list[int], Literal["center", "forward"]],
+        mode: Union[Literal["regressor", "classifier", "flagger"], str],
+        path: str,
+        test_split: Optional[Union[float, str]] = None,
+        feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
+        dropna: bool = True,
+        ini_kwargs: Optional[dict] = None,
+        compilation_kwargs: Optional[dict] = None,
+        fit_kwargs: Optional[dict] = None,
+        multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
+        base_estimater: Optional[callable] = None,
+        errors: Literal["coerce", "raise"] = "raise",
+        dfilter: float = BAD,
+        override: bool = False,
+        sfilter: Optional[Callable] = None,
+        strafo: Optional[Callable] = None,
+        **kwargs,
+    ) -> saqc.SaQC:
+        return self._defer("trainDeepModel", locals())
+
     @doc(saqc.funcs.ml.trainModel.__doc__)
     def trainModel(
         self,
@@ -33,7 +59,7 @@ class Ml:
         ini_kwargs: Optional[dict] = None,
         multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
         base_estimater: Optional[callable] = None,
-        errors: Literal['coerce', 'raise'] = 'raise',
+        errors: Literal["coerce", "raise"] = "raise",
         dfilter: float = BAD,
         override: bool = False,
         sfilter: Optional[Callable] = None,

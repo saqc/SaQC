@@ -30,6 +30,34 @@ from saqc.lib.rolling import customRoller
 T = TypeVar("T", str, float, int)
 
 
+def ccc_numpy(y_true, y_pred):
+    """Lin's Concordance correlation coefficient in numpy
+    https://en.wikipedia.org/wiki/Concordance_correlation_coefficient"""
+    import numpy as np
+
+    y_true = np.squeeze(y_true)
+    y_pred = np.squeeze(y_pred)
+    if y_pred.ndim > y_true.ndim:
+        print("...")
+        y_pred = y_pred[..., 0]
+
+    def ccc(x, y):
+
+        s_xy = np.cov([x, y], bias=True)[0, 1]
+
+        # means
+        x_m = np.mean(x)
+        y_m = np.mean(y)
+        # variances
+        s_x_sq = np.var(x)
+        s_y_sq = np.var(y)
+
+        # condordance correlation coefficient
+        ccc = (2.0 * s_xy) / (s_x_sq + s_y_sq + (x_m - y_m) ** 2)
+        return ccc
+
+    return ccc(y_true, y_pred)
+
 def assertScalar(name, value, optional=False):
     if (not np.isscalar(value)) and (value is not None) and (optional is True):
         raise ValueError(f"'{name}' needs to be a scalar or 'None'")

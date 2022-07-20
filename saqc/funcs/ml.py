@@ -13,6 +13,7 @@ import sklearn.multioutput
 from typing_extensions import Literal
 from supervised.automl import AutoML
 from datetime import datetime
+import tensorflow as tf
 
 
 import numpy as np
@@ -20,7 +21,7 @@ import pandas as pd
 import os
 import pickle
 from dios import DictOfSeries
-from saqc.lib.tools import toSequence, getFreqDelta
+from saqc.lib.tools import toSequence, getFreqDelta, ccc_numpy
 from saqc.funcs.tools import copyField
 from saqc.core import register, Flags
 from saqc.constants import BAD, UNFLAGGED, FILTER_NONE, FILTER_ALL
@@ -33,11 +34,15 @@ from saqc.funcs.flagtools import clearFlags, transferFlags
 from saqc.funcs.tools import dropField
 import tqdm
 
-MULTI_TARGET_REGRESSOR = {"chain": sklearn.multioutput.RegressorChain,
-                           "multi": sklearn.multioutput.MultiOutputRegressor}
+MULTI_TARGET_REGRESSOR = {
+    "chain": sklearn.multioutput.RegressorChain,
+    "multi": sklearn.multioutput.MultiOutputRegressor,
+}
 
-MULTI_TARGET_CLASSIFIER = {"chain": sklearn.multioutput.ClassifierChain,
-                           "multi": sklearn.multioutput.MultiOutputClassifier}
+MULTI_TARGET_CLASSIFIER = {
+    "chain": sklearn.multioutput.ClassifierChain,
+    "multi": sklearn.multioutput.MultiOutputClassifier,
+}
 
 MULTI_TARGET_MODELS = {
     "chain_reg": sklearn.multioutput.RegressorChain,
@@ -48,7 +53,8 @@ MULTI_TARGET_MODELS = {
 
 AUTO_ML_DEFAULT = {"algorithms": ("Xgboost",), "mode": "Perform"}
 
-MODEL_FOLDER_SUFFIX = 'model'
+MODEL_FOLDER_SUFFIX = "model"
+
 
 def _getSamplerParams(
     data: DictOfSeries,
@@ -134,9 +140,7 @@ def _splitViews(data, sub_len, cols):
 
 
 def _flattenSamples(samples):
-    return samples.reshape(
-        samples.shape[0], samples.shape[1] * samples.shape[2]
-    )
+    return samples.reshape(samples.shape[0], samples.shape[1] * samples.shape[2])
 
 
 def _generateSamples(
@@ -149,7 +153,7 @@ def _generateSamples(
     na_filter_x: bool = True,
     na_filter_y: bool = True,
     sfilter: Optional[Callable] = None,
-    strafo: Optional[Callable] = None
+    strafo: Optional[Callable] = None,
 ):
 
     X = toSequence(X)
@@ -190,20 +194,20 @@ def _generateSamples(
     i_filter = np.ones(i_map_samples.shape[0], dtype=bool)
     if sfilter is not None:
         f_wrap = lambda x: sfilter(np.where(x_mask, x, np.nan), x)
-        i_filter &= np.fromiter(map(f_wrap, x_samples), dtype=bool, count=x_samples.shape[0])
+        i_filter &= np.fromiter(
+            map(f_wrap, x_samples), dtype=bool, count=x_samples.shape[0]
+        )
 
     # process samples prior to flattening - DWD project temp
     if strafo is not None:
         x_samples = x_samples.copy()
-        i_filter &= ~(np.isnan(x_samples).any(axis=(1,2)))
-        print(f'Warping {i_filter.sum()} samples.')
-        print(f'Sample Shape: {x_samples[0,:].shape}')
+        i_filter &= ~(np.isnan(x_samples).any(axis=(1, 2)))
+        print(f"Warping {i_filter.sum()} samples.")
+        print(f"Sample Shape: {x_samples[0,:].shape}")
         for i in enumerate(i_filter):
             if i[1]:
-                O=strafo(x_samples[i[0],:,:])
-                x_samples[i[0],:,:] = O
-
-
+                O = strafo(x_samples[i[0], :, :])
+                x_samples[i[0], :, :] = O
 
     # flatten feature samples
     x_samples = _flattenSamples(x_samples)
@@ -302,6 +306,10 @@ def _makeScoreReports(y_pred_train, y_pred_test, y_train, y_test, mode):
                     metrics.r2_score(y_train, y_pred_train),
                     metrics.r2_score(y_test, y_pred_test),
                 ],
+                "ccc": [
+                    ccc_numpy(y_train, y_pred_train),
+                    ccc_numpy(y_test, y_pred_test)
+                ]
             }
         )
     elif mode == "classifier":
@@ -332,18 +340,25 @@ def _makeScoreReports(y_pred_train, y_pred_test, y_train, y_test, mode):
     return score_book, classification_report
 
 
-
 def _samplesToSplits(data_in, samples, test_split):
     x_train, x_test, y_train, y_test = _test_split(data_in.index, samples, test_split)
     if x_test.shape[0] == 0:
         x_test = np.zeros_like(samples[3])
         y_test = np.zeros_like(samples[4])
-    print(f'No. Test Samples: {x_test.shape[0]}')
-    print(f'No. Train Samples: {x_train.shape[0]}')
+    print(f"No. Test Samples: {x_test.shape[0]}")
+    print(f"No. Train Samples: {x_train.shape[0]}")
     return x_train, x_test, y_train, y_test
 
 
-def _modelSelector(multi_target_model, base_estimator, target_idx, ini_kwargs, y_train, model_folder, mode):
+def _modelSelector(
+    multi_target_model,
+    base_estimator,
+    target_idx,
+    ini_kwargs,
+    y_train,
+    model_folder,
+    mode,
+):
     if multi_target_model == "chain":
         multi_train_kwargs = {"order": ini_kwargs.pop("order", None)}
     else:
@@ -359,13 +374,12 @@ def _modelSelector(multi_target_model, base_estimator, target_idx, ini_kwargs, y
     else:
         model = base_estimator(**ini_kwargs)
 
-
     if y_train.max() == y_train.min():
         model = getattr(sklearn.dummy, f"Dummy{mode.capitalize()}")(
             strategy="constant", constant=y_train[0, 0]
         )
 
-    if (len(target_idx) > 1):
+    if len(target_idx) > 1:
         if mode == "regressor":
             model = MULTI_TARGET_REGRESSOR[multi_target_model](
                 model, **multi_train_kwargs
@@ -386,7 +400,9 @@ def _modelFitting(x_train, y_train, model, mode):
     return fitted
 
 
-def _writeResults(path, fitted, sampler_config, samples, score_book, classification_report):
+def _writeResults(
+    path, fitted, sampler_config, samples, score_book, classification_report, pickles={}
+):
     with open(os.path.join(path, "config.pkl"), "wb") as f:
         pickle.dump(sampler_config, f)
 
@@ -394,39 +410,50 @@ def _writeResults(path, fitted, sampler_config, samples, score_book, classificat
         pickle.dump(fitted, f)
 
     pd.Series().to_csv(os.path.join(path, "saqc_model_dir.csv"))
-    pd.Series(samples[3].squeeze()).to_csv(
-        os.path.join(path, f"x_feature_map.csv")
-    )
-    pd.Series(samples[4].squeeze()).to_csv(
-        os.path.join(path, f"y_feature_map.csv")
-    )
+    pd.Series(samples[3].squeeze()).to_csv(os.path.join(path, f"x_feature_map.csv"))
+    pd.Series(samples[4].squeeze()).to_csv(os.path.join(path, f"y_feature_map.csv"))
     pd.DataFrame(score_book).to_csv(os.path.join(path, f"scores.csv"))
     pd.DataFrame(classification_report).to_csv(
         os.path.join(path, f"classification_report.csv")
     )
+    for k in pickles:
+        with open(os.path.join(path, f"{k}.pkl"), "wb") as f:
+            pickle.dump(pickles[k], f)
     return 0
 
-def _handleEmptySetup(x_train, y_train, errors, target ,samples, path, sampler_config):
-    invalid = ''
-    if (x_train.shape[0] == 0):
-        invalid = 'empty training data set.'
+
+def _handleEmptySetup(x_train, y_train, errors, target, samples, path, sampler_config):
+    invalid = ""
+    if x_train.shape[0] == 0:
+        invalid = "empty training data set."
     elif y_train.max() == y_train.min():
-        invalid = 'constant target data set.'
+        invalid = "constant target data set."
     if len(invalid) > 0:
-        if errors == 'raise':
-            raise ValueError(f'Preparing data for {target}, resulted in invalid set-up, because of: {invalid}.')
+        if errors == "raise":
+            raise ValueError(
+                f"Preparing data for {target}, resulted in invalid set-up, because of: {invalid}."
+            )
         else:
             model = sklearn.multioutput.MultiOutputClassifier(
-                sklearn.dummy.DummyClassifier(strategy='constant', constant='NaN'))
+                sklearn.dummy.DummyClassifier(strategy="constant", constant="NaN")
+            )
             y_dummy = np.empty_like(samples[4])
-            y_dummy[:] = 'NaN'
+            y_dummy[:] = "NaN"
             fitted = model.fit(np.zeros_like(samples[3]), y_dummy)
-            _writeResults(path, fitted, sampler_config, samples, {'dummy': ['NaN']}, {'dummy': ['NaN']})
+            _writeResults(
+                path,
+                fitted,
+                sampler_config,
+                samples,
+                {"dummy": ["NaN"]},
+                {"dummy": ["NaN"]},
+            )
         return False
     return True
 
+
 @register(mask=[], demask=[], squeeze=[], multivariate=True, handles_target=True)
-def trainModel(
+def trainDeepModel(
     data: DictOfSeries,
     field: str,
     flags: Flags,
@@ -439,9 +466,10 @@ def trainModel(
     feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
     dropna: bool = True,
     ini_kwargs: Optional[dict] = None,
-    multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
+    compilation_kwargs: Optional[dict] = None,
+    fit_kwargs: Optional[dict] = None,
     base_estimator: Optional[BaseEstimator] = None,
-    errors: Literal['coerce', 'raise'] = 'raise',
+    errors: Literal["coerce", "raise"] = "raise",
     dfilter: float = BAD,
     override: bool = False,
     sfilter: Optional[Callable] = None,
@@ -578,13 +606,267 @@ def trainModel(
     * :py:meth:`saqc.SaQC.modelFlag`
     """
 
-    in_freq = getFreqDelta(pd.concat([data[f] for f in toSequence(field)+ toSequence(target)], axis=1).index)
+    in_freq = getFreqDelta(
+        pd.concat(
+            [data[f] for f in toSequence(field) + toSequence(target)], axis=1
+        ).index
+    )
     if in_freq is None:
-        raise IndexError('Input data empty, or not sampled at (multiples of) the same frequency')
+        raise IndexError(
+            "Input data empty, or not sampled at (multiples of) the same frequency"
+        )
+    if base_estimator is None:
+        base_estimator = tf.keras.Sequential
 
     if not os.path.exists(path):
         os.makedirs(path)
-    elif override & (os.path.basename(path).split('_')[-1] == MODEL_FOLDER_SUFFIX):
+    elif override & (os.path.basename(path).split("_")[-1] == MODEL_FOLDER_SUFFIX):
+        shutil.rmtree(path)
+        os.makedirs(path)
+
+    if feature_mask is None:
+        feature_mask = "target" if mode in ["classifier", "regressor"] else None
+
+    sampler_config = {
+        "predictors": field,
+        "window": window,
+        "predict": mode,
+        "target_idx": target_idx,
+        "feature_mask": feature_mask,
+        "target": target,
+        "dropna": dropna,
+    }
+
+    mode = "classifier" if mode != "regressor" else "regressor"
+
+    window, data_in, feature_mask, target, target_idx, na_filter_x = _getSamplerParams(
+        data, flags, **sampler_config
+    )
+
+    sampler_config["freq"] = getFreqDelta(data_in.index)
+
+    if dfilter < np.inf:
+        for f in data_in.columns:
+            if f in flags.columns:
+                data_in.loc[flags[f] >= dfilter, field] = np.nan
+
+    samples = _generateSamples(
+        X=field,
+        Y=target,
+        sub_len=window,
+        data=data_in,
+        target_idx=target_idx,
+        x_mask=feature_mask,
+        na_filter_x=na_filter_x,
+        na_filter_y=True,
+        sfilter=sfilter,
+        strafo=strafo,
+    )
+
+    x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, test_split)
+
+    check_val = _handleEmptySetup(
+        x_train, y_train, errors, target, samples, path, sampler_config
+    )
+    if not check_val:
+        return data, flags
+
+    model = base_estimator(**ini_kwargs)
+
+    if hasattr(model, 'compile'):
+        model.compile(**compilation_kwargs)
+
+    if fit_kwargs.pop('shuffle_all', False):
+        shuffle_ix = np.arange(x_train.shape[0])
+        np.random.shuffle(shuffle_ix)
+        x_train = x_train[shuffle_ix,...]
+        y_train = y_train[shuffle_ix,...]
+
+
+    history = model.fit(x_train, y_train, **fit_kwargs)
+
+    if os.path.exists(os.path.join(path,'bestCheck.index')):
+        model.load_weights(os.path.join(path,'bestCheck'))
+
+    y_pred_test, y_pred_train = model.predict(x_test), model.predict(x_train)
+
+    score_book, classification_report = _makeScoreReports(
+        y_pred_train, y_pred_test, y_train, y_test, mode
+    )
+
+    _writeResults(
+        path, model, sampler_config, samples, score_book, classification_report, pickles={'history': history}
+    )
+
+    return data, flags
+
+
+@register(mask=[], demask=[], squeeze=[], multivariate=True, handles_target=True)
+def trainModel(
+    data: DictOfSeries,
+    field: str,
+    flags: Flags,
+    target: str,
+    window: Union[str, int],
+    target_idx: Union[int, list, Literal["center", "forward"]],
+    mode: Union[Literal["regressor", "classifier", "flagger"], str],
+    path: str,
+    test_split: Optional[Union[float, str]] = None,
+    feature_mask: Optional[Union[str, np.array, pd.DataFrame, dict]] = None,
+    dropna: bool = True,
+    ini_kwargs: Optional[dict] = None,
+    multi_target_model: Optional[Literal["chain", "multi"]] = "chain",
+    base_estimator: Optional[BaseEstimator] = None,
+    errors: Literal["coerce", "raise"] = "raise",
+    dfilter: float = BAD,
+    override: bool = False,
+    sfilter: Optional[Callable] = None,
+    strafo: Optional[Callable] = None,
+    **kwargs,
+) -> Tuple[DictOfSeries, Flags]:
+    """
+    Fits a machine learning model to the target time series or its flags.
+
+    Parameters
+    ----------
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+
+    field : str
+        The fieldnames of the column, holding the Predictor time series.
+
+    flags : saqc.Flags
+        Container to store flags of the data.
+
+    target : str
+        The fieldname of the column, holding the Target time series.
+
+    window : {int, str}
+        Window size of predictor series.
+
+    target_idx : {List[int], "center", "Forward"}
+        Index of the target values relatively to the window of predictors.
+
+    mode : {"regressor", "classifier", "flagger",  str}
+        Type of model to be trained.
+
+        * "flagger" trains a binary classifier on the flags value of `target`.
+        * If another string is passed, a binary classifier gets trained on the flags column labeled `mode`.
+
+    path : str
+        File path to write the training results to.
+        The folder will contain:
+
+        * the pickled model fit: ``model.pkl``
+        * the pickled configuration dictionary: ``config.pkl``
+        * a csv file listing model fit scores for training and test data: ``scores.csv``
+        * mapping of timeseries indices to feature indices: ``x_feature_map.csv``, ``y_feature_map.csv``
+        * If trained model is a `mlyar.AutoML` model, its report path will also point to `model_folder` and the
+          report is written to it as well.
+
+    test_split: {float, str}, default None
+        Rule for splitting data up, into training and testing data.
+
+        * If ``None`` is passed, no test data will be set aside.
+        * If a float is passed, it will be interpreted as the proportion of randomly selected data, that is to be
+          set aside for test score calculation (0 <= ``test_split`` <= 1).
+        * If a string is passed, it will be interpreted as split date time point: Any data sampled before ``test_split``
+          will be comprised in the training data set, the rest will be used for testing.
+
+        Test data scores are written to the `score.csv` file in the `model_folder` after model fit.
+
+    feature_mask: {"target", pd.DataFrame, dict, np.ndarray}, default None
+        Controls which indices from the input variables are to be hidden (=dropped) while training.
+        When ``None`` is passed (default), and a ``mode`` is either `"classifier"` or `"regressor"`, the target
+        indices of the target variable are dropped, if the target variable is part of the predictors set. If mode is
+        `"flagger"`, no features get hidden by the default ``feature_mask``.
+
+        * "target" - Drop the target indices of the target variable
+        * `dict`: A dictionary with variable names as keys and integer lists as items, denoting the indices to be
+          dropped.
+        * `pd.DataFrame`: A boolean Dataframe, with column named as the variables to be masked, and rows according to
+          the number of indices in the feature window.
+
+    dropna: bool, default True
+        Drop samples that contain NaN values.
+        In case of a multi target model, fitting with NaN containing samples is not supported.
+
+    ini_kwargs : dict, default None
+        Keywords to be passed on to the base estimators instantiation method.
+        If the base estimator is an ``AutoML`` model (default), the train kwargs default to training an `Xgboost` model
+        in "perform" mode. (``Algorithms=["Xgboost"]``, ``mode="Perform"``)
+        If multiple features get fitted, one can control the wrappers fitting order by passing the ``ini_kwargs``
+        an "order" keyword. (If the wrapper is a Chain Model (default))
+
+    multi_target_model : {"chain", "multi"}, default "chain"
+        Which multi target wrapper to use for fitting multiple features.
+        To alter order in case of chain wrapper (default), add an "order" keyword to the ``ini_kwargs``.
+        The wrappers instantiated are the ``sklearn.multioutput`` models.
+
+    base_estimator : BaseEstimator, default None
+        The base estimator to be fitted to the data. If ``None`` (default), the base estimator
+        is an ``AutoML`` (mljar-supervised) instance.
+
+    errors : {'coerce', 'raise'}, default 'raise'
+        When the training data set turns out to be empty, after all invalid samples are removed,
+        or when the target data turns out to be constant, either fail ('raise'), or write a dummy
+        model to the results path ('coerce'), predicting always 'NaN', and continue program.
+
+    dfilter : float, default BAD
+        Filter Field and Target variables.
+
+    override : bool, default False
+        Override the ``path`` directory, if it already exists.
+        Fitting a ``mljar.AutoML`` model with not-empty target folder will fail, if ``override`` is ``False``.
+        To prevent accidents, only folders named with the `MODEL_FOLDER_SUFFIX` (default:"_model") can
+        be overriden on the fly.
+
+    sfilter : Callable, default None
+        Filter function to be applied on the samples generated from the features. It must be a function,
+        mapping 2 dimension `ndarrays` onto booleans.
+        The filter function will be applied on samples of the shape ``(window, len(field))``.
+        The columns of the samples directly correspond to the indices of ``fields``.
+        Use first argument to get masked samples, use second argument to get unmasked samples.
+
+    strafo : Callable, default None
+
+
+    Returns
+    -------
+    data : dios.DictOfSeries
+        A dictionary of pandas.Series, holding all the data.
+
+    flags : saqc.Flags
+        The quality flags of data
+
+    Notes
+    -----
+    * ``field`` and ``target`` data has to be sampled at the same frequency for the training to
+      work as expected.
+    * Multi Output Models cant be trained on samples containing NaN values. So those will
+      get filtered outomatically.
+    * Currently Multi Output Classification is not supported for ``AutoML`` models.
+
+    See Also
+    --------
+    * :py:meth:`saqc.SaQC.modelPredict`
+    * :py:meth:`saqc.SaQC.modelImpute`
+    * :py:meth:`saqc.SaQC.modelFlag`
+    """
+
+    in_freq = getFreqDelta(
+        pd.concat(
+            [data[f] for f in toSequence(field) + toSequence(target)], axis=1
+        ).index
+    )
+    if in_freq is None:
+        raise IndexError(
+            "Input data empty, or not sampled at (multiples of) the same frequency"
+        )
+
+    if not os.path.exists(path):
+        os.makedirs(path)
+    elif override & (os.path.basename(path).split("_")[-1] == MODEL_FOLDER_SUFFIX):
         shutil.rmtree(path)
         os.makedirs(path)
 
@@ -631,19 +913,27 @@ def trainModel(
 
     x_train, x_test, y_train, y_test = _samplesToSplits(data_in, samples, test_split)
 
-    check_val = _handleEmptySetup(x_train, y_train, errors, target ,samples, path, sampler_config)
+    check_val = _handleEmptySetup(
+        x_train, y_train, errors, target, samples, path, sampler_config
+    )
     if not check_val:
         return data, flags
 
-    model = _modelSelector(multi_target_model, base_estimator, target_idx, ini_kwargs, y_train, path, mode)
+    model = _modelSelector(
+        multi_target_model, base_estimator, target_idx, ini_kwargs, y_train, path, mode
+    )
 
-    fitted = _modelFitting(x_train, y_train, model, mode)
+    model = _modelFitting(x_train, y_train, model, mode)
 
     y_pred_test, y_pred_train = model.predict(x_test), model.predict(x_train)
 
-    score_book, classification_report = _makeScoreReports(y_pred_train, y_pred_test, y_train, y_test, mode)
+    score_book, classification_report = _makeScoreReports(
+        y_pred_train, y_pred_test, y_train, y_test, mode
+    )
 
-    _writeResults(path, fitted, sampler_config, samples, score_book, classification_report)
+    _writeResults(
+        path, model, sampler_config, samples, score_book, classification_report
+    )
 
     return data, flags
 
@@ -747,9 +1037,7 @@ def modelPredict(
         for p in sampler_config["predictors"]
     ]
 
-    sampler_config["dropna"] = (
-        dropna or sampler_config["dropna"]
-    )
+    sampler_config["dropna"] = dropna or sampler_config["dropna"]
 
     window, data_in, x_mask, target, target_idx, na_filter_x = _getSamplerParams(
         data, flags, **sampler_config
