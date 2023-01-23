@@ -218,13 +218,17 @@ def _unmaskData(
     return data
 
 
-def _expandField(regex, columns, field) -> List[str]:
+def _expandField(regex: bool, columns: pd.Index, field: str | Sequence[str] | None) -> List[str]:
     """
     Expand regular expressions to concrete field names.
     """
+    if field is None:
+        return columns.to_list()
+
     if regex:
         fmask = columns.str.match(field)
         return columns[fmask].tolist()
+
     return toSequence(field)
 
 
@@ -324,10 +328,10 @@ def register(
         @functools.wraps(func)
         def inner(
             saqc,
-            field,
-            *args,
+            field: str | Sequence[str] | None = None,
             regex: bool = False,
             flag: ExternalFlag | OptionalNone = OptionalNone(),
+            *args,
             **kwargs,
         ) -> "SaQC":
 

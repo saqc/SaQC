@@ -91,7 +91,7 @@ def test_copy(data):
         assert copy._data._data is not qc._data._data
         assert copy._flags._data is not qc._flags._data
 
-    # underling data copied
+    # underlying data copied
     assert deep._data._data.iloc[0] is not qc._data._data.iloc[0]
     assert (
         deep._flags._data["var1"].hist.index is not qc._flags._data["var1"].hist.index
@@ -346,6 +346,13 @@ def test_columnConsitency(data):
     qc = SaQC(data)
     with pytest.raises(RuntimeError):
         qc.flagFoo(field)
+
+
+def test_optionalField(data):
+    qc = SaQC(data)
+    qc = qc.flagRange(min=10, max=10)
+    for var in data.columns:
+        assert qc._flags.history[var].empty is False
 
 
 @pytest.mark.parametrize(
