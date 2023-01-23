@@ -9,7 +9,17 @@ from __future__ import annotations
 import functools
 import inspect
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Sequence, Tuple, TypeVar, Concatenate
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Concatenate,
+    Dict,
+    List,
+    Sequence,
+    Tuple,
+    TypeVar,
+)
 
 import numpy as np
 import pandas as pd
@@ -218,7 +228,9 @@ def _unmaskData(
     return data
 
 
-def _expandField(regex: bool, columns: pd.Index, field: str | Sequence[str] | None) -> List[str]:
+def _expandField(
+    regex: bool, columns: pd.Index, field: str | Sequence[str] | None
+) -> List[str]:
     """
     Expand regular expressions to concrete field names.
     """
