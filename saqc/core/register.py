@@ -9,7 +9,7 @@ from __future__ import annotations
 import functools
 import inspect
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Sequence, Tuple, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Sequence, Tuple, TypeVar, Concatenate
 
 import numpy as np
 import pandas as pd
@@ -318,6 +318,11 @@ def register(
         itself. Mandatory for multivariate functions.
     """
 
+    # NOTE:
+    # def outer(func: Callable[Concatenate[SaQC, str, P], SaQC]) -> Callable[Concatenate[SaQC, str | None, P], SaQC]:
+    # This would in theory change the type of field from `str` to `str | None`. Unfortunately
+    # typing.Concatenate injects Keyword only arguments, which makes the typechecker unhappy
+    # with `flagFoo()` and only stops complaining on `flagRange(None)`
     def outer(func: Callable[P, SaQC]) -> Callable[P, SaQC]:
 
         func_signature = inspect.signature(func)
@@ -331,8 +336,8 @@ def register(
             field: str | Sequence[str] | None = None,
             regex: bool = False,
             flag: ExternalFlag | OptionalNone = OptionalNone(),
-            *args,
-            **kwargs,
+            *args: P.args,
+            **kwargs: P.kwargs,
         ) -> "SaQC":
 
             # args -> kwargs
