@@ -356,8 +356,6 @@ def test_harmSingleVarInterpolationAgg(data, params, expected):
 )
 def test_harmSingleVarInterpolationShift(data, params, expected):
     flags = initFlagsLike(data)
-    field = "data"
-    h_field = "data_harm"
     pre_data = data.copy()
     pre_flags = flags.copy()
     method, freq = params
@@ -365,16 +363,16 @@ def test_harmSingleVarInterpolationShift(data, params, expected):
     qc = SaQC(data, flags)
 
     qc = qc.copyField("data", "data_harm")
-    qc = qc.shift(h_field, freq, method=method)
-    assert qc.data[h_field].equals(expected)
-    checkDataFlagsInvariants(qc._data, qc._flags, field, identical=True)
+    qc = qc.shift("data_harm", freq, method=method)
+    assert qc.data["data_harm"].equals(expected)
+    checkDataFlagsInvariants(qc._data, qc._flags, "data", identical=True)
 
-    qc = qc.concatFlags(h_field, target=field, method="inverse_" + method)
-    checkDataFlagsInvariants(qc._data, qc._flags, field, identical=True)
+    qc = qc.concatFlags("data_harm", target="data", method="inverse_" + method)
+    checkDataFlagsInvariants(qc._data, qc._flags, "data", identical=True)
 
-    qc = qc.dropField(h_field)
-    assert qc.data[field].equals(pre_data[field])
-    assert qc.flags[field].equals(pre_flags[field])
+    qc = qc.dropField("data_harm")
+    assert qc.data["data"].equals(pre_data["data"])
+    assert qc.flags["data"].equals(pre_flags["data"])
 
 
 def test_concatFlags():

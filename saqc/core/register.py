@@ -13,7 +13,6 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Concatenate,
     Dict,
     List,
     Sequence,
@@ -346,9 +345,9 @@ def register(
         def inner(
             saqc,
             field: str | Sequence[str] | None = None,
+            *args: P.args,
             regex: bool = False,
             flag: ExternalFlag | OptionalNone = OptionalNone(),
-            *args: P.args,
             **kwargs: P.kwargs,
         ) -> "SaQC":
 
