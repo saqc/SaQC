@@ -10,7 +10,7 @@ from __future__ import annotations
 import warnings
 from copy import copy as shallowcopy
 from copy import deepcopy
-from typing import Any, Hashable, MutableMapping
+from typing import Any, Hashable, MutableMapping, Sequence
 
 import numpy as np
 import pandas as pd
@@ -27,7 +27,7 @@ from saqc.core.translation import (
     TranslationScheme,
 )
 from saqc.funcs import FunctionsMixin
-from saqc.lib.tools import concatDios
+from saqc.lib.tools import concatDios, toSequence
 
 # warnings
 pd.set_option("mode.chained_assignment", "warn")
@@ -65,7 +65,7 @@ class SaQC(FunctionsMixin):
     def _construct(self, **attributes) -> "SaQC":
         """
         Construct a new `SaQC`-Object from `self` and optionally inject
-        attributes with any chechking and overhead.
+        attributes without any chechking and overhead.
 
         Parameters
         ----------
@@ -125,6 +125,31 @@ class SaQC(FunctionsMixin):
         if key not in FUNC_MAP:
             raise AttributeError(f"SaQC has no attribute {repr(key)}")
         return partial(FUNC_MAP[key], self)
+
+    def __getitem__(self, key: str | Sequence[str] | slice) -> SaQC:
+
+        if isinstance(key, slice):
+            key = self._data.columns.to_list()
+        keys = toSequence(key)
+
+        return self._construct(_data=self._data[keys], _flags=self._flags.select(keys))
+
+    def __setitem__(self, key: str | Sequence[str] | slice, obj: SaQC) -> None:
+
+        if isinstance(key, slice):
+            key = self._data.columns.to_list()
+
+        lkeys = toSequence(key)
+        rkeys = obj._data.columns
+        if len(lkeys) != len(rkeys):
+            raise ValueError(
+                f"cannot set value object with {len(rkeys)} fields to indexing result of {len(lkeys)} fields"
+            )
+
+        for lkey, rkey in zip(lkeys, rkeys):
+            self._data[lkey] = obj._data[rkey]
+            self._flags[lkey] = obj._flags[rkey]
+            self._flags.history[lkey] = obj._flags.history[rkey]
 
     def copy(self, deep=True):
         copyfunc = deepcopy if deep else shallowcopy

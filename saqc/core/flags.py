@@ -6,13 +6,14 @@
 
 from __future__ import annotations
 
-from typing import DefaultDict, Dict, Iterable, Mapping, Tuple, Type, Union
+from typing import DefaultDict, Dict, Iterable, Mapping, Sequence, Tuple, Type, Union
 
 import numpy as np
 import pandas as pd
 
 import dios
 from saqc.core.history import History
+from saqc.lib.tools import toSequence
 
 _VAL = Union[pd.Series, History]
 DictLike = Union[
@@ -318,6 +319,12 @@ class Flags:
 
     # ----------------------------------------------------------------------
     # item access
+    def select(self, key: str | Sequence[str]) -> Flags:
+        key = toSequence(key)
+        out = Flags({k: self._data[k] for k in key})
+        for f in out.columns:
+            out.history[f] = self.history[f]
+        return out
 
     def __getitem__(self, key: str) -> pd.Series:
         return self._data[key].squeeze()
