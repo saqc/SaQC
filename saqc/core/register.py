@@ -9,16 +9,7 @@ from __future__ import annotations
 import functools
 import inspect
 import warnings
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    List,
-    Sequence,
-    Tuple,
-    TypeVar,
-)
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Sequence, Tuple, TypeVar
 
 import numpy as np
 import pandas as pd
