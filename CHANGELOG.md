@@ -9,6 +9,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 ## Unreleased
 [List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.3.0...develop)
 ### Added
+- SaQC Objects support the slicing operators ``__getitem__``, ``__setitem__``
 ### Changed
 ### Removed
 ### Fixed
