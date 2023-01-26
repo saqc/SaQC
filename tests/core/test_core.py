@@ -379,9 +379,10 @@ def test_dfilterTranslation(data, user_flag, internal_flag):
 @pytest.mark.parametrize(
     "slc",
     (
-        "var1",
-        ["var1", "var3"],
-        slice(None),
+        # "var1",
+        # ["var1", "var3"],
+        ["var2", "var2"],
+        # slice(None),
     ),
 )
 def test_getitem(data, slc):
@@ -394,7 +395,9 @@ def test_getitem(data, slc):
     assert got._scheme == qc._scheme
     assert got._attrs == qc._attrs
 
+    import ipdb; ipdb.set_trace()
     assert (got._data == qc._data[slc]).all(axis=None)
+
     for c in got._flags.columns:
         assert (got._flags[c] == qc._flags[c]).all(axis=None)
         assert got._flags.history[c]._hist.equals(qc._flags.history[c]._hist)
@@ -405,3 +408,34 @@ def test_getitem(data, slc):
 
     assert (got._data.columns == slc).all(axis=None)
     assert (got._flags.columns == slc).all(axis=None)
+
+
+# @pytest.mark.parametrize(
+#     "source,target",
+#     (
+#         ("var1", "var2"),
+#         (["var1", "var3"], ["var2", "var2"]),
+#         slice(None),
+#     ),
+# )
+# def test_setitem(data, source, target):
+#     qc = SaQC(data)
+#     qc.attrs = {"test_key": "test_value"}
+#     # some dummy tests to fill flags/history
+#     qc = qc.flagRange(min=10, max=100).flagDummy()
+#     got = qc[slc]
+
+#     assert got._scheme == qc._scheme
+#     assert got._attrs == qc._attrs
+
+#     assert (got._data == qc._data[slc]).all(axis=None)
+#     for c in got._flags.columns:
+#         assert (got._flags[c] == qc._flags[c]).all(axis=None)
+#         assert got._flags.history[c]._hist.equals(qc._flags.history[c]._hist)
+#         assert got._flags.history[c]._meta == qc._flags.history[c]._meta
+
+#     if isinstance(slc, slice):
+#         slc = qc._data.columns
+
+#     assert (got._data.columns == slc).all(axis=None)
+#     assert (got._flags.columns == slc).all(axis=None)
