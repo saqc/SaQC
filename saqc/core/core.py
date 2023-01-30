@@ -152,10 +152,21 @@ class SaQC(FunctionsMixin):
                 f"cannot set value object with {len(rkeys)} fields to indexing result of {len(lkeys)} fields"
             )
 
-        for lkey, rkey in zip(lkeys, rkeys):
-            self._data[lkey] = obj._data[rkey]
-            self._flags[lkey] = obj._flags[rkey]
-            self._flags.history[lkey] = obj._flags.history[rkey]
+        # we want to have an atomic __setitem__ operation, so let's save the previous state
+        tmp = {}
+        try:
+            for lkey, rkey in zip(lkeys, rkeys):
+                tmp[lkey] = [self._data[lkey], self._flags[lkey], self._flags.history[lkey]]
+                self._data[lkey] = obj._data[rkey]
+                self._flags[lkey] = obj._flags[rkey]
+                self._flags.history[lkey] = obj._flags.history[rkey]
+        except Exception as e:
+            # recove previous state in case of errors
+            for tkey, (data, flags, history) in tmp.items():
+                self._data[tkey] = data
+                self._flags[tkey] = flags
+                self._flags.history[tkey] = history
+            raise e
 
     def copy(self, deep=True):
         copyfunc = deepcopy if deep else shallowcopy
