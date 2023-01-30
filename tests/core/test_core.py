@@ -420,7 +420,7 @@ def test_getitem(data, slc):
         ("var1", "var2"),
         (["var1", "var3"], ["var5", "var6"]),
         (slice(None), slice(None)),
-        (slice(0,2,1), slice(1,3,1)),
+        (slice(0, 2, 1), slice(1, 3, 1)),
     ),
 )
 def test_setitem(data, source, target):

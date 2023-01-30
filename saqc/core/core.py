@@ -132,7 +132,9 @@ class SaQC(FunctionsMixin):
             key = self._data.columns.to_list()[key]
         keys = toSequence(key)
 
-        out = SaQC(data=self._data[keys], flags=self._flags.select(keys), scheme=self._scheme)
+        out = SaQC(
+            data=self._data[keys], flags=self._flags.select(keys), scheme=self._scheme
+        )
         out.attrs = self.attrs
         return out
 
