@@ -156,7 +156,11 @@ class SaQC(FunctionsMixin):
         tmp = {}
         try:
             for lkey, rkey in zip(lkeys, rkeys):
-                tmp[lkey] = [self._data[lkey], self._flags[lkey], self._flags.history[lkey]]
+                tmp[lkey] = [
+                    self._data[lkey],
+                    self._flags[lkey],
+                    self._flags.history[lkey],
+                ]
                 self._data[lkey] = obj._data[rkey]
                 self._flags[lkey] = obj._flags[rkey]
                 self._flags.history[lkey] = obj._flags.history[rkey]
