@@ -17,6 +17,7 @@ from saqc.constants import BAD, FILTER_ALL, FILTER_NONE, UNFLAGGED
 from saqc.core import SaQC, initFlagsLike
 from saqc.core.flags import Flags
 from saqc.core.register import flagging, processing, register
+from saqc.lib.tools import toSequence
 from saqc.lib.types import OptionalNone
 from tests.common import initData
 
@@ -379,10 +380,11 @@ def test_dfilterTranslation(data, user_flag, internal_flag):
 @pytest.mark.parametrize(
     "slc",
     (
-        # "var1",
-        # ["var1", "var3"],
-        ["var2", "var2"],
-        # slice(None),
+        "var1",
+        ["var1", "var3"],
+        # ["var2", "var2"], # failing
+        slice(None),
+        slice(1, 3, 1),
     ),
 )
 def test_getitem(data, slc):
@@ -395,8 +397,10 @@ def test_getitem(data, slc):
     assert got._scheme == qc._scheme
     assert got._attrs == qc._attrs
 
-    import ipdb; ipdb.set_trace()
-    assert (got._data == qc._data[slc]).all(axis=None)
+    if isinstance(slc, slice):
+        assert (got._data == qc._data.iloc[:, slc]).all(axis=None)
+    else:
+        assert (got._data == qc._data[slc]).all(axis=None)
 
     for c in got._flags.columns:
         assert (got._flags[c] == qc._flags[c]).all(axis=None)
@@ -404,38 +408,37 @@ def test_getitem(data, slc):
         assert got._flags.history[c]._meta == qc._flags.history[c]._meta
 
     if isinstance(slc, slice):
-        slc = qc._data.columns
+        slc = qc._data.columns[slc]
 
     assert (got._data.columns == slc).all(axis=None)
     assert (got._flags.columns == slc).all(axis=None)
 
 
-# @pytest.mark.parametrize(
-#     "source,target",
-#     (
-#         ("var1", "var2"),
-#         (["var1", "var3"], ["var2", "var2"]),
-#         slice(None),
-#     ),
-# )
-# def test_setitem(data, source, target):
-#     qc = SaQC(data)
-#     qc.attrs = {"test_key": "test_value"}
-#     # some dummy tests to fill flags/history
-#     qc = qc.flagRange(min=10, max=100).flagDummy()
-#     got = qc[slc]
+@pytest.mark.parametrize(
+    "source,target",
+    (
+        ("var1", "var2"),
+        (["var1", "var3"], ["var5", "var6"]),
+        (slice(None), slice(None)),
+        (slice(0,2,1), slice(1,3,1)),
+    ),
+)
+def test_setitem(data, source, target):
+    qc = SaQC(data)
+    qc.attrs = {"test_key": "test_value"}
+    # some dummy tests to fill flags/history
+    qc = qc.flagRange(min=10, max=100)
+    expected = qc[source].flagDummy()
+    qc[target] = expected
 
-#     assert got._scheme == qc._scheme
-#     assert got._attrs == qc._attrs
+    if isinstance(source, slice):
+        source = expected._data.columns[source]
 
-#     assert (got._data == qc._data[slc]).all(axis=None)
-#     for c in got._flags.columns:
-#         assert (got._flags[c] == qc._flags[c]).all(axis=None)
-#         assert got._flags.history[c]._hist.equals(qc._flags.history[c]._hist)
-#         assert got._flags.history[c]._meta == qc._flags.history[c]._meta
+    if isinstance(target, slice):
+        target = qc._data.columns[target]
 
-#     if isinstance(slc, slice):
-#         slc = qc._data.columns
-
-#     assert (got._data.columns == slc).all(axis=None)
-#     assert (got._flags.columns == slc).all(axis=None)
+    for sc, tc in zip(expected._data.columns, toSequence(target)):
+        assert (qc._data[tc] == expected._data[sc]).all(axis=None)
+        assert (qc._flags[tc] == expected._flags[sc]).all(axis=None)
+        assert qc._flags.history[tc]._meta == expected._flags.history[sc]._meta
+        assert expected._flags.history[sc]._hist.equals(qc._flags.history[tc]._hist)

@@ -129,15 +129,19 @@ class SaQC(FunctionsMixin):
     def __getitem__(self, key: str | Sequence[str] | slice) -> SaQC:
 
         if isinstance(key, slice):
-            key = self._data.columns.to_list()
+            key = self._data.columns.to_list()[key]
         keys = toSequence(key)
 
-        return self._construct(_data=self._data[keys], _flags=self._flags.select(keys))
+        out = SaQC(data=self._data[keys], flags=self._flags.select(keys), scheme=self._scheme)
+        out.attrs = self.attrs
+        return out
+
+        # return self._construct(_data=self._data[keys], _flags=self._flags.select(keys))
 
     def __setitem__(self, key: str | Sequence[str] | slice, obj: SaQC) -> None:
 
         if isinstance(key, slice):
-            key = self._data.columns.to_list()
+            key = self._data.columns.to_list()[key]
 
         lkeys = toSequence(key)
         rkeys = obj._data.columns
@@ -248,7 +252,7 @@ class SaQC(FunctionsMixin):
             else:
                 if not flags[c].index.equals(self._data[c].index):
                     raise ValueError(
-                        f"The flags index of column {c} does not equals "
+                        f"The flags index of column {c} differs from "
                         f"the index of the same column in data."
                     )
         return flags
