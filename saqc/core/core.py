@@ -14,6 +14,7 @@ from typing import Any, Hashable, MutableMapping
 
 import numpy as np
 import pandas as pd
+from pandas.errors import ParserError
 
 from saqc.core.flags import Flags, initFlagsLike
 from saqc.core.frame import DictOfSeries
@@ -153,6 +154,7 @@ class SaQC(FunctionsMixin):
     def _initData(self, data) -> DictOfSeries:
         if data is None:
             return DictOfSeries()
+
         if isinstance(data, list):
             result = DictOfSeries()
             doubles = pd.Index([])
@@ -191,9 +193,17 @@ class SaQC(FunctionsMixin):
                     raise ValueError("'data' should not have MultiIndex")
         try:
             # This ensures that values are pd.Series
-            return DictOfSeries(data)
+            data = DictOfSeries(data)
         except Exception:
             raise TypeError(f"Cannot cast {type(data)} to DictOfSeries") from None
+
+        for key in data.keys():
+            try:
+                data[key].index = pd.to_datetime(data[key].index)
+            except (ParserError, ValueError) as e:
+                raise ValueError(
+                    f"Could not cast index of '{key}' to type pd.Dateime, please do this manually."
+                ) from e
 
     def _initFlags(self, flags) -> Flags:
         if flags is None:
