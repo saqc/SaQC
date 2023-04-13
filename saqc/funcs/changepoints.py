@@ -197,6 +197,7 @@ class ChangepointsMixin:
             result=rtyp,  # type: ignore
         )
         self._data[field] = cluster
+        # TODO: policy
         # we set flags here against our standard policy,
         # which is not to overwrite existing flags
         self._flags[:, field] = UNFLAGGED

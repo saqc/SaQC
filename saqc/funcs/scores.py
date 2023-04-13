@@ -383,9 +383,9 @@ class ScoresMixin:
         algorithm :
             Algorithm used for calculating the `n`-nearest neighbors needed for LOF calculation.
         p :
-            Degree of the metric ("Minkowski"), according to wich distance to neighbors is determined.
-            Most important values are:
-            * `1` - Manhatten Metric
+            Degree of the metric ("Minkowski"), according to which the distance of
+            the neighbors is determined. Most important values are:
+            * `1` - Manhattan Metric
             * `2` - Euclidian Metric
 
         Returns

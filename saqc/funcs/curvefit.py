@@ -107,6 +107,7 @@ class CurvefitMixin:
             min_periods=min_periods,
             **kwargs,
         )
+        # TODO: Policy
         return self
 
     @register(mask=["field"], demask=[], squeeze=[])

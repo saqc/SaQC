@@ -497,7 +497,7 @@ class OutliersMixin:
 
         trafo : callable, default lambda x:x
             Transformation to be applied onto every column before scoring. Will likely
-            get deprecated soon. Its better to transform the data in a processing step,
+            get deprecated soon. It's better to transform the data in a processing step,
             preceeeding the call to ``flagMVScores``.
 
         alpha : float, default 0.05
@@ -514,15 +514,15 @@ class OutliersMixin:
         iter_start : float, default 0.5
             Float in [0,1] that determines which percentage of data is considered
             "normal". 0.5 results in the threshing algorithm to search only the upper 50
-            % of the scores for the cut off point. (See reference section for more
+            % of the scores for the cutoff point. (See reference section for more
             information)
 
         window : {None, str, int}, default None
             Only effective when `threshing` = 'stray'. Determines the size of the data
-            partitions, the data is decomposed into. Each window is checked seperately
-            for outliers. If a String is passed, it has to be an offset string and it
+            partitions, the data is decomposed into. Each window is checked separately
+            for outliers. If a String is passed, it has to be an offset string, and it
             results in partitioning the data into parts of according temporal length. If
-            an integer is passed, the data is simply split up into continous chunks of
+            an integer is passed, the data simply is split into continuous chunks of
             `freq` periods. if ``None`` is passed (default), all the data will be tested
             in one run.
 
@@ -532,8 +532,8 @@ class OutliersMixin:
             this window. (Only of effect, if `stray_partition` is an integer.)
 
         partition_trafo : bool, default True
-            Whether or not to apply the passed transformation on every window the
-            algorithm is applied on, separately.
+            Whether to apply the passed transformation on every window the
+            algorithm is applied on.
 
         stray_range : {None, str}, default None
             If not None, it is tried to reduce the stray result onto single outlier
@@ -542,18 +542,18 @@ class OutliersMixin:
             flags.
 
         drop_flagged : bool, default False
-            Only effective when `range` is not ``None``. Whether or not to drop flagged
+            Only effective when `range` is not ``None``. Whether to drop flagged
             values other than the value under test from the temporal surrounding before
             checking the value with MAD.
 
         thresh : float, default 3.5
             Only effective when `range` is not ``None``. The `critical` value,
-            controlling wheather the MAD score is considered referring to an outlier or
+            controlling whether the MAD score is considered referring to an outlier or
             not. Higher values result in less rigid flagging. The default value is widely
-            considered apropriate in the literature.
+            considered appropriate in the literature.
 
         min_periods_r : int, 1
-            Only effective when `range` is not ``None``. Minimum number of meassurements
+            Only effective when `range` is not ``None``. Minimum number of measurements
             necessarily present in a reduction interval for reduction actually to be
             performed.
 

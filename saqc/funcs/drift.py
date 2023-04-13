@@ -41,7 +41,7 @@ class DriftMixin:
     @register(
         mask=["field"],
         demask=["field"],
-        squeeze=["field"],  # reference is written !
+        squeeze=["field"],
         multivariate=True,
         handles_target=False,
     )
@@ -60,11 +60,12 @@ class DriftMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        Flags data that deviates from an avarage data course.
+        Flags data that deviates from an average data course.
 
         "Normality" is determined in terms of a maximum spreading distance,
-        that members of a normal group must not exceed. In addition, only a group is considered
-        "normal" if it contains more then `frac` percent of the variables in "field".
+        that members of a normal group must not exceed. In addition, a group is
+        considered "normal" only if it contains more than `frac` percent of the
+        variables in "field".
 
         See the Notes section for a more detailed presentation of the algorithm
 
@@ -119,7 +120,7 @@ class DriftMixin:
         that determines the maximum spread of a normal group by limiting the costs, a cluster
         agglomeration must not exceed in every linkage step.
         For singleton clusters, that costs just equal half the distance, the data in the
-        clusters, have to each other. So, no data can be clustered together, that are more then
+        clusters, have to each other. So, no data can be clustered together, that are more than
         2*`spread` distances away from each other. When data get clustered together, this new
         clusters distance to all the other data/clusters is calculated according to the linkage
         method specified by `method`. By default, it is the minimum distance, the members of the
@@ -156,9 +157,10 @@ class DriftMixin:
         return self
 
     @register(
+        # we also write to reference !
         mask=["field", "reference"],
         demask=["field", "reference"],
-        squeeze=["field", "reference"],  # reference is written !
+        squeeze=["field", "reference"],
         multivariate=True,
         handles_target=False,
     )
@@ -213,7 +215,7 @@ class DriftMixin:
         -----
         It is advisable to choose a distance function, that can be well interpreted in
         the units dimension of the measurement and where the interpretation is invariant over the
-        length of the data. That is, why, the "averaged manhatten metric" is set as the metric
+        length of the data. That is, why, the "averaged manhattan metric" is set as the metric
         default, since it corresponds to the averaged value distance, two data sets have (as opposed
         by euclidean, for example).
         """
@@ -543,7 +545,7 @@ class DriftMixin:
             min_periods=min_periods,
             result="cluster",
         )
-        self._data, self._flags = _assignRegimeAnomaly(
+        self._data, _ = _assignRegimeAnomaly(
             data=self._data,
             field=field,
             flags=self._flags,
@@ -620,7 +622,7 @@ class DriftMixin:
         """
         reserverd = ["set_cluster", "set_flags"]
         kwargs = filterKwargs(kwargs, reserverd)
-        self._data, self._flags = _assignRegimeAnomaly(
+        _, self._flags = _assignRegimeAnomaly(
             data=self._data,
             field=field,
             flags=self._flags,
@@ -694,7 +696,7 @@ class DriftMixin:
         """
         reserverd = ["set_cluster", "set_flags", "flag"]
         kwargs = filterKwargs(kwargs, reserverd)
-        self._data, self._flags = _assignRegimeAnomaly(
+        self._data, _ = _assignRegimeAnomaly(
             data=self._data,
             field=field,
             flags=self._flags,

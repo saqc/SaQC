@@ -118,9 +118,11 @@ class InterpolationMixin:
         self._data[field] = datcol
 
         flagcol = pd.Series(np.nan, index=self._flags[field].index)
-        flagcol.loc[interpolated] = np.nan if flag is None else flag
+        if flag is not None:
+            flagged = ~isflagged(self._flags[field], kwargs['dfilter'])
+            mask = interpolated & ~flagged
+            flagcol.loc[mask] = flag
 
-        # todo kwargs must have all passed args except data,field,flags
         meta = {
             "func": "interpolateByRolling",
             "args": (field,),
@@ -134,7 +136,6 @@ class InterpolationMixin:
             },
         }
         self._flags.history[field].append(flagcol, meta)
-
         return self
 
     @register(
@@ -322,14 +323,26 @@ class InterpolationMixin:
 
         interpolated = self._data[field].isna() & inter_data.notna()
         self._data[field] = inter_data
-        new_col = pd.Series(np.nan, index=self._flags[field].index)
-        new_col.loc[interpolated] = np.nan if flag is None else flag
 
-        # todo kwargs must have all passed args except data,field,flags
-        self._flags.history[field].append(
-            new_col, {"func": "interpolateInvalid", "args": (), "kwargs": kwargs}
-        )
+        flagcol = pd.Series(np.nan, index=self._flags[field].index)
+        if flag is not None:
+            flagged = ~isflagged(self._flags[field], kwargs['dfilter'])
+            mask = interpolated & ~flagged
+            flagcol.loc[mask] = flag
 
+        meta = {
+            "func": "interpolate",
+            "args": (field,),
+            "kwargs": {
+                "method": method,
+                "order": order,
+                "limit": limit,
+                "extrapolate": extrapolate,
+                "flag": flag,
+                **kwargs,
+            },
+        }
+        self._flags.history[field].append(flagcol, meta)
         return self
 
     @register(mask=["field"], demask=[], squeeze=[])
