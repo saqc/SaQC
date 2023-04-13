@@ -156,7 +156,6 @@ class BreaksMixin:
         window: str,
         min_periods: int = 1,
         flag: float = BAD,
-        dfilter: float = FILTER_ALL,
         **kwargs,
     ) -> "SaQC":
         """
@@ -223,6 +222,6 @@ class BreaksMixin:
             result="mask",
         )
 
-        mask = ~isflagged(self._flags[field], dfilter) & mask
+        mask = ~isflagged(self._flags[field], kwargs["dfilter"]) & mask
         self._flags[mask, field] = flag
         return self
