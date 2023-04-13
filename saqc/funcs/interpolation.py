@@ -119,7 +119,7 @@ class InterpolationMixin:
 
         flagcol = pd.Series(np.nan, index=self._flags[field].index)
         if flag is not None:
-            flagged = ~isflagged(self._flags[field], kwargs['dfilter'])
+            flagged = ~isflagged(self._flags[field], kwargs["dfilter"])
             mask = interpolated & ~flagged
             flagcol.loc[mask] = flag
 
@@ -326,7 +326,7 @@ class InterpolationMixin:
 
         flagcol = pd.Series(np.nan, index=self._flags[field].index)
         if flag is not None:
-            flagged = ~isflagged(self._flags[field], kwargs['dfilter'])
+            flagged = ~isflagged(self._flags[field], kwargs["dfilter"])
             mask = interpolated & ~flagged
             flagcol.loc[mask] = flag
 
