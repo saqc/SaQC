@@ -176,7 +176,7 @@ class ScoresMixin:
         3. For every data point, the distance to its `n` nearest neighbors is calculated by applying the
            metric `metric` at grade `p` onto the feature space. The defaults lead to the euclidian to be applied.
            If `radius` is not None, it sets the upper bound of distance for a neighbor to be considered one of the
-           `n` nearest neighbors. Furthermore, the `freq` argument determines wich samples can be
+           `n` nearest neighbors. Furthermore, the `window` argument determines wich samples can be
            included into a datapoints nearest neighbors list, by segmenting the data into chunks of specified temporal
            extension and feeding that chunks to the kNN algorithm seperatly.
         4. For every datapoint, the calculated nearest neighbors distances get aggregated to a score, by the function

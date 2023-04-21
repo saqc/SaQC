@@ -226,7 +226,7 @@ class InterpolationMixin:
 
         .. doctest:: interpolate
 
-           >>> data = pd.DataFrame({'data':np.array([np.nan, 0, np.nan, np.nan, np.nan, 4, 5, np.nan, np.nan, 8, 9, np.nan, np.nan])}, index=pd.date_range('2000',freq='1H', periods=13))
+           >>> data = pd.DataFrame({'data':np.array([np.nan, 0, np.nan, np.nan, np.nan, 4, 5, np.nan, np.nan, 8, 9, np.nan, np.nan])}, index=pd.date_range('2000',window='1H', periods=13))
            >>> data
                                 data
            2000-01-01 00:00:00   NaN
@@ -293,19 +293,19 @@ class InterpolationMixin:
            <BLANKLINE>
         """
 
-        if "freq" in kwargs:
+        if "window" in kwargs:
             # the old interpolate version
             warnings.warn(
                 f"""
                 The method `intepolate` is deprecated and will be removed in version 3.0 of saqc.
                 To achieve the same behaviour please use:
-                `qc.align(field={field}, freq={kwargs["freq"]}, method={method}, order={order}, flag={flag})`
+                `qc.align(field={field}, window={kwargs["window"]}, method={method}, order={order}, flag={flag})`
                 """,
                 DeprecationWarning,
             )
             return self.align(
                 field=field,
-                freq=kwargs.pop("freq", method),
+                freq=kwargs.pop("window", method),
                 method=method,
                 order=order,
                 flag=flag,
@@ -381,7 +381,7 @@ class InterpolationMixin:
         method:
             Interpolation technique to use. One of:
 
-            * 'nshift': shift grid points to the nearest time stamp in the range = +/- 0.5 * ``freq``
+            * 'nshift': shift grid points to the nearest time stamp in the range = +/- 0.5 * ``window``
             * 'bshift' : shift grid points to the first succeeding time stamp (if any)
             * 'fshift' : shift grid points to the last preceeding time stamp (if any)
             * ‘linear’: Ignore the index and treat the values as equally spaced.
@@ -439,7 +439,7 @@ class InterpolationMixin:
             "func": "align",
             "args": (field,),
             "kwargs": {
-                "freq": freq,
+                "window": freq,
                 "method": method,
                 "order": order,
                 "extrapolate": extrapolate,
@@ -489,7 +489,7 @@ class InterpolationMixin:
             order.
 
         limit : int, optional
-            Upper limit of missing index values (with respect to `freq`) to fill. The limit can either be expressed
+            Upper limit of missing index values (with respect to `window`) to fill. The limit can either be expressed
             as the number of consecutive missing values (integer) or temporal extension of the gaps to be filled
             (Offset String).
             If `None` is passed, no Limit is set.
@@ -511,7 +511,7 @@ class InterpolationMixin:
         The method `interpolateIndex` is deprecated and will be removed in verion 3.0 of saqc.
         To achieve the same behavior use:
         """
-        call = "qc.align(field={field}, freq={freq}, method={method}, order={order}, extrapolate={extrapolate})"
+        call = "qc.align(field={field}, window={window}, method={method}, order={order}, extrapolate={extrapolate})"
         if limit != 2:
             call = f"{call}.interpolate(field={field}, method={method}, order={order}, limit={limit}, extrapolate={extrapolate})"
 
@@ -594,14 +594,14 @@ def _shift(
     method : {'fshift', 'bshift', 'nshift'}, default 'nshift'
         Method to propagate values:
 
-        * 'nshift' : shift grid points to the nearest time stamp in the range = +/- 0.5 * ``freq``
+        * 'nshift' : shift grid points to the nearest time stamp in the range = +/- 0.5 * ``window``
         * 'bshift' : shift grid points to the first succeeding time stamp (if any)
         * 'fshift' : shift grid points to the last preceeding time stamp (if any)
 
     freq_check : {None, 'check', 'auto'}, default None
-        * ``None`` : do not validate the ``freq`` string.
-        * 'check' : check ``freq`` against an frequency estimation, produces a warning in case of miss matches.
-        * 'auto' : estimate frequency, `freq` is ignored.
+        * ``None`` : do not validate the ``window`` string.
+        * 'check' : check ``window`` against an frequency estimation, produces a warning in case of miss matches.
+        * 'auto' : estimate frequency, `window` is ignored.
 
     Returns
     -------
@@ -650,7 +650,7 @@ def _interpolate(
     datcol = datcol[~flagged].dropna()
 
     # account for annoying case of subsequent frequency aligned values,
-    # that differ exactly by the margin of 2*freq
+    # that differ exactly by the margin of 2*window
     gaps = datcol.index[1:] - datcol.index[:-1] == 2 * pd.Timedelta(freq)
     gaps = datcol.index[1:][gaps]
     gaps = gaps.intersection(grid_index).shift(-1, freq)

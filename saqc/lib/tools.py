@@ -234,7 +234,7 @@ def estimateFrequency(
 
     Returns
     -------
-        freq : {None, str}
+        window : {None, str}
             Either the sampling rate that was detected in the sample index (if uniform). Or
             the greates common rate of all the sampling rates detected. Equals `None` if
             detection failed and `"empty"`, if input index was empty.
@@ -256,7 +256,7 @@ def estimateFrequency(
 
     len_f = len(delta_f) * 2
     min_energy = delta_f[0] * min_energy
-    # calc/assign low/high freq cut offs (makes life easier):
+    # calc/assign low/high window cut offs (makes life easier):
     min_rate_i = int(
         len_f / (pd.Timedelta(min_rate).total_seconds() * (10**delta_precision))
     )
@@ -386,7 +386,7 @@ def getFreqDelta(index: pd.Index) -> None | pd.Timedelta:
     (``None`` will also be returned for pd.RangeIndex type.)
 
     """
-    delta = getattr(index, "freq", None)
+    delta = getattr(index, "window", None)
     if delta is None and not index.empty:
         i = pd.date_range(index[0], index[-1], len(index))
         if i.equals(index):

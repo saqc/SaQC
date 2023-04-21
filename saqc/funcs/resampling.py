@@ -49,10 +49,10 @@ class ResamplingMixin:
 
         A series of data is considered "regular", if it is sampled regularly (= having uniform sampling rate).
 
-        Interpolated values will get assigned the worst flag within freq-range.
+        Interpolated values will get assigned the worst flag within window-range.
 
         Note, that the data only gets interpolated at those (regular) timestamps, that have a valid (existing and
-        not-na) datapoint preceeding them and one succeeding them within freq range.
+        not-na) datapoint preceeding them and one succeeding them within window range.
         Regular timestamp that do not suffice this condition get nan assigned AND The associated flag will be of value
         ``UNFLAGGED``.
 
@@ -94,7 +94,7 @@ class ResamplingMixin:
         method : {'fshift', 'bshift', 'nshift'}, default 'nshift'
             Method to propagate values:
 
-            * 'nshift' : shift grid points to the nearest time stamp in the range = +/- 0.5 * ``freq``
+            * 'nshift' : shift grid points to the nearest time stamp in the range = +/- 0.5 * ``window``
             * 'bshift' : shift grid points to the first succeeding time stamp (if any)
             * 'fshift' : shift grid points to the last preceeding time stamp (if any)
 
@@ -106,7 +106,7 @@ class ResamplingMixin:
             f"""
             The method `shift` is deprecated and will be removed with version 2.6 of saqc.
             To achieve the same behavior please use:
-            `qc.align(field={field}, freq={freq}. method={method})`
+            `qc.align(field={field}, window={freq}. method={method})`
             """,
             DeprecationWarning,
         )
@@ -132,7 +132,7 @@ class ResamplingMixin:
         ``func``, the result is projected to the new timestamps using
         ``method``. The following methods are available:
 
-        * ``'nagg'``: all values in the range (+/- `freq`/2) of a grid point get
+        * ``'nagg'``: all values in the range (+/- `window`/2) of a grid point get
             aggregated with func and assigned to it.
         * ``'bagg'``: all values in a sampling interval get aggregated with func and
             the result gets assigned to the last grid point.
@@ -209,7 +209,7 @@ class ResamplingMixin:
             "func": "resample",
             "args": (),
             "kwargs": {
-                "freq": freq,
+                "window": freq,
                 "func": func,
                 "method": method,
                 "maxna": maxna,
@@ -273,11 +273,11 @@ class ResamplingMixin:
             Method to project the flags of ``field`` the flags to ``target``:
 
            * 'auto': inverse the last alignment/resampling operations
-           * 'inverse_nagg': project a flag of ``field`` to all timestamps of ``target`` within the range +/- ``freq``/2.
-           * 'inverse_bagg': project a flag of ``field`` to all preceeding timestamps of ``target`` within the range ``freq``
-           * 'inverse_fagg': project a flag of ``field`` to all succeeding timestamps of ``target`` within the range ``freq``
-           * 'inverse_interpolation' - project a flag of ``field`` to all timestamps of ``target`` within the range +/- ``freq``
-           * 'inverse_nshift' - project a flag of ``field`` to the neaerest timestamps in ``target`` within the range +/- ``freq``/2
+           * 'inverse_nagg': project a flag of ``field`` to all timestamps of ``target`` within the range +/- ``window``/2.
+           * 'inverse_bagg': project a flag of ``field`` to all preceeding timestamps of ``target`` within the range ``window``
+           * 'inverse_fagg': project a flag of ``field`` to all succeeding timestamps of ``target`` within the range ``window``
+           * 'inverse_interpolation' - project a flag of ``field`` to all timestamps of ``target`` within the range +/- ``window``
+           * 'inverse_nshift' - project a flag of ``field`` to the neaerest timestamps in ``target`` within the range +/- ``window``/2
            * 'inverse_bshift' - project a flag of ``field`` to nearest preceeding timestamps in ``target``
            * 'inverse_nshift' - project a flag of ``field`` to nearest succeeding timestamps in ``target``
            * 'match' - project a flag of ``field`` to all identical timestamps ``target``
@@ -316,7 +316,7 @@ class ResamplingMixin:
             if freq is None and not method == "match":
                 raise ValueError(
                     'To project irregularly sampled data, either use method="match", or '
-                    "pass custom projection range to freq parameter."
+                    "pass custom projection range to window parameter."
                 )
 
         if method == "auto":
@@ -383,7 +383,7 @@ class ResamplingMixin:
                 "field": field,
                 "target": target,
                 "method": method,
-                "freq": freq,
+                "window": freq,
                 "drop": drop,
                 "squeeze": squeeze,
                 "overwrite": overwrite,

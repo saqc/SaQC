@@ -48,7 +48,7 @@ class DriftMixin:
     def flagDriftFromNorm(
         self: "SaQC",
         field: Sequence[str],
-        freq: str,
+        window: str,
         spread: float,
         frac: float = 0.5,
         metric: Callable[[np.ndarray, np.ndarray], float] = lambda x, y: pdist(
@@ -73,7 +73,7 @@ class DriftMixin:
         field : str
             A column in flags and data.
 
-        freq : str
+        window : str
             Frequency, that split the data in chunks.
 
         spread : float
@@ -136,12 +136,22 @@ class DriftMixin:
         Introduction to Hierarchical clustering:
             [2] https://en.wikipedia.org/wiki/Hierarchical_clustering
         """
+        if "freq" in kwargs:
+            warnings.warn(
+                """
+                The parameter `freq` is deprecated and will be removed in version 3.0 of saqc.
+                Please us the parameter `window` instead.'
+                """,
+                DeprecationWarning,
+            )
+            window = kwargs["freq"]
+
         fields = toSequence(field)
 
         data = self._data[fields].to_pandas()
         data.dropna(inplace=True)
 
-        segments = data.groupby(pd.Grouper(freq=freq))
+        segments = data.groupby(pd.Grouper(freq=window))
         for segment in segments:
             if len(segment[1]) <= 1:
                 continue

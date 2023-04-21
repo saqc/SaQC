@@ -33,6 +33,7 @@ Getting Started
    cookbooks/OutlierDetection
    cookbooks/ResidualOutlierDetection
    cookbooks/MultivariateFlagging
+   cookbooks/DriftDetection
 
 .. toctree::
    :caption: Documentation

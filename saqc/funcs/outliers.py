@@ -378,7 +378,7 @@ class OutliersMixin:
 
         min_periods : int, default 11
             Minimum number of periods per partition that have to be present for a valid
-            outlier dettection to be made in this partition. (Only of effect, if `freq`
+            outlier dettection to be made in this partition. (Only of effect, if `window`
             is an integer.) Partition min value must always be greater then the
             nn_neighbors value.
 
@@ -522,7 +522,7 @@ class OutliersMixin:
             for outliers. If a String is passed, it has to be an offset string and it
             results in partitioning the data into parts of according temporal length. If
             an integer is passed, the data is simply split up into continous chunks of
-            `freq` periods. if ``None`` is passed (default), all the data will be tested
+            `window` periods. if ``None`` is passed (default), all the data will be tested
             in one run.
 
         partition_min : int, default 11
@@ -741,7 +741,7 @@ class OutliersMixin:
           is additionally checked if:
 
           * :math:`x_k - x_{k-1} >` `min_slope`
-          * :math:`t_k - t_{k-1} >` `weight` :math:`\\times` `freq`
+          * :math:`t_k - t_{k-1} >` `weight` :math:`\\times` `window`
 
         """
 
@@ -996,7 +996,7 @@ class OutliersMixin:
            import matplotlib
            import saqc
            import pandas as pd
-           data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1H', periods=12))
+           data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',window='1H', periods=12))
 
 
         Lets generate a simple, regularly sampled timeseries with an hourly sampling rate and generate an
@@ -1005,7 +1005,7 @@ class OutliersMixin:
         .. doctest:: flagOffsetExample
 
            >>> import saqc
-           >>> data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1H', periods=12))
+           >>> data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',window='1H', periods=12))
            >>> data
                                 data
            2000-01-01 00:00:00     5
