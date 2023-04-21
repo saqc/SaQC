@@ -1,5 +1,5 @@
 varname;test;plot
-SM2;align(window="15Min", method="nshift");False
+SM2;align(freq="15Min", method="nshift");False
 '.*';flagRange(min=10, max=60);False
 SM2;flagMissing();False
 SM2;flagRange(min=10, max=60);False

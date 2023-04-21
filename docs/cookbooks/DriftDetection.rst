@@ -36,7 +36,6 @@ and use the `plot` method built into the dataframe object to have a look at the 
 
 .. doctest:: flagDriftFromNorm
 
-   >>> import saqc
    >>> data = pd.read_csv('./resources/data/tempSensorGroup.csv')
    >>> data = data.set_index('Timestamp')
    >>> data.plot() # doctest: +SKIP
@@ -53,9 +52,15 @@ Parameters
 ----------
 
 
-
 Although there seems to be a lot of user input to parametrize, most of it is easy to be interpreted and can be selected
 defaultly.
+
+window
+^^^^^^
+
+The length of partitions you want the target group of data series` to be seperated in, for comparison.
+For example, if selected ``1D`` (one day), the group to check will be divided into one day strips and on every those
+days, it will be checked if some of the series in the group deviate from the normal group, seperately.
 
 frac
 ^^^^
@@ -98,10 +103,11 @@ compared timeseries length). For the selection of the `spread` parameter the def
 allows interpreting the spreading in the dimension of the meassurments.
 
 
-Method
-------
+Algorithm
+---------
 
-The aim of the algorithm is to sections in timeseries, that significantly deviate from a normal group of parallel timeseries.
+The aim of the algorithm is to flag sections in timeseries, that significantly deviate from a normal group of
+parallely running timeseries in that section.
 
 "Normality" is determined in terms of a maximum spreading distance, that members of a normal group must not exceed.
 In addition, only a group is considered "normal", if it contains more then a certain percentage of the variables that are to be clustered in "normal" ones and "not normal" ones.
@@ -119,4 +125,108 @@ The steps of the algorithm are the following:
 Example
 -------
 
+Looking at our example data set more closely, we see that 2 of the 5 variables start to drift away.
 
+.. plot::
+   :context: close-figs
+   :include-source: False
+   :class: center
+   :caption: 2 variables start departing the majority group of variables (the group containing more than ``frac`` variables) around july.
+
+    data['2017-05':'2017-11'].plot()
+
+
+.. plot::
+   :context: close-figs
+   :include-source: False
+   :class: center
+   :caption: 2 variables are departed from the majority group of variables (the group containing more than ``frac`` variables) by the end of the year.
+
+    data['2017-09':'2018-01'].plot()
+
+Lets try to detect those drifts via saqc. There for we import the *saqc* package and instantiate a :py:class:`saqc.SaQC`
+object with the data:
+
+.. doctest:: flagDriftFromNorm
+
+   >>> import saqc
+   >>> qc = saqc.SaQC(data)
+
+The changes we observe in the data seem to develop in temporal spans of months, so we go for ``"1M"`` as value for the
+``window`` parameter. We identified the majority group as the group containing three variables, whereby 2 variables
+seem to be scattered away, so that we can leave the ``frac`` value at its default ``.5`` level.
+The majority group seems on average not to be spread out more than 3 or 4 degrees. So, for the ``spread`` value
+we go for ``3``. This can be interpreted as follows, for every member of a group, there is another member that
+is not distanted more than ``3`` degrees from that one (on average in one month) - this should be sufficient to bundle
+the majority group and to discriminate against the drifting variables, that seem to deviate more than 3 degrees on
+average in a month from any member of the majority group.
+
+.. doctest:: flagDriftFromNorm
+
+   >>> variables = ['temp1 [degC]', 'temp2 [degC]', 'temp3 [degC]', 'temp4 [degC]', 'temp5 [degC]']
+   >>> qc = qc.flagDriftfromNorm(variables, window='1M', spread=3)
+
+.. plot::
+   :context: close-figs
+   :include-source: False
+   :class: center
+
+   >>> variables = ['temp1 [degC]', 'temp2 [degC]', 'temp3 [degC]', 'temp4 [degC]', 'temp5 [degC]']
+   >>> qc = qc.flagDriftFromNorm(variables, window='1M', spread=3)
+
+Lets check the results:
+
+.. doctest:: flagDriftFromNorm
+
+   >>> qc.plot('temp1 [degC]') #+SKIP
+
+.. plot::
+   :context: close-figs
+   :include-source: False
+   :class: center
+
+   qc.plot('temp1 [degC]')
+
+.. doctest:: flagDriftFromNorm
+
+   >>> qc.plot('temp2 [degC]') #+SKIP
+
+.. plot::
+   :context: close-figs
+   :include-source: False
+   :class: center
+
+   qc.plot('temp2 [degC]')
+
+.. doctest:: flagDriftFromNorm
+
+   >>> qc.plot('temp3 [degC]') #+SKIP
+
+.. plot::
+   :context: close-figs
+   :include-source: False
+   :class: center
+
+   qc.plot('temp3 [degC]')
+
+.. doctest:: flagDriftFromNorm
+
+   >>> qc.plot('temp4 [degC]') #+SKIP
+
+.. plot::
+   :context: close-figs
+   :include-source: False
+   :class: center
+
+   qc.plot('temp4 [degC]')
+
+.. doctest:: flagDriftFromNorm
+
+   >>> qc.plot('temp5 [degC]') #+SKIP
+
+.. plot::
+   :context: close-figs
+   :include-source: False
+   :class: center
+
+   qc.plot('temp5 [degC]')

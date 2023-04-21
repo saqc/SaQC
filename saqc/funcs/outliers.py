@@ -996,7 +996,7 @@ class OutliersMixin:
            import matplotlib
            import saqc
            import pandas as pd
-           data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',window='1H', periods=12))
+           data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000', freq='1H', periods=12))
 
 
         Lets generate a simple, regularly sampled timeseries with an hourly sampling rate and generate an
