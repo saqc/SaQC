@@ -15,42 +15,16 @@ The guide briefly introduces into the usage of the :py:meth:`~saqc.SaQC.flagDrif
 The method detects sections in timeseries that deviate from the majority in a group of variables
 
 
-Example Data Import
--------------------
-
-.. plot::
-   :context: reset
-   :include-source: False
-
-   import matplotlib
-   import saqc
-   import pandas as pd
-   data = pd.read_csv('../resources/data/tempSensorGroup.csv', index_col=0)
-   data.index = pd.DatetimeIndex(data.index)
-   qc = saqc.SaQC(data)
-
-We load the example `data set <https://git.ufz.de/rdm-software/saqc/-/blob/develop/docs/resources/data/tempsenorGroup.csv>`_
-from the *saqc* repository using the `pandas <https://pandas.pydata.org/>`_ csv
-file reader. Subsequently, we cast the index of the imported data to `DatetimeIndex <https://pandas.pydata.org/docs/reference/api/pandas.DatetimeIndex.html>`
-and use the `plot` method built into the dataframe object to have a look at the imported variables:
-
-.. doctest:: flagDriftFromNorm
-
-   >>> data = pd.read_csv('./resources/data/tempSensorGroup.csv')
-   >>> data = data.set_index('Timestamp')
-   >>> data.plot() # doctest: +SKIP
+* :ref:`Parameters <cookbooks/DriftDetection:Parameters>`
+* :ref:`Algorithm <cookbooks/DriftDetection:Algorithm>`
+* :ref:`Example Data import <cookbooks/DriftDetection:Example Data import>`
+* :ref:`Example Algorithm Application <cookbooks/DriftDetection:Example Algorithm Application>`
 
 
-.. plot::
-   :context: close-figs
-   :include-source: False
-   :class: center
 
-    data.plot()
 
 Parameters
 ----------
-
 
 Although there seems to be a lot of user input to parametrize, most of it is easy to be interpreted and can be selected
 defaultly.
@@ -121,9 +95,42 @@ The steps of the algorithm are the following:
    * if yes: flag all the variables that are not in that cluster
    * if no: flag nothing
 
+Example Data Import
+-------------------
 
-Example
--------
+.. plot::
+   :context: reset
+   :include-source: False
+
+   import matplotlib
+   import saqc
+   import pandas as pd
+   data = pd.read_csv('../resources/data/tempSensorGroup.csv', index_col=0)
+   data.index = pd.DatetimeIndex(data.index)
+   qc = saqc.SaQC(data)
+
+We load the example `data set <https://git.ufz.de/rdm-software/saqc/-/blob/develop/docs/resources/data/tempsenorGroup.csv>`_
+from the *saqc* repository using the `pandas <https://pandas.pydata.org/>`_ csv
+file reader. Subsequently, we cast the index of the imported data to `DatetimeIndex` type
+and use the `plot` method built into the dataframe object, to have a look at the imported variables:
+
+.. doctest:: flagDriftFromNorm
+
+   >>> data = pd.read_csv('./resources/data/tempSensorGroup.csv')
+   >>> data = data.set_index('Timestamp')
+   >>> data.plot() # doctest: +SKIP
+
+
+.. plot::
+   :context: close-figs
+   :include-source: False
+   :class: center
+
+    data.plot()
+
+
+Example Algorithm Application
+-----------------------------
 
 Looking at our example data set more closely, we see that 2 of the 5 variables start to drift away.
 
@@ -152,8 +159,9 @@ object with the data:
    >>> import saqc
    >>> qc = saqc.SaQC(data)
 
-The changes we observe in the data seem to develop in temporal spans of months, so we go for ``"1M"`` as value for the
-``window`` parameter. We identified the majority group as the group containing three variables, whereby 2 variables
+The changes we observe in the data seem to develop significantly only in temporal spans over a month,
+so we go for ``"1M"`` as value for the
+``window`` parameter. We identified the majority group as a group containing three variables, whereby two variables
 seem to be scattered away, so that we can leave the ``frac`` value at its default ``.5`` level.
 The majority group seems on average not to be spread out more than 3 or 4 degrees. So, for the ``spread`` value
 we go for ``3``. This can be interpreted as follows, for every member of a group, there is another member that
