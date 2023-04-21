@@ -54,7 +54,7 @@ def test_flagsSurviveBackprojection():
 
 
 @pytest.mark.parametrize(
-    "method, window, expected",
+    "method, freq, expected",
     [
         (
             "nagg",
@@ -123,7 +123,7 @@ def test_resampleAggregateInvert(data, method, freq, expected):
 
 
 @pytest.mark.parametrize(
-    "method, window, expected",
+    "method, freq, expected",
     [
         (
             "linear",
@@ -181,7 +181,7 @@ def test_alignInterpolateInvert(data, method, freq, expected):
 
 
 @pytest.mark.parametrize(
-    "method, window, expected",
+    "method, freq, expected",
     [
         (
             "bshift",
@@ -305,7 +305,7 @@ def test_concatFlags(data, overwrite, expected_col0, expected_col1):
 
 
 @pytest.mark.parametrize(
-    "method, inversion_method, window",
+    "method, inversion_method, freq",
     [
         ("linear", "inverse_interpolation", "15min"),
         ("bshift", "inverse_bshift", "15Min"),
@@ -371,7 +371,7 @@ def _assertEqual(left: SaQC, right: SaQC):
 
 
 @pytest.mark.parametrize(
-    "method, inversion_method, window",
+    "method, inversion_method, freq",
     [
         ("bagg", "inverse_bagg", "15Min"),
         ("fagg", "inverse_fagg", "15Min"),
