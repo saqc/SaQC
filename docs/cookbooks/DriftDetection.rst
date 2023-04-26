@@ -56,9 +56,7 @@ The main parameter to control the algorithm's behavior. It has to be selected ca
 It determines the maximum spread of a normal group by limiting the costs, a cluster agglomeration must not exceed in
 every linkage step.
 
-For singleton clusters, that costs just equal half the distance, the timeseries in the clusters have to
-each other. So, no timeseries` can be clustered together, that are more then two times the spreading norm distanted
-from each other.
+For singleton clusters, that costs equals half the distance, the timeseries in the clusters have to each other. So, only timeseries with a distance of less than two times the spreading norm can be clustered.
 
 When timeseries get clustered together, this new clusters distance to all the other timeseries/clusters is calculated
 according to the linkage method specified. By default, it is the minimum distance, the members of the clusters have to
