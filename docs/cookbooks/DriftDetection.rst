@@ -83,7 +83,7 @@ In addition, a group is only considered to be "normal", if it contains more then
 The steps of the algorithm are the following:
 
 * Calculate the distances :math:`d(x_i,x_j)` for all timeseries :math:`x_i` that are to be clustered with a metric specified by the user
-* Calculate a dendogram with a hierarchical linkage algorithm, specified by the user.
+* Calculate a dendogram using a hierarchical linkage algorithm, specified by the user.
 * Flatten the dendogram at the level, the agglomeration costs exceed the value given by a spreading norm, specified by the user
 * check if there is a cluster containing more than a certain percentage of variables (percentage specified by the user).
    * if yes: flag all the variables that are not in that cluster
