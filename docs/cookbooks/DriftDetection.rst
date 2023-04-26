@@ -65,7 +65,7 @@ each other.
 Having that in mind, it is advisable to choose a distance function as metric, that can be well interpreted in the units
 dimension of the measurement, and where the interpretation is invariant over the length of the timeseries.
 
-Metric
+metric
 ^^^^^^
 
 The *averaged manhatten metric* is set as the metric default, since it more or less represents the
