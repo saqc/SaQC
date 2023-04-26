@@ -75,8 +75,7 @@ compared timeseries' length). For the selection of the :py:attr:`spread` paramet
 Algorithm
 ---------
 
-The aim of the algorithm is to flag sections in timeseries, that significantly deviate from a normal group of
-parallely running timeseries in that section.
+The aim of the algorithm is to flag sections in timeseries, that significantly deviate from a normal group of timeseries running in parallel within a given section.
 
 "Normality" is determined in terms of a maximum spreading distance, that members of a normal group must not exceed.
 In addition, only a group is considered "normal", if it contains more then a certain percentage of the variables that are to be clustered in "normal" ones and "not normal" ones.
