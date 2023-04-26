@@ -68,10 +68,8 @@ dimension of the measurement, and where the interpretation is invariant over the
 metric
 ^^^^^^
 
-The *averaged manhatten metric* is set as the metric default, since it more or less represents the
-averaged value distance, two timeseries have (as opposed by *euclidean*, for example, which scales non linear with the
-compared timeseries length). For the selection of the `spread` parameter the default metric is helpful, since it
-allows interpreting the spreading in the dimension of the meassurments.
+The default *averaged manhatten metric* roughly represents the averaged value distance of two timeseries (as opposed to *euclidean*, which scales non linearly with the
+compared timeseries' length). For the selection of the :py:attr:`spread` parameter the default metric is helpful, since it allows to interpret the spreading in the dimension of the measurements.
 
 
 Algorithm
