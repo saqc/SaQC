@@ -52,8 +52,7 @@ sufficient for most the tasks.
 spread
 ^^^^^^
 
-The main parameter giving control over the algorithms behavior and having to be selected carefully, is the spreading
-norm parameter `spread`.
+The main parameter to control the algorithm's behavior. It has to be selected carefully.
 It determines the maximum spread of a normal group by limiting the costs, a cluster agglomeration must not exceed in
 every linkage step.
 
