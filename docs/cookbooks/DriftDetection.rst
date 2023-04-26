@@ -11,7 +11,7 @@ Drift Detection
 Overview
 --------
 
-The guide briefly introduces into the usage of the :py:meth:`~saqc.SaQC.flagDriftFromNorm` method.
+The guide briefly introduces the usage of the :py:meth:`~saqc.SaQC.flagDriftFromNorm` method.
 The method detects sections in timeseries that deviate from the majority in a group of variables
 
 
