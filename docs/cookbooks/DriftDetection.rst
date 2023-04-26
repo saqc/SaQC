@@ -105,8 +105,8 @@ Example Data Import
 
 We load the example `data set <https://git.ufz.de/rdm-software/saqc/-/blob/develop/docs/resources/data/tempsenorGroup.csv>`_
 from the *saqc* repository using the `pandas <https://pandas.pydata.org/>`_ csv
-file reader. Subsequently, we cast the index of the imported data to `DatetimeIndex` type
-and use the `plot` method built into the dataframe object, to have a look at the imported variables:
+file reader. Subsequently, we cast the index of the imported data to `DatetimeIndex`
+and use the dataframe's `plot` method, to inspect the imported data:
 
 .. doctest:: flagDriftFromNorm
 
