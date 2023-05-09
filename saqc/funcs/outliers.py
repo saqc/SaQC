@@ -852,15 +852,20 @@ class OutliersMixin:
         [1] https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm
         """
 
+        msg = """
+                The method `flagMAD` is deprecated and will be removed in verion 3.0 of saqc.
+                To achieve the same behavior use:
+                """
+        call = f"qc.flagZScore(field={field}, window={window}, method='modified', thresh={z}, min_residuals={min_residuals}, min_periods={min_periods}, center={center})"
+
+        warnings.warn(f"{msg}`{call}`", DeprecationWarning)
+
         self = self.flagZScore(
             field,
             window=window,
             thresh=z,
             min_residuals=min_residuals,
-            model_func=np.median,
-            norm_func=lambda x: median_abs_deviation(
-                x, scale="normal", nan_policy="omit"
-            ),
+            method="modified",
             center=center,
             min_periods=min_periods,
             flag=flag,
