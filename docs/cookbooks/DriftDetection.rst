@@ -179,7 +179,7 @@ Lets check the results:
 
 .. doctest:: flagDriftFromNorm
 
-   >>> qc.plot('temp1 [degC]') #+SKIP
+   >>> qc.plot('temp1 [degC]') # doctest: +SKIP
 
 .. plot::
    :context: close-figs
@@ -190,7 +190,7 @@ Lets check the results:
 
 .. doctest:: flagDriftFromNorm
 
-   >>> qc.plot('temp2 [degC]') #+SKIP
+   >>> qc.plot('temp2 [degC]') # doctest: +SKIP
 
 .. plot::
    :context: close-figs
@@ -201,7 +201,7 @@ Lets check the results:
 
 .. doctest:: flagDriftFromNorm
 
-   >>> qc.plot('temp3 [degC]') #+SKIP
+   >>> qc.plot('temp3 [degC]') # doctest: +SKIP
 
 .. plot::
    :context: close-figs
@@ -212,7 +212,7 @@ Lets check the results:
 
 .. doctest:: flagDriftFromNorm
 
-   >>> qc.plot('temp4 [degC]') #+SKIP
+   >>> qc.plot('temp4 [degC]') # doctest: +SKIP
 
 .. plot::
    :context: close-figs
@@ -223,7 +223,7 @@ Lets check the results:
 
 .. doctest:: flagDriftFromNorm
 
-   >>> qc.plot('temp5 [degC]') #+SKIP
+   >>> qc.plot('temp5 [degC]') # doctest: +SKIP
 
 .. plot::
    :context: close-figs
