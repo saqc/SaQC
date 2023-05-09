@@ -185,7 +185,7 @@ class InterpolationMixin:
 
         .. doctest:: interpolate
 
-           >>> data = pd.DataFrame({'data':np.array([np.nan, 0, np.nan, np.nan, np.nan, 4, 5, np.nan, np.nan, 8, 9, np.nan, np.nan])}, index=pd.date_range('2000',window='1H', periods=13))
+           >>> data = pd.DataFrame({'data':np.array([np.nan, 0, np.nan, np.nan, np.nan, 4, 5, np.nan, np.nan, 8, 9, np.nan, np.nan])}, index=pd.date_range('2000',freq='1H', periods=13))
            >>> data
                                 data
            2000-01-01 00:00:00   NaN
