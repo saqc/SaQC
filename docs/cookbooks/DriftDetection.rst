@@ -110,8 +110,7 @@ and use the dataframe's `plot` method, to inspect the imported data:
 
 .. doctest:: flagDriftFromNorm
 
-   >>> data = pd.read_csv('./resources/data/tempSensorGroup.csv')
-   >>> data = data.set_index('Timestamp')
+   >>> data = pd.read_csv('./resources/data/tempSensorGroup.csv', index_col=0)
    >>> data.plot() # doctest: +SKIP
 
 
