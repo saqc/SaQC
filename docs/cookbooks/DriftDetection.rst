@@ -32,9 +32,8 @@ defaultly.
 window
 ^^^^^^
 
-The length of partitions you want the target group of data series` to be seperated in, for comparison.
-For example, if selected ``1D`` (one day), the group to check will be divided into one day strips and on every those
-days, it will be checked if some of the series in the group deviate from the normal group, seperately.
+Length of the partitions the target group of data series` is divided into.
+For example, if selected ``1D`` (one day), the group to check will be divided into one day chunks and every chunk is be checked for time series deviating from the normal group.
 
 frac
 ^^^^
