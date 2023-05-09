@@ -165,7 +165,7 @@ average in a month from any member of the majority group.
 .. doctest:: flagDriftFromNorm
 
    >>> variables = ['temp1 [degC]', 'temp2 [degC]', 'temp3 [degC]', 'temp4 [degC]', 'temp5 [degC]']
-   >>> qc = qc.flagDriftfromNorm(variables, window='1M', spread=3)
+   >>> qc = qc.flagDriftFromNorm(variables, window='1M', spread=3)
 
 .. plot::
    :context: close-figs
