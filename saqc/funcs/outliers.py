@@ -1273,6 +1273,7 @@ class OutliersMixin:
     def flagZScore(
         self: "SaQC",
         field: str,
+        method: Literal["standard", "modified"] = "standard",
         window: str | int | None = None,
         thresh: float = 3,
         min_residuals: int | None = None,
@@ -1300,6 +1301,11 @@ class OutliersMixin:
             extension or by an integer, denoting the windows number of periods. ``NaN`` also count as
             periods. If ``None`` is passed, all data points share the same scoring window, which than
             equals the whole data.
+        method :
+            Which of the most common methods to use for ZScoring:
+            * `"standard"`: standard Zscoring, using *mean* as the first and *standard deviation (std)* as second moment
+            * `"modified"`: modified Zscoring, using *median* as the first and *median absolute deviation (MAD)* as the second moment
+            The `method` parameter is ignored if both, `model_func` and `norm_func` are passed.
         thresh :
             Cutoff level for the Zscores, above which associated points are marked as outliers.
         min_residuals :
@@ -1327,6 +1333,22 @@ class OutliersMixin:
         5. Finally, :math:`x_{k}` gets flagged, if :math:`|S| >` :py:attr:`thresh` and
            :math:`|M - x_{k}| >=` :py:attr:`min_residuals`.
         """
+        if (norm_func is None) & (model_func is None):
+            if method == "standard":
+                norm_func = np.nanstd
+                model_func = np.nanmean
+            elif method == "modified":
+                norm_func = lambda x: median_abs_deviation(
+                    x, scale="normal", nan_policy="omit"
+                )
+                model_func = np.median
+            else:
+                raise Exception(f"Zscoring method {method} unknown.")
+        elif (norm_func is None) | (model_func is None):
+            raise Exception(
+                f"Either both the parameters norm_func and model_func have to be assigned callables, or none of them"
+            )
+
         datser = self._data[field]
         if min_residuals is None:
             min_residuals = 0
