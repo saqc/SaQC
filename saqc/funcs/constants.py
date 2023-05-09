@@ -16,7 +16,8 @@ import pandas as pd
 
 from saqc import BAD
 from saqc.core import flagging
-from saqc.lib.tools import customRoller, getFreqDelta, statPass
+from saqc.lib.rolling import removeRollingRamps
+from saqc.lib.tools import getFreqDelta, statPass
 from saqc.lib.ts_operators import varQC
 
 if TYPE_CHECKING:
@@ -46,42 +47,47 @@ class ConstantsMixin:
 
         Parameters
         ----------
-        field : str
-            A column in flags and data.
-
-        thresh : float
+        thresh :
             Maximum total change allowed per window.
 
-        window : str | int
+        window :
             Size of the moving window. This is the number of observations used
             for calculating the statistic. Each window will be a fixed size.
             If its an offset then this will be the time period of each window.
             Each window will be a variable sized based on the observations included
             in the time-period.
-
-        flag : float, default BAD
-            Flag to set.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         if not isinstance(window, (str, int)):
             raise TypeError("window must be offset string or int.")
 
-        d = self._data[field]
+        d: pd.Series = self._data[field]
 
-        # min_periods_r=2 ensures that at least two non-nan values are present
+        if not isinstance(window, int) and not pd.api.types.is_datetime64_any_dtype(
+            d.index
+        ):
+            raise ValueError(
+                f"A time based value for 'window' is only possible for variables "
+                f"with a datetime based index, but variable '{field}' has an index "
+                f"of dtype {d.index.dtype}. Use an integer window instead."
+            )
+
+        # min_periods=2 ensures that at least two non-nan values are present
         # in each window and also min() == max() == d[i] is not possible.
-        kws = dict(window=window, min_periods=min_periods, expand=False)
+        min_periods = max(min_periods, 2)
 
         # 1. find starting points of consecutive constant values as a boolean mask
         # 2. fill the whole window with True's
-        rolling = customRoller(d, **kws)
+        rolling = d.rolling(window=window, min_periods=min_periods)
         starting_points_mask = rolling.max() - rolling.min() <= thresh
-        rolling = customRoller(starting_points_mask, **kws, forward=True)
+
+        removeRollingRamps(starting_points_mask, window=window, inplace=True)
+
+        # mimic forward rolling by roll over inverse [::-1]
+        rolling = starting_points_mask[::-1].rolling(
+            window=window, min_periods=min_periods
+        )
         # mimic any()
-        mask = (rolling.sum() > 0) & d.notna()
+        mask = (rolling.sum()[::-1] > 0) & d.notna()
 
         self._flags[mask, field] = flag
         return self
@@ -110,32 +116,22 @@ class ConstantsMixin:
 
         Parameters
         ----------
-        field : str
-            A column in flags and data.
-
-        window : str | int
+        window :
             Size of the moving window. This is the number of observations used
             for calculating the statistic. Each window will be a fixed size.
             If its an offset then this will be the time period of each window.
             Each window will be sized, based on the number of observations included
             in the time-period.
 
-        thresh : float, default 0.0005
+        thresh :
             Maximum total variance allowed per window.
 
-        maxna : int, default None
+        maxna :
             Maximum number of NaNs allowed in window.
             If more NaNs are present, the window is not flagged.
 
-        maxna_group : int, default None
+        maxna_group :
             Same as `maxna` but for consecutive NaNs.
-
-        flag : float, default BAD
-            Flag to set.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         dataseries = self._data[field]
         delta = getFreqDelta(dataseries.index)

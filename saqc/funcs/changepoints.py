@@ -16,7 +16,6 @@ import pandas as pd
 
 from saqc import BAD, UNFLAGGED
 from saqc.core import DictOfSeries, Flags, flagging, register
-from saqc.lib.tools import customRoller, filterKwargs
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -44,19 +43,16 @@ class ChangepointsMixin:
 
         Parameters
         ----------
-        field : str
-            A column in flags and data.
-
-        stat_func : Callable
+        stat_func :
              A function that assigns a value to every twin window. The backward-facing
              window content will be passed as the first array, the forward-facing window
              content as the second.
 
-        thresh_func : Callable
+        thresh_func :
             A function that determines the value level, exceeding wich qualifies a
             timestamps func value as denoting a change-point.
 
-        window : str, tuple of str
+        window :
             Size of the moving windows. This is the number of observations used for
             calculating the statistic.
 
@@ -66,12 +62,12 @@ class ChangepointsMixin:
             If two offsets (as a tuple) is passed the first defines the size of the
             backward facing window, the second the size of the forward facing window.
 
-        min_periods : int or tuple of int
+        min_periods :
             Minimum number of observations in a window required to perform the changepoint
             test. If it is a tuple of two int, the first refer to the backward-,
             the second to the forward-facing window.
 
-        reduce_window : str or None, default None
+        reduce_window :
             The sliding window search method is not an exact CP search method and usually
             there wont be detected a single changepoint, but a "region" of change around
             a changepoint.
@@ -83,20 +79,13 @@ class ChangepointsMixin:
             If `reduce_window` is None, the reduction window size equals the twin window
             size, the changepoints have been detected with.
 
-        reduce_func : Callable, default ``lambda x, y: x.argmax()``
+        reduce_func : default argmax
             A function that must return an index value upon input of two arrays x and y.
             First input parameter will hold the result from the stat_func evaluation for
             every reduction window. Second input parameter holds the result from the
             `thresh_func` evaluation.
             The default reduction function just selects the value that maximizes the
             `stat_func`.
-
-        flag : float, default BAD
-            flag to set.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         mask = _getChangePoints(
             data=self._data[field],
@@ -139,31 +128,28 @@ class ChangepointsMixin:
 
         Parameters
         ----------
-        field : str
-            The reference variable, the deviation from wich determines the flagging.
-
-        stat_func : Callable[[numpy.array, numpy.array], float]
+        stat_func :
             A function that assigns a value to every twin window. Left window content will
             be passed to first variable,
             right window content will be passed to the second.
 
-        thresh_func : Callable[numpy.array, numpy.array], float]
+        thresh_func :
             A function that determines the value level, exceeding wich qualifies a
             timestamps func value as denoting a changepoint.
 
-        window : str, tuple of string
+        window :
             Size of the rolling windows the calculation is performed in. If it is a single
             frequency offset, it applies for the backward- and the forward-facing window.
 
             If two offsets (as a tuple) is passed the first defines the size of the
             backward facing window, the second the size of the forward facing window.
 
-        min_periods : int or tuple of int
+        min_periods :
             Minimum number of observations in a window required to perform the changepoint
             test. If it is a tuple of two int, the first refer to the backward-,
             the second to the forward-facing window.
 
-        reduce_window : {None, str}, default None
+        reduce_window :
             The sliding window search method is not an exact CP search method and usually
             there won't be detected a single changepoint, but a "region" of change around
             a changepoint. If `reduce_window` is given, for every window of size
@@ -172,19 +158,15 @@ class ChangepointsMixin:
             window size equals the twin window size, the changepoints have been detected
             with.
 
-        reduce_func : callable, default lambda x,y: x.argmax()
+        reduce_func : default argmax
             A function that must return an index value upon input of two arrays x and y.
             First input parameter will hold the result from the stat_func evaluation for
             every reduction window. Second input parameter holds the result from the
             thresh_func evaluation. The default reduction function just selects the value
             that maximizes the stat_func.
 
-        model_by_resids : bool, default False
+        model_by_resids :
             If True, the results of `stat_funcs` are written, otherwise the regime labels.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         rtyp = "residual" if model_by_resids else "cluster"
         cluster = _getChangePoints(
@@ -234,11 +216,23 @@ def _getChangePoints(
         )
         reduce_window = f"{s}s"
 
-    roller = customRoller(data, window=bwd_window, min_periods=0)
-    bwd_start, bwd_end = roller.window_indexer.get_window_bounds(len(data))
+    for window in [fwd_window, bwd_window, reduce_window]:
+        if isinstance(window, int):
+            raise TypeError(
+                "all parameter defining a size of a window "
+                "must be time-offsets, not integer."
+            )
 
-    roller = customRoller(data, window=fwd_window, forward=True, min_periods=0)
-    fwd_start, fwd_end = roller.window_indexer.get_window_bounds(len(data))
+    # find window bounds arrays..
+    num_index = pd.Series(range(len(data)), index=data.index, dtype=int)
+    # ... for the normal (backwards) case..
+    rolling = num_index.rolling(bwd_window, min_periods=0)
+    bwd_start = rolling.min().to_numpy(dtype=int)
+    bwd_end = rolling.max().to_numpy(dtype=int) + 1
+    # ... and aging for the forward case.
+    rolling = num_index[::-1].rolling(fwd_window, min_periods=0, closed="left")
+    fwd_start = rolling.min().fillna(len(num_index)).to_numpy(dtype=int)[::-1]
+    fwd_end = (rolling.max() + 1).fillna(len(num_index)).to_numpy(dtype=int)[::-1]
 
     min_mask = (fwd_end - fwd_start >= fwd_min_periods) & (
         bwd_end - bwd_start >= bwd_min_periods
@@ -251,16 +245,24 @@ def _getChangePoints(
     check_len = len(fwd_end)
     data_arr = data.values
 
+    # Please keep this as I sometimes need to disable jitting manually
+    # to make it work with my debugger :/
+    # --palmb
     try_to_jit = True
-    jit_sf = numba.jit(stat_func, nopython=True)
-    jit_tf = numba.jit(thresh_func, nopython=True)
-    try:
-        jit_sf(data_arr[bwd_start[0] : bwd_end[0]], data_arr[fwd_start[0] : fwd_end[0]])
-        jit_tf(data_arr[bwd_start[0] : bwd_end[0]], data_arr[fwd_start[0] : fwd_end[0]])
-        stat_func = jit_sf
-        thresh_func = jit_tf
-    except (numba.TypingError, numba.UnsupportedError, IndexError):
-        try_to_jit = False
+    if try_to_jit:
+        jit_sf = numba.jit(stat_func, nopython=True)
+        jit_tf = numba.jit(thresh_func, nopython=True)
+        try:
+            jit_sf(
+                data_arr[bwd_start[0] : bwd_end[0]], data_arr[fwd_start[0] : fwd_end[0]]
+            )
+            jit_tf(
+                data_arr[bwd_start[0] : bwd_end[0]], data_arr[fwd_start[0] : fwd_end[0]]
+            )
+            stat_func = jit_sf
+            thresh_func = jit_tf
+        except (numba.TypingError, numba.UnsupportedError, IndexError):
+            try_to_jit = False
 
     args = data_arr, bwd_start, fwd_end, split, stat_func, thresh_func, check_len
 
@@ -279,14 +281,21 @@ def _getChangePoints(
     det_index = masked_index[result_arr]
     detected = pd.Series(True, index=det_index)
     if reduce_window:
-        l = detected.shape[0]
-        roller = customRoller(detected, window=reduce_window, min_periods=1)
-        start, end = roller.window_indexer.get_window_bounds(
-            num_values=l, min_periods=1, closed="both", center=True
-        )
+        length = len(detected)
+
+        # find window bounds arrays
+        num_index = pd.Series(range(length), index=detected.index, dtype=int)
+        rolling = num_index.rolling(window=reduce_window, closed="both", center=True)
+        start = rolling.min().to_numpy(dtype=int)
+        end = (rolling.max() + 1).to_numpy(dtype=int)
 
         detected = _reduceCPCluster(
-            stat_arr[result_arr], thresh_arr[result_arr], start, end, reduce_func, l
+            stat_arr[result_arr],
+            thresh_arr[result_arr],
+            start,
+            end,
+            reduce_func,
+            length,
         )
         det_index = det_index[detected]
 

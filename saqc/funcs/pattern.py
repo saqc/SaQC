@@ -10,11 +10,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import dtw
+import numpy as np
 import pandas as pd
 
 from saqc import BAD
 from saqc.core import flagging
-from saqc.lib.tools import customRoller
+from saqc.lib.rolling import removeRollingRamps
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -69,17 +70,21 @@ def calculateDistanceByDTW(
     if reference.hasnans or reference.empty:
         raise ValueError("reference must not have nan's and must not be empty.")
 
-    winsz = reference.index.max() - reference.index.min()
+    winsz: pd.Timedelta = reference.index.max() - reference.index.min()
     reference = reference.to_numpy()
 
     def isPattern(chunk):
-        return dtw.accelerated_dtw(chunk, reference, "euclidean")[0]
+        if forward:
+            return dtw.accelerated_dtw(chunk[::-1], reference, "euclidean")[0]
+        else:
+            return dtw.accelerated_dtw(chunk, reference, "euclidean")[0]
 
     # generate distances, excluding NaNs
-    rolling = customRoller(
-        data.dropna(), window=winsz, forward=forward, expand=False, closed="both"
-    )
-    distances: pd.Series = rolling.apply(isPattern, raw=True)
+    nonas = data.dropna()
+    rollover = nonas[::-1] if forward else nonas
+    arr = rollover.rolling(winsz, closed="both").apply(isPattern, raw=True).to_numpy()
+    distances = pd.Series(arr[::-1] if forward else arr, index=nonas.index)
+    removeRollingRamps(distances, window=winsz, inplace=True)
 
     if normalize:
         distances /= len(reference)
@@ -113,26 +118,23 @@ class PatternMixin:
 
         Parameters
         ----------
-        field : str
-            The name of the data column
-
-        reference : str
+        reference :
             The name in `data` which holds the pattern. The pattern must not have NaNs,
             have a datetime index and must not be empty.
 
-        max_distance : float, default 0.0
+        max_distance :
             Maximum dtw-distance between chunk and pattern, if the distance is lower than
             ``max_distance`` the data gets flagged. With default, ``0.0``, only exact
             matches are flagged.
 
-        normalize : bool, default True
+        normalize :
             If `False`, return unmodified distances.
             If `True`, normalize distances by the number of observations of the reference.
             This helps to make it easier to find a good cutoff threshold for further
             processing. The distances then refer to the mean distance per datapoint,
             expressed in the datas units.
 
-        plot: bool, default False
+        plot :
             Show a calibration plot, which can be quite helpful to find the right threshold
             for `max_distance`. It works best with `normalize=True`. Do not use in automatic
             setups / pipelines. The plot show three lines:
@@ -142,10 +144,6 @@ class PatternMixin:
             - indicator: have to distinct levels: `0` and the value of `max_distance`.
               If `max_distance` is `0.0` it defaults to `1`. Everywhere where the
               indicator is not `0` the data will be flagged.
-
-        Returns
-        -------
-        saqc.SaQC
 
         Notes
         -----
@@ -168,15 +166,12 @@ class PatternMixin:
         distances = distances.fillna(max_distance + 1)
 
         # find minima filter by threshold
-        fw = customRoller(
-            distances, window=winsz, forward=True, closed="both", expand=True
-        )
-        bw = customRoller(distances, window=winsz, closed="both", expand=True)
-        minima = (fw.min() == bw.min()) & (distances <= max_distance)
+        fw_min = distances[::-1].rolling(window=winsz, closed="both").min()[::-1]
+        bw_min = distances.rolling(window=winsz, closed="both").min()
+        minima = (fw_min == bw_min) & (distances <= max_distance)
 
         # Propagate True's to size of pattern.
-        rolling = customRoller(minima, window=winsz, closed="both", expand=True)
-        mask = rolling.sum() > 0
+        mask = minima.rolling(window=winsz, closed="both").sum() > 0
 
         if plot:
             df = pd.DataFrame()

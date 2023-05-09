@@ -14,7 +14,7 @@ import pandas as pd
 
 from saqc import BAD, FILTER_ALL
 from saqc.core import DictOfSeries, Flags, register
-from saqc.lib.tools import isAllBoolean, isflagged, toSequence
+from saqc.lib.tools import isAllBoolean, isflagged, isunflagged, toSequence
 from saqc.parsing.environ import ENVIRONMENT
 
 if TYPE_CHECKING:
@@ -122,35 +122,15 @@ class GenericMixin:
 
         Parameters
         ----------
-        field : str or list of str
-            The variable(s) passed to func.
-
-        func : callable
+        func :
             Function to call on the variables given in ``field``. The return value will be written
             to ``target`` or ``field`` if the former is not given. This implies, that the function
             needs to accept the same number of arguments (of type pandas.Series) as variables given
             in ``field`` and should return an iterable of array-like objects with the same number
             of elements as given in ``target`` (or ``field`` if ``target`` is not specified).
 
-        target: str or list of str
-            The variable(s) to write the result of ``func`` to. If not given, the variable(s)
-            specified in ``field`` will be overwritten. If a ``target`` is not given, it will be
-            created.
-
-        flag: float, default ``np.nan``
-            The quality flag to set. The default ``np.nan`` states the general idea, that
-            ``processGeneric`` generates 'new' data without any flags.
-
-        dfilter: float, default ``FILTER_ALL``
-            Threshold flag. Flag values greater than ``dfilter`` indicate that the associated
-            data value is inappropiate for further usage.
-
-        Returns
-        -------
-        saqc.SaQC
-
         Note
-        -----
+        ----
         All the numpy functions are available within the generic expressions.
 
         Examples
@@ -213,26 +193,11 @@ class GenericMixin:
 
         Parameters
         ----------
-        field : str or list of str
-            The variable(s) passed to func.
-
-        func : callable
+        func :
             Function to call. The function needs to accept the same number of arguments
             (of type pandas.Series) as variables given in ``field`` and return an
             iterable of array-like objects of data type ``bool`` with the same length as
             ``target``.
-
-        target: str or list of str
-            The variable(s) to write the result of ``func`` to. If not given, the variable(s)
-            specified in ``field`` will be overwritten. Non-existing ``target``s  will be created
-            as all ``NaN`` timeseries.
-
-        flag: float, default ``BAD``
-            Quality flag to set.
-
-        Returns
-        -------
-        saqc.SaQC
 
         Examples
         --------
@@ -286,7 +251,7 @@ class GenericMixin:
                 self._flags[col] = pd.Series(np.nan, index=mask.index)
 
             # respect existing flags
-            mask = ~isflagged(self._flags[col], thresh=dfilter) & mask
+            mask = isunflagged(self._flags[col], thresh=dfilter) & mask
 
             # dummy column to ensure consistency between flags and data
             if col not in self._data:

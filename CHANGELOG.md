@@ -7,26 +7,35 @@ SPDX-License-Identifier: GPL-3.0-or-later
 # Changelog
 
 ## Unreleased
-[List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.3.0...develop)
+[List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.4.0...develop)
+### Added
+### Changed
+### Removed
+### Fixed
+
+## [2.4.0](https://git.ufz.de/rdm-software/saqc/-/tags/v2.4.0) - 2023-04-25
+[List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.3.0...v2.4.0)
 ### Added
 - Methods `logicalAnd` and `logicalOr`
-- `Flags` supports slicing and column selection with `list` or a `pd.Index`
-- Expose the `History` via `SaQC._history_`
+- `Flags` support slicing and column selection with `list` or a `pd.Index`.
+- Expose the `History` via `SaQC._history`
+- Config function `cv` (coefficient of variation)
 ### Changed
 - Deprecate `interpolate`, `linear` and `shift` in favor of `align`
 - Deprecate `roll` in favor of `rolling`
 - Rename `interplateInvalid` to `interpolate`
 - Rename parameter `freq` of `flagDriftFromNorm` to `window`
-- Rename `interpolateIndex` to `align` 
+- Rename `interpolateIndex` to `align`
 - Deprecate `flagMVScore` parameters: `partition_min` in favor of `window`, `partition_min` in favor of `min_periods`, `min_periods` in favor of `min_periods_r`
 ### Removed
 - Parameter `limit` from `align`
-- Parameter `max_na_group_flags`, `max_na_flags`, `flag_func`, `freq_check` removed from `resample`
+- Parameter `max_na_group_flags`, `max_na_flags`, `flag_func`, `freq_check` from `resample`
 ### Fixed
 - `func` arguments in text configurations were not parsed correctly
 - fail on duplicated arguments to test methods
 - `reample` was not writing meta entries
 - `flagByStatLowPass` was overwriting existing flags
+- `flagUniLOF` and `flagLOF` were overwriting existing flags
 
 ## [2.3.0](https://git.ufz.de/rdm-software/saqc/-/tags/v2.3.0) - 2023-01-17
 [List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.2.1...v2.3.0)
@@ -36,9 +45,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - python 3.11 support
 - added Local Outlier Factor functionality
 ### Changed
-- Remove all flag value restrictions from the default flagging scheme `FloatTranslator` 
-- Renamed `TranslationScheme.forward` to `TranslationScheme.toInternal` 
-- Renamed `TranslationScheme.backward` to `TranslationScheme.toExternal` 
+- Remove all flag value restrictions from the default flagging scheme `FloatTranslator`
+- Renamed `TranslationScheme.forward` to `TranslationScheme.toInternal`
+- Renamed `TranslationScheme.backward` to `TranslationScheme.toExternal`
 - Changed default value of the parameter `limit` for `SaQC.interpolateIndex` and `SaQC.interpolateInvalid` to ``None``
 - Changed default value of the parameter ``overwrite`` for ``concatFlags`` to ``False``
 - Deprecate ``transferFlags`` in favor of ``concatFlags``
@@ -73,7 +82,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 ### Removed
 - `closed` keyword in `flagJumps`
 ### Fixed
-- fixed undesired behavior in `flagIsolated` for not harmonized data 
+- fixed undesired behavior in `flagIsolated` for not harmonized data
 - fixed failing translation of `dfilter`-defaults
 - fixed unbound recursion error when interpolating with order-independent methods in `interpolateIndex`
 - fixed not working min_periods condition if `window=None` in `assignZScore`
