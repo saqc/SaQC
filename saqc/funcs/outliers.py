@@ -1274,10 +1274,17 @@ class OutliersMixin:
 
         return self
 
-    @flagging()
+    @register(
+        mask=["field"],
+        demask=["field"],
+        squeeze=["field"],
+        multivariate=True,
+        handles_target=False,
+        docstring={"field": DOC_TEMPLATES["field"]},
+    )
     def flagZScore(
         self: "SaQC",
-        field: str,
+        field: Sequence[str],
         method: Literal["standard", "modified"] = "standard",
         window: str | int | None = None,
         thresh: float = 3,
@@ -1302,7 +1309,7 @@ class OutliersMixin:
         Parameters
         ----------
         window :
-            Size of the window. Either determined via an Offset String, denoting the windows temporal
+            Size of the window. Either determined via an offset string, denoting the windows temporal
             extension or by an integer, denoting the windows number of periods. ``NaN`` also count as
             periods. If ``None`` is passed, all data points share the same scoring window, which than
             equals the whole data.
@@ -1351,10 +1358,10 @@ class OutliersMixin:
                 raise Exception(f"Zscoring method {method} unknown.")
         elif (norm_func is None) | (model_func is None):
             raise Exception(
-                f"Either both the parameters norm_func and model_func have to be assigned callables, or none of them"
+                f"Either both the parameters norm_func and model_func have to be assigned callables, or none of them."
             )
 
-        datser = self._data[field]
+        datser = self._data[field].to_pandas(how='outer')
         if min_residuals is None:
             min_residuals = 0
 
@@ -1367,7 +1374,8 @@ class OutliersMixin:
             min_periods=min_periods,
         )
         to_flag = (score.abs() > thresh) & ((model - datser).abs() >= min_residuals)
-        self._flags[to_flag, field] = flag
+        for f in field:
+            self._flags[to_flag[f], f] = flag
         return self
 
 
