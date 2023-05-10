@@ -1354,44 +1354,87 @@ class OutliersMixin:
 
         if window is None:
             if dat.notna().sum().sum() >= min_periods:
-                if method == 'standard':
+                if method == "standard":
                     mod = dat.mean()
                     norm = dat.std()
-                    score = (dat - mod)/norm
+                    score = (dat - mod) / norm
                 else:
                     mod = dat.median()
                     norm = (dat - mod).abs().median()
-                    score = (dat - mod)/norm
+                    score = (dat - mod) / norm
         else:
             if axis == 0:
-                if method == 'standard':
-                    mod = dat.rolling(window, center=center, min_periods=min_periods).mean()
-                    norm = dat.rolling(window, center=center, min_periods=min_periods).std()
+                if method == "standard":
+                    mod = dat.rolling(
+                        window, center=center, min_periods=min_periods
+                    ).mean()
+                    norm = dat.rolling(
+                        window, center=center, min_periods=min_periods
+                    ).std()
                 else:
-                    mod = dat.rolling(window, center=center, min_periods=min_periods).median()
-                    norm = (mod - dat).abs().rolling(window, center=center, min_periods=min_periods).median()
+                    mod = dat.rolling(
+                        window, center=center, min_periods=min_periods
+                    ).median()
+                    norm = (
+                        (mod - dat)
+                        .abs()
+                        .rolling(window, center=center, min_periods=min_periods)
+                        .median()
+                    )
                 score = (dat - mod) / norm
             elif axis == 1:
                 if window == 1:
-                    if method == 'standard':
+                    if method == "standard":
                         mod = dat.mean(axis=1)
                         norm = dat.std(axis=1)
                     else:
                         mod = dat.median(axis=1)
                         norm = (dat.subtract(mod, axis=0)).abs().median(axis=1)
                 else:
-                    if method == 'standard':
-                        mod = dat.rolling(window, center=center, min_periods=min_periods, method='table').apply(func=np.mean, engine='numba', raw=True).iloc[:,0]
-                        norm = dat.rolling(window, center=center, min_periods=min_periods, method='table').apply(func=np.std,
-                                                                                                           engine='numba',
-                                                                                                           raw=True).iloc[:, 0]
+                    if method == "standard":
+                        mod = (
+                            dat.rolling(
+                                window,
+                                center=center,
+                                min_periods=min_periods,
+                                method="table",
+                            )
+                            .apply(func=np.mean, engine="numba", raw=True)
+                            .iloc[:, 0]
+                        )
+                        norm = (
+                            dat.rolling(
+                                window,
+                                center=center,
+                                min_periods=min_periods,
+                                method="table",
+                            )
+                            .apply(func=np.std, engine="numba", raw=True)
+                            .iloc[:, 0]
+                        )
                     else:
-                        mod = dat.rolling(window, center=center, min_periods=min_periods, method='table').apply(func=np.median,
-                                                                                                           engine='numba',
-                                                                                                           raw=True).iloc[:, 0]
-                        norm = (dat.subtract(mod, axis=0)).abs().rolling(window, center=center, min_periods=min_periods, method='table').apply(func=np.median,
-                                                                                                           engine='numba',
-                                                                                                           raw=True).iloc[:, 0]
+                        mod = (
+                            dat.rolling(
+                                window,
+                                center=center,
+                                min_periods=min_periods,
+                                method="table",
+                            )
+                            .apply(func=np.median, engine="numba", raw=True)
+                            .iloc[:, 0]
+                        )
+                        norm = (
+                            (dat.subtract(mod, axis=0))
+                            .abs()
+                            .rolling(
+                                window,
+                                center=center,
+                                min_periods=min_periods,
+                                method="table",
+                            )
+                            .apply(func=np.median, engine="numba", raw=True)
+                            .iloc[:, 0]
+                        )
                 score = dat.subtract(mod, axis=0).divide(norm, axis=0)
 
         to_flag = (score.abs() > thresh) & ((mod - dat).abs() >= min_residuals)
