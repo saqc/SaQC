@@ -150,27 +150,33 @@ def test_flagCrossStatistics(dat):
 
 def test_flagZScores():
     np.random.seed(seed=1)
-    data = pd.Series(
-        [np.random.normal() for k in range(100)],
+    data = pd.DataFrame(
+        {'data': [np.random.normal() for k in range(100)], 'data2': [np.random.normal() for k in range(100)]},
         index=pd.date_range("2000", freq="1D", periods=100),
-        name="data",
     )
-    data.iloc[[5, 80]] = 5
-    data.iloc[[40]] = -6
+    data.iloc[[5, 80], 0] = 5
+    data.iloc[[40], 0] = -6
+    data.iloc[[60], 1] = 10
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore("data", window=None)
+    qcMV = qc.flagZScore(["data", "data2"], window=None)
+    qcUV = qc.flagZScore("data", window=None)
 
-    assert (qc.flags.to_pandas().iloc[[5, 40, 80], 0] > 0).all()
-
-    qc = saqc.SaQC(data)
-    qc = qc.flagZScore("data", window=None, min_residuals=10)
-
-    assert (qc.flags.to_pandas()["data"] < 0).all()
+    assert (qcUV.flags.to_pandas().iloc[[5, 40, 80], 0] > 0).all()
+    assert (qcMV.flags.to_pandas().iloc[[5, 40, 80], 0] > 0).all()
+    assert (qcMV.flags.to_pandas().iloc[[60], 1] > 0).all()
 
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore("data", window="20D")
+    qcMV = qc.flagZScore(["data", "data2"], window=None, min_residuals=10)
+    qcUV = qc.flagZScore("data", window=None, min_residuals=10)
 
-    assert (qc.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
+    assert (qcUV.flags.to_pandas()["data"] < 0).all()
+    assert (qcMV.flags.to_pandas()[["data","data2"]] < 0).all().all()
+
+    qc = saqc.SaQC(data)
+    qcMV = qc.flagZScore(["data","data2"], window="20D")
+    qcUV = qc.flagZScore("data", window="20D")
+
+    assert (qcUV.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
 
     qc = saqc.SaQC(data)
     qc = qc.flagZScore("data", window=20)

@@ -1290,9 +1290,8 @@ class OutliersMixin:
         thresh: float = 3,
         min_residuals: int | None = None,
         min_periods: int | None = None,
-        model_func: Callable[[np.ndarray | pd.Series], float] = None,
-        norm_func: Callable[[np.ndarray | pd.Series], float] = None,
         center: bool = True,
+        axis: int = 0,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -1324,13 +1323,10 @@ class OutliersMixin:
             Minimum residual value points must have to be considered outliers.
         min_periods :
             Minimum number of valid meassurements in a scoring window, to consider the resulting score valid.
-        model_func : default mean
-            Function to calculate the center moment in every window.
-        norm_func : default std
-            Function to calculate the scaling for every window.
         center :
             Weather or not to center the target value in the scoring window. If ``False``, the
             target value is the last value in the window.
+        axis :
 
         Notes
         -----
@@ -1345,35 +1341,60 @@ class OutliersMixin:
         5. Finally, :math:`x_{k}` gets flagged, if :math:`|S| >` :py:attr:`thresh` and
            :math:`|M - x_{k}| >=` :py:attr:`min_residuals`.
         """
-        if (norm_func is None) & (model_func is None):
-            if method == "standard":
-                norm_func = np.nanstd
-                model_func = np.nanmean
-            elif method == "modified":
-                norm_func = lambda x: median_abs_deviation(
-                    x, scale="normal", nan_policy="omit"
-                )
-                model_func = np.median
-            else:
-                raise Exception(f"Zscoring method {method} unknown.")
-        elif (norm_func is None) | (model_func is None):
-            raise Exception(
-                f"Either both the parameters norm_func and model_func have to be assigned callables, or none of them."
-            )
 
-        datser = self._data[field].to_pandas(how="outer")
+        dat = self._data[field].to_pandas(how="outer")
         if min_residuals is None:
             min_residuals = 0
 
-        score, model, _ = _univarScoring(
-            datser,
-            window=window,
-            norm_func=norm_func,
-            model_func=model_func,
-            center=center,
-            min_periods=min_periods,
-        )
-        to_flag = (score.abs() > thresh) & ((model - datser).abs() >= min_residuals)
+        if dat.empty:
+            return self
+
+        if min_periods is None:
+            min_periods = 0
+
+        if window is None:
+            if dat.notna().sum().sum() >= min_periods:
+                if method == 'standard':
+                    mod = dat.mean()
+                    norm = dat.std()
+                    score = (dat - mod)/norm
+                else:
+                    mod = dat.median()
+                    norm = (dat - mod).abs().median()
+                    score = (dat - mod)/norm
+        else:
+            if axis == 0:
+                if method == 'standard':
+                    mod = dat.rolling(window, center=center, min_periods=min_periods).mean()
+                    norm = dat.rolling(window, center=center, min_periods=min_periods).std()
+                else:
+                    mod = dat.rolling(window, center=center, min_periods=min_periods).median()
+                    norm = (mod - dat).abs().rolling(window, center=center, min_periods=min_periods).median()
+                score = (dat - mod) / norm
+            elif axis == 1:
+                if window == 1:
+                    if method == 'standard':
+                        mod = dat.mean(axis=1)
+                        norm = dat.std(axis=1)
+                    else:
+                        mod = dat.median(axis=1)
+                        norm = (dat.subtract(mod, axis=0)).abs().median(axis=1)
+                else:
+                    if method == 'standard':
+                        mod = dat.rolling(window, center=center, min_periods=min_periods, method='table').apply(func=np.mean, engine='numba', raw=True).iloc[:,0]
+                        norm = dat.rolling(window, center=center, min_periods=min_periods, method='table').apply(func=np.std,
+                                                                                                           engine='numba',
+                                                                                                           raw=True).iloc[:, 0]
+                    else:
+                        mod = dat.rolling(window, center=center, min_periods=min_periods, method='table').apply(func=np.median,
+                                                                                                           engine='numba',
+                                                                                                           raw=True).iloc[:, 0]
+                        norm = (dat.subtract(mod, axis=0)).abs().rolling(window, center=center, min_periods=min_periods, method='table').apply(func=np.median,
+                                                                                                           engine='numba',
+                                                                                                           raw=True).iloc[:, 0]
+                score = dat.subtract(mod, axis=0).divide(norm, axis=0)
+
+        to_flag = (score.abs() > thresh) & ((mod - dat).abs() >= min_residuals)
         for f in field:
             self._flags[to_flag[f], f] = flag
         return self
