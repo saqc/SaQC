@@ -1361,7 +1361,7 @@ class OutliersMixin:
                 f"Either both the parameters norm_func and model_func have to be assigned callables, or none of them."
             )
 
-        datser = self._data[field].to_pandas(how='outer')
+        datser = self._data[field].to_pandas(how="outer")
         if min_residuals is None:
             min_residuals = 0
 

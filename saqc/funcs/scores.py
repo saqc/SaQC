@@ -127,8 +127,12 @@ def _univarScoring(
     if window is None:
         if data.notna().sum().sum() >= min_periods:
             # in case of stationary analysis, broadcast statistics to series for compatibility reasons
-            norm = pd.DataFrame(norm_func(data.values), index=data.index, columns=data.columns)
-            model = pd.DataFrame(model_func(data.values), index=data.index, columns=data.columns)
+            norm = pd.DataFrame(
+                norm_func(data.values), index=data.index, columns=data.columns
+            )
+            model = pd.DataFrame(
+                model_func(data.values), index=data.index, columns=data.columns
+            )
         else:
             norm = pd.DataFrame(np.nan, index=data.index, columns=data.columns)
             model = pd.DataFrame(np.nan, index=data.index, columns=data.columns)
