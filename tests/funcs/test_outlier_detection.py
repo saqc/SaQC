@@ -130,22 +130,16 @@ def test_grubbs(dat):
 
 @pytest.mark.parametrize("dat", [pytest.lazy_fixture("course_2")])
 def test_flagCrossStatistics(dat):
-    data1, characteristics = dat(initial_level=0, final_level=0, out_val=0)
-    data2, characteristics = dat(initial_level=0, final_level=0, out_val=10)
-    fields = ["field1", "field2"]
-    s1, s2 = data1["data"], data2["data"]
-    s1 = pd.Series(data=s1.values, index=s1.index)
-    s2 = pd.Series(data=s2.values, index=s1.index)
-    data = DictOfSeries(field1=s1, field2=s2)
+    fields = [f'data{i}' for i in range(6)]
+    data = pd.DataFrame(0,columns=fields, index=pd.date_range('2000', freq='1h', periods=10))
+    bad_idx = (np.random.randint(0,10),np.random.randint(0,6))
+    data.iloc[bad_idx[0],bad_idx[1]]=10
     flags = initFlagsLike(data)
-
-    with pytest.deprecated_call():
-        qc = SaQC(data, flags).flagCrossStatistics(
-            fields, thresh=3, method=np.mean, flag=BAD
-        )
-    for field in fields:
-        isflagged = qc.flags[field] > UNFLAGGED
-        assert isflagged[characteristics["raise"]].all()
+    qcSTD = SaQC(data, flags).flagZScore(fields, thresh=2, method='standard', flag=BAD, axis=1, window=1)
+    qcMAD = SaQC(data, flags).flagZScore(fields, thresh=2, method='modified', flag=BAD, axis=1, window=1)
+    for qc in [qcSTD, qcMAD]:
+        isflagged = qcSTD.flags.to_pandas()> UNFLAGGED
+        assert isflagged.iloc[bad_idx[0],bad_idx[1]]
 
 
 def test_flagZScores():
