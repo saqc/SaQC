@@ -1279,7 +1279,6 @@ class OutliersMixin:
         demask=["field"],
         squeeze=["field"],
         multivariate=True,
-        handles_target=False,
         docstring={"field": DOC_TEMPLATES["field"]},
     )
     def flagZScore(
@@ -1327,19 +1326,15 @@ class OutliersMixin:
             Weather or not to center the target value in the scoring window. If ``False``, the
             target value is the last value in the window.
         axis :
+            Along which axis to calculate the scoring statistics.
+            * `0` (default) - calculate statistics along time axis
+            * `1` - calculate statistics over multiple variables
+            See Notes section for a visual clarification of the workings
+            of `axis` and `window`.
 
         Notes
         -----
-        Steps of calculation:
 
-        1. Consider a window :math:`W` of successive points :math:`W = x_{1},...x_{w}`
-           containing the value :math:`y_{K}` which is to be checked.
-           (The index of :math:`K` depends on the selection of the parameter :py:attr:`center`.)
-        2. The "moment" :math:`M` for the window gets calculated via :math:`M=` :py:attr:`model_func` :math:`(W)`.
-        3. The "scaling" :math:`N` for the window gets calculated via :math:`N=` :py:attr:`norm_func` :math:`(W)`.
-        4. The "score" :math:`S` for the point :math:`x_{k}` gets calculated via :math:`S=(x_{k} - M) / N`.
-        5. Finally, :math:`x_{k}` gets flagged, if :math:`|S| >` :py:attr:`thresh` and
-           :math:`|M - x_{k}| >=` :py:attr:`min_residuals`.
         """
 
         dat = self._data[field].to_pandas(how="outer")
