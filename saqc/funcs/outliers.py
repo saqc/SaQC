@@ -1230,10 +1230,15 @@ class OutliersMixin:
         ----------
         [1] https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm
         """
-        warnings.warn(
-            "The method `flagCrossStatistics` will be deprecated in a future version of saqc",
-            PendingDeprecationWarning,
-        )
+        msg = """
+              The method `flagCrossStatistics` is deprecated and will be removed in verion 3.0 of saqc.
+              To achieve the same behavior use:
+              """
+        new_method_string = {'modZscore': 'modified', 'Zscore': 'standard'}
+        call = f"qc.flagZScore(field={field}, window=1, method={new_method_string[method]}, thresh={thresh})"
+
+        warnings.warn(f"{msg}`{call}`", DeprecationWarning)
+
 
         fields = toSequence(field)
 
@@ -1312,7 +1317,7 @@ class OutliersMixin:
             periods. If ``None`` is passed, all data points share the same scoring window, which than
             equals the whole data.
         method :
-            Which of the most common methods to use for ZScoring:
+            Which method to use for ZScoring:
             * `"standard"`: standard Zscoring, using *mean* as the first and *standard deviation (std)* as second moment
             * `"modified"`: modified Zscoring, using *median* as the first and *median absolute deviation (MAD)* as the second moment
             The `method` parameter is ignored if both, `model_func` and `norm_func` are passed.
