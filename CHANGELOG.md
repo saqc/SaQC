@@ -9,8 +9,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
 ## Unreleased
 [List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.4.0...develop)
 ### Added
+- Parameter `axis` in flagZScore (enables calculation along data column axis.)
 ### Changed
+- deprecated `flagCrossStatistics` in favor of `flagZScore`
+- deprecated `flagMAD` in favor of `flagZScore`
+- deprecated parameters `norm_func` and `model_func` of `flagZScore` in favor of Parameter `method`
 ### Removed
+- Support for ZScoring with function composites resulting in operators other than standard or modified ZScore in `flagZScore`
 ### Fixed
 
 ## [2.4.0](https://git.ufz.de/rdm-software/saqc/-/tags/v2.4.0) - 2023-04-25
