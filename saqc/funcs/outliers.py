@@ -1359,12 +1359,21 @@ class OutliersMixin:
         if window is None:
             if dat.notna().sum().sum() >= min_periods:
                 if method == "standard":
-                    mod = pd.DataFrame({f:dat[f].mean() for f in dat.columns}, index=dat.index)
-                    norm = pd.DataFrame({f:dat[f].std() for f in dat.columns}, index=dat.index)
+                    mod = pd.DataFrame(
+                        {f: dat[f].mean() for f in dat.columns}, index=dat.index
+                    )
+                    norm = pd.DataFrame(
+                        {f: dat[f].std() for f in dat.columns}, index=dat.index
+                    )
 
                 else:
-                    mod = pd.DataFrame({f:dat[f].median() for f in dat.columns}, index=dat.index)
-                    norm = pd.DataFrame({f:(dat[f] - mod[f]).abs().median() for f in dat.columns}, index=dat.index)
+                    mod = pd.DataFrame(
+                        {f: dat[f].median() for f in dat.columns}, index=dat.index
+                    )
+                    norm = pd.DataFrame(
+                        {f: (dat[f] - mod[f]).abs().median() for f in dat.columns},
+                        index=dat.index,
+                    )
         else:
             if axis == 0:
                 if method == "standard":
