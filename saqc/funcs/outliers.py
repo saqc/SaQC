@@ -1354,7 +1354,7 @@ class OutliersMixin:
 
            * If ``axis=0``, any value is flagged in the context of those values of the same variable (``field``), that are
              in `window` range.
-           * If ``axis=1``, any value is flagged in the context of all values of all variables (`fields`), that are
+           * If ``axis=1``, any value is flagged in the context of all values of all variables (``fields``), that are
              in `window` range.
            * If ``axis=0`` and ``window=1``, any value is flagged in the context of all values of all variables (``fields``),
              that share the same timestamp.
@@ -1372,6 +1372,29 @@ class OutliersMixin:
 
         3. :math:`x` is flagged, if :math:`Z >` ``thresh``
         """
+
+        if "norm_func" in kwargs or "model_func" in kwargs:
+            warnings.warn(
+                "Parameters norm_func and model_func are deprecated, use parameter method instead.\n"
+                'To model with mean and scale with standard deviation, use method="standard".\n'
+                'To model with median and scale with median absolute deviation (MAD) use method="modified".\n'
+                "Other/Custom model and scaling functions are not supported any more"
+            )
+            if (
+                "mean" in kwargs.get("model_func", "").__name__
+                or "std" in kwargs.get("norm_func", "").__name__
+            ):
+                method = "standard"
+            elif (
+                "median" in kwargs.get("model_func", lambda x: x).__name__
+                or "median" in kwargs.get("norm_func", lambda x: x).__name__
+            ):
+                method = "modified"
+            else:
+                raise ValueError(
+                    "Support for scoring with functions not similar to either Zscore or modified Zscore is "
+                    "not supported anymore"
+                )
 
         dat = self._data[field].to_pandas(how="outer")
         if min_residuals is None:

@@ -13,10 +13,11 @@ Univariate Outlier Detection
    :nosignatures:
 
    ~SaQC.flagUniLOF
+   ~SaQC.flagZScore
    ~SaQC.flagByStray
    ~SaQC.flagOffset
    ~SaQC.flagByGrubbs
    ~SaQC.flagRange
    ~SaQC.flagLOF
-   ~SaQC.flagZScore
+
 
