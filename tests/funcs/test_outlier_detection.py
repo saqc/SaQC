@@ -130,16 +130,22 @@ def test_grubbs(dat):
 
 @pytest.mark.parametrize("dat", [pytest.lazy_fixture("course_2")])
 def test_flagCrossStatistics(dat):
-    fields = [f'data{i}' for i in range(6)]
-    data = pd.DataFrame(0,columns=fields, index=pd.date_range('2000', freq='1h', periods=10))
-    bad_idx = (np.random.randint(0,10),np.random.randint(0,6))
-    data.iloc[bad_idx[0],bad_idx[1]]=10
+    fields = [f"data{i}" for i in range(6)]
+    data = pd.DataFrame(
+        0, columns=fields, index=pd.date_range("2000", freq="1h", periods=10)
+    )
+    bad_idx = (np.random.randint(0, 10), np.random.randint(0, 6))
+    data.iloc[bad_idx[0], bad_idx[1]] = 10
     flags = initFlagsLike(data)
-    qcSTD = SaQC(data, flags).flagZScore(fields, thresh=2, method='standard', flag=BAD, axis=1, window=1)
-    qcMAD = SaQC(data, flags).flagZScore(fields, thresh=2, method='modified', flag=BAD, axis=1, window=1)
+    qcSTD = SaQC(data, flags).flagZScore(
+        fields, thresh=2, method="standard", flag=BAD, axis=1, window=1
+    )
+    qcMAD = SaQC(data, flags).flagZScore(
+        fields, thresh=2, method="modified", flag=BAD, axis=1, window=1
+    )
     for qc in [qcSTD, qcMAD]:
-        isflagged = qcSTD.flags.to_pandas()> UNFLAGGED
-        assert isflagged.iloc[bad_idx[0],bad_idx[1]]
+        isflagged = qcSTD.flags.to_pandas() > UNFLAGGED
+        assert isflagged.iloc[bad_idx[0], bad_idx[1]]
 
 
 def test_flagZScores():

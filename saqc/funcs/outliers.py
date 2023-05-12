@@ -1234,11 +1234,15 @@ class OutliersMixin:
               The method `flagCrossStatistics` is deprecated and will be removed in verion 3.0 of saqc.
               To achieve the same behavior use:
               """
-        new_method_string = {'modZscore': 'modified', 'Zscore': 'standard', np.mean:'standard', np.median:'modified'}
+        new_method_string = {
+            "modZscore": "modified",
+            "Zscore": "standard",
+            np.mean: "standard",
+            np.median: "modified",
+        }
         call = f"qc.flagZScore(field={field}, window=1, method={new_method_string[method]}, thresh={thresh}, axis=1)"
 
         warnings.warn(f"{msg}`{call}`", DeprecationWarning)
-
 
         fields = toSequence(field)
 
