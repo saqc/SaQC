@@ -1306,7 +1306,7 @@ class OutliersMixin:
         """
         Flag data where its (rolling) Zscore exceeds a threshold.
 
-        The function implements flagging derived from a basic Zscore calculation. To handle non
+        The function implements flagging derived from standard or modified Zscore calculation. To handle non
         stationary data, the Zscoring can be applied with a rolling window. Therefor, the function
         allows for a minimum residual to be specified in order to mitigate overflagging in local
         regimes of low variance.
@@ -1322,9 +1322,11 @@ class OutliersMixin:
             equals the whole data.
         method :
             Which method to use for ZScoring:
-            * `"standard"`: standard Zscoring, using *mean* as the first and *standard deviation (std)* as second moment
-            * `"modified"`: modified Zscoring, using *median* as the first and *median absolute deviation (MAD)* as the second moment
-            The `method` parameter is ignored if both, `model_func` and `norm_func` are passed.
+
+            * `"standard"`: standard Zscoring, using *mean* for the expectation and *standard deviation (std)* as scaling factor
+            * `"modified"`: modified Zscoring, using *median* as the expectaiotn and *median absolute deviation (MAD)* as the scaling Factor
+
+            See notes section for detailed scoring formula
         thresh :
             Cutoff level for the Zscores, above which associated points are marked as outliers.
         min_residuals :
@@ -1335,15 +1337,40 @@ class OutliersMixin:
             Weather or not to center the target value in the scoring window. If ``False``, the
             target value is the last value in the window.
         axis :
-            Along which axis to calculate the scoring statistics.
+            Along which axis to calculate the scoring statistics:
+
             * `0` (default) - calculate statistics along time axis
             * `1` - calculate statistics over multiple variables
+
             See Notes section for a visual clarification of the workings
             of `axis` and `window`.
 
         Notes
         -----
 
+        The flag for :math:`x` is determined as follows:
+
+        1. Depending on ``window`` and ``axis``, the context population :math:`X` is collected (see pictures below)
+
+           * If ``axis=0``, any value is flagged in the context of those values of the same variable (``field``), that are
+             in `window` range.
+           * If ``axis=1``, any value is flagged in the context of all values of all variables (`fields`), that are
+             in `window` range.
+           * If ``axis=0`` and ``window=1``, any value is flagged in the context of all values of all variables (``fields``),
+             that share the same timestamp.
+
+        .. figure:: /resources/images/ZscorePopulation.png
+           :class: with-border
+
+
+
+
+        2. Depending on ``method``, a score :math:`Z` is calculated for :math:`x` via :math:`Z = \\frac{|E(X) - X|}{S(X)}`
+
+           * ``method="standard"``: :math:`E(X)=mean(X)`, :math:`S(X)=std(X)`
+           * ``method="modified"``: :math:`E(X)=median(X)`, :math:`S(X)=MAD(X)`
+
+        3. :math:`x` is flagged, if :math:`Z >` ``thresh``
         """
 
         dat = self._data[field].to_pandas(how="outer")
