@@ -1359,13 +1359,12 @@ class OutliersMixin:
         if window is None:
             if dat.notna().sum().sum() >= min_periods:
                 if method == "standard":
-                    mod = dat.mean()
-                    norm = dat.std()
-                    score = (dat - mod) / norm
+                    mod = pd.DataFrame({f:dat[f].mean() for f in dat.columns}, index=dat.index)
+                    norm = pd.DataFrame({f:dat[f].std() for f in dat.columns}, index=dat.index)
+
                 else:
-                    mod = dat.median()
-                    norm = (dat - mod).abs().median()
-                    score = (dat - mod) / norm
+                    mod = pd.DataFrame({f:dat[f].median() for f in dat.columns}, index=dat.index)
+                    norm = pd.DataFrame({f:(dat[f] - mod[f]).abs().median() for f in dat.columns}, index=dat.index)
         else:
             if axis == 0:
                 if method == "standard":
@@ -1385,7 +1384,7 @@ class OutliersMixin:
                         .rolling(window, center=center, min_periods=min_periods)
                         .median()
                     )
-                score = (dat - mod) / norm
+
             elif axis == 1:
                 if window == 1:
                     if method == "standard":
@@ -1439,8 +1438,8 @@ class OutliersMixin:
                             .apply(func=np.median, engine="numba", raw=True)
                             .iloc[:, 0]
                         )
-                residuals = dat.subtract(mod, axis=0).abs()
-                score = residuals.divide(norm, axis=0)
+        residuals = dat.subtract(mod, axis=0).abs()
+        score = residuals.divide(norm, axis=0)
 
         to_flag = (score.abs() > thresh) & (residuals >= min_residuals)
         for f in field:
