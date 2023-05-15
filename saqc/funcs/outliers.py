@@ -1244,44 +1244,13 @@ class OutliersMixin:
 
         warnings.warn(f"{msg}`{call}`", DeprecationWarning)
 
-        fields = toSequence(field)
-
-        df = self._data[fields].to_pandas(how="inner")
-
-        if isinstance(method, str):
-            if method == "modZscore":
-                MAD_series = df.subtract(df.median(axis=1), axis=0).abs().median(axis=1)
-                diff_scores = (
-                    (0.6745 * (df.subtract(df.median(axis=1), axis=0)))
-                    .divide(MAD_series, axis=0)
-                    .abs()
-                )
-
-            elif method == "Zscore":
-                diff_scores = (
-                    df.subtract(df.mean(axis=1), axis=0)
-                    .divide(df.std(axis=1), axis=0)
-                    .abs()
-                )
-
-            else:
-                raise ValueError(method)
-
-        else:
-            try:
-                stat = getattr(df, method.__name__)(axis=1)
-            except AttributeError:
-                stat = df.aggregate(method, axis=1)
-
-            diff_scores = df.subtract(stat, axis=0).abs()
-
-        mask = diff_scores > thresh
-        if not mask.empty:
-            for f in fields:
-                m = mask[f].reindex(index=self._flags[f].index, fill_value=False)
-                self._flags[m, f] = flag
-
-        return self
+        return self.flagZScore(
+            field={field},
+            window=1,
+            method={new_method_string[method]},
+            thresh={thresh},
+            axis=1,
+        )
 
     @register(
         mask=["field"],
