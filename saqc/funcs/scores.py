@@ -142,7 +142,6 @@ def _univarScoring(
     return score, model, norm
 
 
-
 class ScoresMixin:
     @register(
         mask=["field"],
