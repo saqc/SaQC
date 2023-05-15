@@ -326,7 +326,7 @@ class ScoresMixin:
                 raise Exception(f"Zscoring method {method} unknown.")
         elif (norm_func is None) | (model_func is None):
             raise Exception(
-                f"Either both the parameters norm_func and model_func have to be assigned callables, or none of them"
+                f"Either both parameters 'norm_func' and 'model_func' have to be callables, or neither of them"
             )
 
         if min_periods is None:
