@@ -13,7 +13,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 ### Changed
 - deprecated `flagCrossStatistics` in favor of `flagZScore`
 - deprecated `flagMAD` in favor of `flagZScore`
-- deprecated parameters `norm_func` and `model_func` of `flagZScore` in favor of Parameter `method`
+- deprecated parameters `norm_func` and `model_func` of `flagZScore` in favor of parameter `method`
 ### Removed
 - Support for ZScoring with function composites resulting in operators other than standard or modified ZScore in `flagZScore`
 ### Fixed
