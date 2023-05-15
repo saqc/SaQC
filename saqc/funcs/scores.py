@@ -125,17 +125,13 @@ def _univarScoring(
         min_periods = 0
 
     if window is None:
-        if data.notna().sum().sum() >= min_periods:
+        if data.notna().sum() >= min_periods:
             # in case of stationary analysis, broadcast statistics to series for compatibility reasons
-            norm = pd.DataFrame(
-                norm_func(data.values), index=data.index, columns=data.columns
-            )
-            model = pd.DataFrame(
-                model_func(data.values), index=data.index, columns=data.columns
-            )
+            norm = pd.Series(norm_func(data.values), index=data.index)
+            model = pd.Series(model_func(data.values), index=data.index)
         else:
-            norm = pd.DataFrame(np.nan, index=data.index, columns=data.columns)
-            model = pd.DataFrame(np.nan, index=data.index, columns=data.columns)
+            norm = pd.Series(np.nan, index=data.index)
+            model = pd.Series(np.nan, index=data.index)
     else:
         # wrap passed func with rolling built in if possible and rolling.apply else
         roller = data.rolling(window=window, min_periods=min_periods, center=center)
@@ -144,6 +140,7 @@ def _univarScoring(
 
     score = (data - model) / norm
     return score, model, norm
+
 
 
 class ScoresMixin:
