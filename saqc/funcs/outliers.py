@@ -1250,6 +1250,7 @@ class OutliersMixin:
             method={new_method_string[method]},
             thresh={thresh},
             axis=1,
+            flag=flag,
         )
 
     @register(
