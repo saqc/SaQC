@@ -252,19 +252,19 @@ class InterpolationMixin:
            <BLANKLINE>
         """
 
-        if "window" in kwargs:
+        if "freq" in kwargs:
             # the old interpolate version
             warnings.warn(
                 f"""
                 The method `intepolate` is deprecated and will be removed in version 3.0 of saqc.
                 To achieve the same behaviour please use:
-                `qc.align(field={field}, window={kwargs["window"]}, method={method}, order={order}, flag={flag})`
+                `qc.align(field={field}, freq={kwargs["freq"]}, method={method}, order={order}, flag={flag})`
                 """,
                 DeprecationWarning,
             )
             return self.align(
                 field=field,
-                freq=kwargs.pop("window", method),
+                freq=kwargs.pop("freq", method),
                 method=method,
                 order=order,
                 flag=flag,
@@ -367,7 +367,7 @@ class InterpolationMixin:
             "func": "align",
             "args": (field,),
             "kwargs": {
-                "window": freq,
+                "freq": freq,
                 "method": method,
                 "order": order,
                 "extrapolate": extrapolate,
@@ -431,7 +431,7 @@ class InterpolationMixin:
         The method `interpolateIndex` is deprecated and will be removed in verion 3.0 of saqc.
         To achieve the same behavior use:
         """
-        call = "qc.align(field={field}, window={window}, method={method}, order={order}, extrapolate={extrapolate})"
+        call = "qc.align(field={field}, freq={freq}, method={method}, order={order}, extrapolate={extrapolate})"
         if limit != 2:
             call = f"{call}.interpolate(field={field}, method={method}, order={order}, limit={limit}, extrapolate={extrapolate})"
 
@@ -514,7 +514,7 @@ def _shift(
     method :
         Method to propagate values:
 
-        * 'nshift' : shift grid points to the nearest time stamp in the range = +/- 0.5 * ``window``
+        * 'nshift' : shift grid points to the nearest time stamp in the range = +/- 0.5 * ``freq``
         * 'bshift' : shift grid points to the first succeeding time stamp (if any)
         * 'fshift' : shift grid points to the last preceeding time stamp (if any)
 
@@ -570,7 +570,7 @@ def _interpolate(
     datcol = datcol[~flagged].dropna()
 
     # account for annoying case of subsequent frequency aligned values,
-    # that differ exactly by the margin of 2*window
+    # that differ exactly by the margin of 2*freq
     gaps = datcol.index[1:] - datcol.index[:-1] == 2 * pd.Timedelta(freq)
     gaps = datcol.index[1:][gaps]
     gaps = gaps.intersection(grid_index).shift(-1, freq)
