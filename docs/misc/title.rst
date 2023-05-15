@@ -62,7 +62,6 @@ Documentation
 
       * outlier detection
       * frequency alignment
-      * drift detection
       * data modelling
       * wrapping generic or custom functionality
       +++
