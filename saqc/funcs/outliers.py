@@ -1294,7 +1294,7 @@ class OutliersMixin:
             Which method to use for ZScoring:
 
             * `"standard"`: standard Zscoring, using *mean* for the expectation and *standard deviation (std)* as scaling factor
-            * `"modified"`: modified Zscoring, using *median* as the expectaiotn and *median absolute deviation (MAD)* as the scaling Factor
+            * `"modified"`: modified Zscoring, using *median* as the expectation and *median absolute deviation (MAD)* as the scaling Factor
 
             See notes section for detailed scoring formula
         thresh :
