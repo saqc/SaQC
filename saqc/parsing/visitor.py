@@ -84,7 +84,7 @@ class ConfigExpressionParser(ast.NodeVisitor):
         return super().generic_visit(node)
 
 
-def _getName(node: ast.Name | ast.Constant) -> str:
+def _getName(node: ast.Name | ast.Constant) -> str | None:
     if isinstance(node, ast.Name):
         return node.id
     elif isinstance(node, ast.Constant):
