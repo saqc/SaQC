@@ -92,6 +92,7 @@ def _getName(node: ast.Name | ast.Constant) -> str:
     else:
         return None
 
+
 class ConfigFunctionParser(ast.NodeVisitor):
     SUPPORTED_NODES = (
         ast.Call,
