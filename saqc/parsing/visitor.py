@@ -86,9 +86,9 @@ class ConfigExpressionParser(ast.NodeVisitor):
 
 def _getName(node: ast.Name | ast.Constant) -> str:
     if isinstance(node, ast.Name):
-        return value.id
+        return node.id
     elif isinstance(node, ast.Constant):
-        return value.value
+        return node.value
     else:
         return None
 
