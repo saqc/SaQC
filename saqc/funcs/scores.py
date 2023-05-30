@@ -313,7 +313,7 @@ class ScoresMixin:
 
         4. The "score" :math:`S` for the point :math:`x_{k}`gets calculated via :math:`S=(x_{k} - M) / N`
         """
-        if (norm_func is None) & (model_func is None):
+        if norm_func is None and model_func is None:
             if method == "standard":
                 norm_func = np.nanstd
                 model_func = np.nanmean
