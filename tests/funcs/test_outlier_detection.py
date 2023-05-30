@@ -129,7 +129,10 @@ def test_grubbs(dat):
 
 
 @pytest.mark.parametrize("dat", [pytest.lazy_fixture("course_2")])
-@pytest.mark.parametrize("parameters", [('standard', 1), ('modified', 1), ('modified', 3), ('standard', '3h')])
+@pytest.mark.parametrize(
+    "parameters",
+    [("standard", 1), ("modified", 1), ("modified", 3), ("standard", "3h")],
+)
 def test_flagCrossStatistics(dat, parameters):
     fields = [f"data{i}" for i in range(6)]
     data = pd.DataFrame(
@@ -138,14 +141,45 @@ def test_flagCrossStatistics(dat, parameters):
     bad_idx = (np.random.randint(0, 10), np.random.randint(0, 6))
     data.iloc[bad_idx[0], bad_idx[1]] = 10
     flags = initFlagsLike(data)
-    qc = SaQC(data, flags).flagZScore(fields, thresh=2, method=parameters[0], flag=BAD, axis=1, window=parameters[1])
+    qc = SaQC(data, flags).flagZScore(
+        fields, thresh=2, method=parameters[0], flag=BAD, axis=1, window=parameters[1]
+    )
 
     isflagged = qc.flags.to_pandas() > UNFLAGGED
     assert isflagged.iloc[bad_idx[0], bad_idx[1]]
     assert isflagged.sum().sum() == 1
 
 
-def test_flagZScores():
+def test_flagZScoresUV():
+    np.random.seed(seed=1)
+    data = pd.DataFrame(
+        {"data": [np.random.normal() for k in range(100)]},
+        index=pd.date_range("2000", freq="1D", periods=100),
+    )
+    data.iloc[[5, 80], 0] = 5
+    data.iloc[[40], 0] = -6
+    qc = saqc.SaQC(data)
+    qc = qc.flagZScore("data", window=None)
+
+    assert (qc.flags.to_pandas().iloc[[5, 40, 80], 0] > 0).all()
+
+    qc = saqc.SaQC(data)
+    qc = qc.flagZScore("data", window=None, min_residuals=10)
+
+    assert (qc.flags.to_pandas()["data"] < 0).all()
+
+    qc = saqc.SaQC(data)
+    qc = qc.flagZScore("data", window="20D")
+
+    assert (qc.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
+
+    qc = saqc.SaQC(data)
+    qc = qc.flagZScore("data", window=20)
+
+    assert (qc.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
+
+
+def test_flagZScoresMV():
     np.random.seed(seed=1)
     data = pd.DataFrame(
         {
@@ -158,25 +192,19 @@ def test_flagZScores():
     data.iloc[[40], 0] = -6
     data.iloc[[60], 1] = 10
     qc = saqc.SaQC(data)
-    qcMV = qc.flagZScore(["data", "data2"], window=None)
-    qcUV = qc.flagZScore("data", window=None)
-
-    assert (qcUV.flags.to_pandas().iloc[[5, 40, 80], 0] > 0).all()
-    assert (qcMV.flags.to_pandas().iloc[[5, 40, 80], 0] > 0).all()
-    assert (qcMV.flags.to_pandas().iloc[[60], 1] > 0).all()
+    qc = qc.flagZScore(["data", "data2"], window=None)
+    assert (qc.flags.to_pandas().iloc[[5, 40, 80], 0] > 0).all()
+    assert (qc.flags.to_pandas().iloc[[60], 1] > 0).all()
 
     qc = saqc.SaQC(data)
-    qcMV = qc.flagZScore(["data", "data2"], window=None, min_residuals=10)
-    qcUV = qc.flagZScore("data", window=None, min_residuals=10)
+    qc = qc.flagZScore("data", window=None, min_residuals=10)
 
-    assert (qcUV.flags.to_pandas()["data"] < 0).all()
-    assert (qcMV.flags.to_pandas()[["data", "data2"]] < 0).all().all()
+    assert (qc.flags.to_pandas()[["data", "data2"]] < 0).all().all()
 
     qc = saqc.SaQC(data)
-    qcMV = qc.flagZScore(["data", "data2"], window="20D")
-    qcUV = qc.flagZScore("data", window="20D")
+    qc = qc.flagZScore(["data", "data2"], window="20D")
 
-    assert (qcUV.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
+    assert (qc.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
 
     qc = saqc.SaQC(data)
     qc = qc.flagZScore("data", window=20)
