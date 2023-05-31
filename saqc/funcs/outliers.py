@@ -1394,6 +1394,8 @@ class OutliersMixin:
                         {f: (dat[f] - mod[f]).abs().median() for f in dat.columns},
                         index=dat.index,
                     )
+            else:
+                return self
         else:  # window is not None
             if axis == 0:
                 if method == "standard":
