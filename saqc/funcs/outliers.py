@@ -1394,7 +1394,7 @@ class OutliersMixin:
                         {f: (dat[f] - mod[f]).abs().median() for f in dat.columns},
                         index=dat.index,
                     )
-        else:
+        else: # window is not None
             if axis == 0:
                 if method == "standard":
                     mod = dat.rolling(
@@ -1414,15 +1414,15 @@ class OutliersMixin:
                         .median()
                     )
 
-            elif axis == 1:
+            else: # axis == 1:
                 if window == 1:
                     if method == "standard":
                         mod = dat.mean(axis=1)
                         norm = dat.std(axis=1)
-                    else:
+                    else: # method == 'modified'
                         mod = dat.median(axis=1)
                         norm = (dat.subtract(mod, axis=0)).abs().median(axis=1)
-                else:
+                else: # window > 1
                     if method == "standard":
                         mod = (
                             dat.rolling(
@@ -1444,7 +1444,7 @@ class OutliersMixin:
                             .apply(func=np.std, engine="numba", raw=True)
                             .iloc[:, 0]
                         )
-                    else:
+                    else: # method == 'modified'
                         mod = (
                             dat.rolling(
                                 window,
