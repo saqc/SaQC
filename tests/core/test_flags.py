@@ -4,6 +4,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import json
 from typing import Dict, Union
 
 import numpy as np
@@ -13,6 +14,7 @@ import pytest
 import tests.core.test_history as test_hist
 from saqc import UNFLAGGED
 from saqc.core import DictOfSeries, Flags, History
+from saqc.core.core import SaQC
 
 _arrays = [
     np.array([[]]),
@@ -382,3 +384,44 @@ def test__getitem__listlike_and_slice(data, key, expected):
 
     expected = Flags({k: pd.Series(v, dtype=float) for k, v in expected.items()})
     is_equal(result, expected)
+
+
+@pytest.mark.parametrize(
+    "data, pass_1, pass_2",
+    [
+        (
+            [1, np.nan, 3, 4, 5],
+            [True, False, True, True, True],
+            [False, True, True, True, False],
+        ),
+        (
+            [5, np.nan, np.nan, 5, 8],
+            [True, False, False, True, True],
+            [False, True, True, False, False],
+        ),
+    ],
+)
+def test_ISO19157(data, pass_1, pass_2):
+    expected_1 = {
+        "measureIdentification": 4,
+        "measureDescription": "Breaks",
+        "evaluationMethodType": "directInternal",
+        "result": {"explanation": {"dfilter": -np.inf, "field": "a"}},
+    }
+    expected_2 = {
+        "measureIdentification": 14,
+        "measureDescription": "Outliers",
+        "evaluationMethodType": "directInternal",
+        "result": {
+            "explanation": {"min": 2, "max": 4, "dfilter": -np.inf, "field": "a"},
+        },
+    }
+
+    data = pd.DataFrame({"a": data})
+    qc = SaQC(data).flagMissing("a").flagRange("a", min=2, max=4)
+    flags = qc._flags._toISO19157()["a"].apply(json.loads)
+    for (f1, f2), p1, p2 in zip(flags, pass_1, pass_2):
+        expected_1["result"]["pass"] = p1
+        expected_2["result"]["pass"] = p2
+        assert expected_1.items() <= f1.items()
+        assert expected_2.items() <= f2.items()

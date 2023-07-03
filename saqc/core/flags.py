@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import json
 import typing
 import warnings
 from typing import DefaultDict, Dict, Iterable, Mapping, Tuple, Type, Union, overload
@@ -13,7 +14,8 @@ from typing import DefaultDict, Dict, Iterable, Mapping, Tuple, Type, Union, ove
 import numpy as np
 import pandas as pd
 
-from saqc.core import DictOfSeries, History
+from saqc.constants import UNFLAGGED
+from saqc.core import DictOfSeries, History, history
 
 _VAL = Union[pd.Series, History]
 DictLike = Union[
@@ -504,6 +506,44 @@ class Flags:
 
     def __repr__(self) -> str:
         return str(DictOfSeries(self)).replace("DictOfSeries", type(self).__name__)
+
+    def _toISO19157(self):
+        """
+        ISO 19157 comapatible flags.
+
+        NOTE: This feature is experimental and might change without further notice.
+        """
+        from saqc import SaQC
+
+        MEASURES = {"flagMissing": 4, "flagRange": 14}
+        out = DictOfSeries()
+        for col, history in self._data.items():
+            flags = history._hist.astype(float).fillna(UNFLAGGED)
+            meta = history._meta
+            cols = {}
+            for i, meta_element in enumerate(meta):
+                func = meta_element["func"]
+                dfilter = meta_element["kwargs"]["dfilter"]
+                measure_id = MEASURES.get(func, 8)
+                # as soon as we defined catorgires, this should be done by a dictionary lookup
+                measure_description = (
+                    getattr(SaQC, func).__qualname__.split(".")[0].replace("Mixin", "")
+                )
+                timestamp = pd.Timestamp.now().strftime("%Y-%m-%dT%H-%M-%S")
+                # we consider every flag > dfilter to be a failing test
+                cols[i] = (flags[i] <= dfilter).apply(
+                    lambda f: {
+                        "measureIdentification": measure_id,
+                        "measureDescription": measure_description,
+                        "dateTime": timestamp,
+                        "evaluationMethodType": "directInternal",
+                        "result": {"explanation": meta_element["kwargs"], "pass": f},
+                    }
+                )
+            out[col] = pd.DataFrame(cols).apply(
+                lambda row: json.dumps(row.tolist()), axis=1
+            )
+        return out
 
 
 def initFlagsLike(
