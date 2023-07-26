@@ -32,7 +32,7 @@ version = vdict["__version__"]
 
 # -- Customize logging -------------------------------------------------------
 
-# couldn't get rid of a ignorable warning, so filter it
+# couldn't get rid of an ignorable warning, so filter it
 # also see: https://issuemode.com/issues/sphinx-doc/sphinx/73994507
 
 
@@ -90,6 +90,8 @@ extensions = [
     "sphinx_autodoc_typehints",
     # "numpydoc"
     "sphinx_tabs.tabs",
+    "sphinx_autodoc_typehints",
+    "sphinx_design",
 ]
 
 
@@ -107,7 +109,7 @@ automodapi_writereprocessed = True
 automodapi_inheritance_diagram = False
 automodapi_toctreedirnm = "_api"
 autosectionlabel_prefix_document = True
-
+typehints_defaults = "braces"
 autodoc_typehints = "none"
 
 doctest_global_setup = """
@@ -135,7 +137,7 @@ pygments_style = "sphinx"
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "nature"
+html_theme = "pydata_sphinx_theme"
 
 html_logo = "resources/images/representative/SaQCLogo.png"
 html_favicon = "resources/images/representative/SaQCLogoSmall.png"

@@ -13,18 +13,17 @@ import pandas as pd
 # see test/functs/fixtures.py for global fixtures "course_..."
 import pytest
 
-import dios
 import saqc
-from saqc.constants import UNFLAGGED
-from saqc.core import SaQC, initFlagsLike
+from saqc import UNFLAGGED, SaQC
+from saqc.core import DictOfSeries, initFlagsLike
 from saqc.lib.ts_operators import linearInterpolation, polynomialInterpolation
-from tests.fixtures import char_dict, course_3, course_5
+from tests.fixtures import char_dict, course_3, course_5  # noqa, todo: fix fixtures
 
 
 def test_rollingInterpolateMissing(course_5):
     data, characteristics = course_5(periods=10, nan_slice=[5, 6])
     field = data.columns[0]
-    data = dios.DictOfSeries(data)
+    data = DictOfSeries(data)
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).interpolateByRolling(
         field,
@@ -46,24 +45,24 @@ def test_rollingInterpolateMissing(course_5):
     assert qc.data[field][characteristics["missing"]].isna().all()
 
 
-def test_interpolateMissing(course_5):
+def test_interpolate(course_5):
     data, characteristics = course_5(periods=10, nan_slice=[5])
     field = data.columns[0]
-    data = dios.DictOfSeries(data)
+    data = DictOfSeries(data)
     flags = initFlagsLike(data)
     qc = SaQC(data, flags)
 
-    qc_lin = qc.interpolateInvalid(field, method="linear")
-    qc_poly = qc.interpolateInvalid(field, method="polynomial")
+    qc_lin = qc.interpolate(field, method="linear")
+    qc_poly = qc.interpolate(field, method="polynomial")
     assert qc_lin.data[field][characteristics["missing"]].notna().all()
     assert qc_poly.data[field][characteristics["missing"]].notna().all()
 
     data, characteristics = course_5(periods=10, nan_slice=[5, 6, 7])
 
     qc = SaQC(data, flags)
-    qc_lin_1 = qc.interpolateInvalid(field, method="linear", limit=2)
-    qc_lin_2 = qc.interpolateInvalid(field, method="linear", limit=3)
-    qc_lin_3 = qc.interpolateInvalid(field, method="linear", limit=4)
+    qc_lin_1 = qc.interpolate(field, method="linear", limit=2)
+    qc_lin_2 = qc.interpolate(field, method="linear", limit=3)
+    qc_lin_3 = qc.interpolate(field, method="linear", limit=4)
 
     assert qc_lin_1.data[field][characteristics["missing"]].isna().all()
     assert qc_lin_2.data[field][characteristics["missing"]].isna().all()
@@ -73,7 +72,7 @@ def test_interpolateMissing(course_5):
 def test_transform(course_5):
     data, characteristics = course_5(periods=10, nan_slice=[5, 6])
     field = data.columns[0]
-    data = dios.DictOfSeries(data)
+    data = DictOfSeries(data)
     flags = initFlagsLike(data)
     qc = SaQC(data, flags)
 
@@ -93,7 +92,7 @@ def test_transform(course_5):
 def test_resample(course_5):
     data, _ = course_5(freq="1min", periods=30, nan_slice=[1, 11, 12, 22, 24, 26])
     field = data.columns[0]
-    data = dios.DictOfSeries(data)
+    data = DictOfSeries(data)
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).resample(
         field,
@@ -110,11 +109,9 @@ def test_resample(course_5):
 def test_interpolateGrid(course_5, course_3):
     data, _ = course_5()
     data_grid, _ = course_3()
-    data["grid"] = data_grid.to_df()
+    data["grid"] = data_grid["data"]
     flags = initFlagsLike(data)
-    SaQC(data, flags).interpolateIndex(
-        "data", "1h", "time", grid_field="grid", limit=10
-    )
+    SaQC(data, flags).align("data", "1h", "time", grid_field="grid", limit=10)
 
 
 @pytest.mark.slow
@@ -124,7 +121,7 @@ def test_offsetCorrecture():
     data.iloc[70:80] = 100
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).correctOffset("dat", 40, 20, "3d", 1)
-    assert (qc.data == 0).all()[0]
+    assert (qc.data["dat"] == 0).all()
 
 
 # GL-333

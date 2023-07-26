@@ -6,10 +6,10 @@ tools
 =====
 
 
-
 .. currentmodule:: saqc
 
 .. autosummary::
+   :nosignatures:
 
    ~SaQC.copyField
    ~SaQC.dropField

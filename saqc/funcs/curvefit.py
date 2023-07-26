@@ -13,9 +13,7 @@ import numpy as np
 import pandas as pd
 from typing_extensions import Literal
 
-from dios import DictOfSeries
-from saqc.core.flags import Flags
-from saqc.core.register import register
+from saqc.core import DictOfSeries, Flags, register
 from saqc.lib.tools import getFreqDelta
 from saqc.lib.ts_operators import (
     butterFilter,
@@ -27,9 +25,9 @@ from saqc.lib.ts_operators import (
 )
 
 if TYPE_CHECKING:
-    from saqc.core.core import SaQC
+    from saqc import SaQC
 
-_FILL_METHODS = Literal[
+FILL_METHODS = Literal[
     "linear",
     "nearest",
     "zero",
@@ -74,10 +72,7 @@ class CurvefitMixin:
 
         Parameters
         ----------
-        field : str
-             A column in flags and data.
-
-        window : str, int
+        window :
             Size of the window you want to use for fitting. If an integer is passed,
             the size refers to the number of periods for every fitting window. If an
             offset string is passed, the size refers to the total temporal extension. The
@@ -85,20 +80,16 @@ class CurvefitMixin:
             data always a odd number of periods will be used for the fit (periods-1 if
             periods is even).
 
-        order : int
+        order :
             Degree of the polynomial used for fitting
 
-        min_periods : int or None, default 0
+        min_periods :
             Minimum number of observations in a window required to perform the fit,
             otherwise NaNs will be assigned.
             If ``None``, `min_periods` defaults to 1 for integer windows and to the
             size of the window for offset based windows.
             Passing 0, disables the feature and will result in over-fitting for too
             sparse windows.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         self._data, self._flags = _fitPolynomial(
             data=self._data,
@@ -118,9 +109,9 @@ class CurvefitMixin:
         cutoff: float | str,
         nyq: float = 0.5,
         filter_order: int = 2,
-        fill_method: _FILL_METHODS = "linear",
+        fill_method: FILL_METHODS = "linear",
         **kwargs,
-    ):
+    ) -> "SaQC":
         """
         Fits the data using the butterworth filter.
 
@@ -130,25 +121,20 @@ class CurvefitMixin:
 
         Parameters
         ----------
-        field: str
-            A column in flags and data.
-
-        cutoff: {float, str}
+        cutoff :
             The cutoff-frequency, either an offset freq string, or expressed in multiples of the sampling rate.
 
-        nyq: float
+        nyq :
             The niquist-frequency. expressed in multiples if the sampling rate.
 
-        fill_method: Literal[‘nearest’, ‘zero’, ‘slinear’, ‘quadratic’, ‘cubic’, ‘spline’, ‘barycentric’, ‘polynomial’]
+        fill_method :
             Fill method to be applied on the data before filtering (butterfilter cant
             handle ''np.nan''). See documentation of pandas.Series.interpolate method for
             details on the methods associated with the different keywords.
 
-        filter_type: Literal["lowpass", "highpass", "bandpass", "bandstop"]
+        filter_type :
             The type of filter. Default is ‘lowpass’.
-
         """
-
         self._data[field] = butterFilter(
             self._data[field],
             cutoff=cutoff,
@@ -169,7 +155,6 @@ def _fitPolynomial(
     min_periods: int = 0,
     **kwargs,
 ) -> Tuple[DictOfSeries, Flags]:
-
     # TODO: some (rather large) parts are functional similar to saqc.funcs.rolling.roll
     if data[field].empty:
         return data, flags
@@ -183,31 +168,14 @@ def _fitPolynomial(
                 "sample series."
             )
         # get interval centers
-        centers = (
-            to_fit.rolling(
-                pd.Timedelta(window) / 2, closed="both", min_periods=min_periods
-            ).count()
-        ).floor()
+        centers = to_fit.rolling(
+            pd.Timedelta(window) / 2, closed="both", min_periods=min_periods
+        ).count()
         centers = centers.drop(centers[centers.isna()].index)
         centers = centers.astype(int)
         fitted = to_fit.rolling(
-            pd.Timedelta(window), closed="both", min_periods=min_periods
+            pd.Timedelta(window), closed="both", min_periods=min_periods, center=True
         ).apply(polyRollerIrregular, args=(centers, order))
-
-        def center_func(x, y=centers):
-            pos = x.index[int(len(x) - y[x.index[-1]])]
-            return y.index.get_loc(pos)
-
-        centers_iloc = (
-            centers.rolling(window, closed="both")
-            .apply(center_func, raw=False)
-            .astype(int)
-        )
-        temp = fitted.copy()
-        for k in centers_iloc.iteritems():
-            fitted.iloc[k[1]] = temp[k[0]]
-        fitted[fitted.index[0] : fitted.index[centers_iloc[0]]] = np.nan
-        fitted[fitted.index[centers_iloc[-1]] : fitted.index[-1]] = np.nan
     else:
         if isinstance(window, str):
             window = pd.Timedelta(window) // regular
@@ -215,7 +183,7 @@ def _fitPolynomial(
             window = int(window - 1)
         if min_periods is None:
             min_periods = window
-        if to_fit.shape[0] < 200000:
+        if len(to_fit) < 200000:
             numba = False
         else:
             numba = True

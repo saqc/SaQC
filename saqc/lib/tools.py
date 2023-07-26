@@ -8,24 +8,65 @@
 from __future__ import annotations
 
 import collections
+import functools
 import itertools
+import operator as op
 import re
 import warnings
-from typing import Callable, Collection, List, Sequence, TypeVar, Union
+from typing import (
+    Any,
+    Callable,
+    Collection,
+    List,
+    Literal,
+    Sequence,
+    Tuple,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 import pandas as pd
 from scipy import fft
 from scipy.cluster.hierarchy import fcluster, linkage
 
-import dios
-
-# keep this for external imports
-# TODO: fix the external imports
-from saqc.lib.rolling import customRoller
 from saqc.lib.types import CompT
 
 T = TypeVar("T", str, float, int)
+BOUND_OPERATORS = {
+    None: (op.le, op.ge),
+    "both": (op.lt, op.gt),
+    "right": (op.le, op.gt),
+    "left": (op.gt, op.le),
+}
+
+
+def isInBounds(
+    val: int | float,
+    bounds: Tuple[int | float],
+    closed: Literal["left", "right", "both"] = None,
+):
+    """
+    check if val falls into the interval [left, right] and return boolean accordingly
+
+    val :
+        value to check
+
+    bounds :
+        Tuple containing left and right interval bounds. Pass `(a, b)` to define the interval [`a`, `b`].
+        Set `a=-inf` or `b=+inf` to set one sided restriction.
+
+    closed :
+        Enclosure includes the interval bounds into the constraint interval. By default, the bounds
+        are not included. Pass:
+        * `"both"`: to include both sides of the interval
+        * `"left"`: to include left bound
+        * `"right"`: to include right bound
+    """
+    ops = BOUND_OPERATORS[closed]
+    if ops[0](val, bounds[0]) or ops[1](val, bounds[1]):
+        return False
+    return True
 
 
 def assertScalar(name, value, optional=False):
@@ -171,59 +212,6 @@ def periodicMask(dtindex, season_start, season_end, include_bounds):
     return out
 
 
-def concatDios(data: List[dios.DictOfSeries], warn: bool = True, stacklevel: int = 2):
-    # fast path for most common case
-    if len(data) == 1 and data[0].columns.is_unique:
-        return data[0]
-
-    result = dios.DictOfSeries()
-    for di in data:
-        for c in di.columns:
-            if c in result.columns:
-                if warn:
-                    warnings.warn(
-                        f"Column {c} already exist. Data is overwritten. "
-                        f"Avoid duplicate columns names over all inputs.",
-                        stacklevel=stacklevel,
-                    )
-            result[c] = di[c]
-
-    return result
-
-
-def mergeDios(left, right, subset=None, join="merge"):
-    # use dios.merge() as soon as it implemented
-    # see https://git.ufz.de/rdm/dios/issues/15
-
-    merged = left.copy()
-    if subset is not None:
-        right_subset_cols = right.columns.intersection(subset)
-    else:
-        right_subset_cols = right.columns
-
-    shared_cols = left.columns.intersection(right_subset_cols)
-
-    for c in shared_cols:
-        l, r = left[c], right[c]
-        if join == "merge":
-            # NOTE:
-            # our merge behavior is nothing more than an
-            # outer join, where the right join argument
-            # overwrites the left at the shared indices,
-            # while on a normal outer join common indices
-            # hold the values from the left join argument
-            r, l = l.align(r, join="outer")
-        else:
-            l, r = l.align(r, join=join)
-        merged[c] = l.combine_first(r)
-
-    newcols = right_subset_cols.difference(left.columns)
-    for c in newcols:
-        merged[c] = right[c].copy()
-
-    return merged
-
-
 def isQuoted(string):
     return bool(re.search(r"'.*'|\".*\"", string))
 
@@ -245,7 +233,6 @@ def estimateFrequency(
     max_freqs=10,
     bins=None,
 ):
-
     """
     Function to estimate the sampling rate of an index.
 
@@ -311,7 +298,6 @@ def estimateFrequency(
 
     len_f = len(delta_f) * 2
     min_energy = delta_f[0] * min_energy
-    # calc/assign low/high freq cut offs (makes life easier):
     min_rate_i = int(
         len_f / (pd.Timedelta(min_rate).total_seconds() * (10**delta_precision))
     )
@@ -347,38 +333,6 @@ def estimateFrequency(
     return str(int(gcd_freq)) + "min", [str(int(i)) + "min" for i in freqs]
 
 
-def evalFreqStr(freq, check, index):
-    if check in ["check", "auto"]:
-        f_passed = freq
-        freq = index.inferred_freq
-        freqs = [freq]
-        if freq is None:
-            freq, freqs = estimateFrequency(index)
-        if freq is None:
-            warnings.warn("Sampling rate could not be estimated.")
-        if len(freqs) > 1:
-            warnings.warn(
-                f"Sampling rate seems to be not uniform!." f"Detected: {freqs}"
-            )
-
-        if check == "check":
-            f_passed_seconds = pd.Timedelta(f_passed).total_seconds()
-            freq_seconds = pd.Timedelta(freq).total_seconds()
-            if f_passed_seconds != freq_seconds:
-                warnings.warn(
-                    f"Sampling rate estimate ({freq}) missmatches passed frequency ({f_passed})."
-                )
-        elif check == "auto":
-            if freq is None:
-                raise ValueError(
-                    "Frequency estimation for non-empty series failed with no fall back frequency passed."
-                )
-            f_passed = freq
-    else:
-        f_passed = freq
-    return f_passed
-
-
 def detectDeviants(
     data,
     metric,
@@ -397,12 +351,9 @@ def detectDeviants(
     In addition, only a group is considered "normal" if it contains more then `frac` percent of the
     variables in "fields".
 
-    Note, that the function also can be used to detect anormal regimes in a variable by assigning the different regimes
-    dios.DictOfSeries columns and passing this dios.
-
     Parameters
     ----------
-    data : {pandas.DataFrame, dios.DictOfSeries}
+    data : {pandas.DataFrame, DictOfSeries}
         Input data
     metric : Callable[[numpy.array, numpy.array], float]
         A metric function that for calculating the dissimilarity between 2 variables.
@@ -420,8 +371,8 @@ def detectDeviants(
 
     Returns
     -------
-    deviants : List
-        A list containing the column positions of deviant variables in the input frame/dios.
+    deviants : list
+        A list containing the column positions of deviant variables in the input
 
     """
     var_num = len(data.columns)
@@ -430,7 +381,9 @@ def detectDeviants(
     dist_mat = np.zeros((var_num, var_num))
     combs = list(itertools.combinations(range(0, var_num), 2))
     for i, j in combs:
-        dist = metric(data.iloc[:, i].values, data.iloc[:, j].values)
+        d_i = data[data.columns[i]]
+        d_j = data[data.columns[j]]
+        dist = metric(d_i.values, d_j.values)
         dist_mat[i, j] = dist
 
     condensed = np.abs(dist_mat[tuple(zip(*combs))])
@@ -442,11 +395,13 @@ def detectDeviants(
     elif population == "samples":
         counts = {cluster[j]: 0 for j in range(0, var_num)}
         for c in range(var_num):
-            counts[cluster[c]] += data.iloc[:, c].dropna().shape[0]
+            field = data.columns[c]
+            counts[cluster[c]] += data[field].dropna().shape[0]
         pop_num = np.sum(list(counts.values()))
     else:
         raise ValueError(
-            "Not a valid normality criteria keyword passed. Pass either 'variables' or 'population'."
+            "Not a valid normality criteria keyword passed. "
+            "Pass either 'variables' or 'population'."
         )
     norm_cluster = -1
 
@@ -461,7 +416,7 @@ def detectDeviants(
         return [i for i, x in enumerate(cluster) if x != norm_cluster]
 
 
-def getFreqDelta(index):
+def getFreqDelta(index: pd.Index) -> None | pd.Timedelta:
     """
     Function checks if the passed index is regularly sampled.
 
@@ -472,7 +427,7 @@ def getFreqDelta(index):
     (``None`` will also be returned for pd.RangeIndex type.)
 
     """
-    delta = getattr(index, "freq", None)
+    delta = getattr(index, "window", None)
     if delta is None and not index.empty:
         i = pd.date_range(index[0], index[-1], len(index))
         if i.equals(index):
@@ -595,3 +550,54 @@ def filterKwargs(
             )
         kwargs.pop(key, None)
     return kwargs
+
+
+from saqc import FILTER_ALL, UNFLAGGED
+
+A = TypeVar("A", np.ndarray, pd.Series)
+
+
+def isflagged(flagscol: A, thresh: float) -> A:
+    """
+    Return a mask of flags accordingly to `thresh`. Return type is same as flags.
+    """
+    if not isinstance(thresh, (float, int)):
+        raise TypeError(f"thresh must be of type float, not {repr(type(thresh))}")
+
+    if thresh == FILTER_ALL:
+        return flagscol > UNFLAGGED
+
+    return flagscol >= thresh
+
+
+def isunflagged(flagscol: A, thresh: float) -> A:
+    return ~isflagged(flagscol, thresh)
+
+
+def getUnionIndex(obj, default: pd.DatetimeIndex | None = None):
+    assert hasattr(obj, "columns")
+    if default is None:
+        default = pd.DatetimeIndex([])
+    indexes = [obj[k].index for k in obj.columns]
+    if indexes:
+        return functools.reduce(pd.Index.union, indexes).sort_values()
+    return default
+
+
+def getSharedIndex(obj, default: pd.DatetimeIndex | None = None):
+    assert hasattr(obj, "columns")
+    if default is None:
+        default = pd.DatetimeIndex([])
+    indexes = [obj[k].index for k in obj.columns]
+    if indexes:
+        return functools.reduce(pd.Index.intersection, indexes).sort_values()
+    return default
+
+
+def isAllBoolean(obj: Any):
+    if not hasattr(obj, "columns"):
+        return pd.api.types.is_bool_dtype(obj)
+    for c in obj.columns:
+        if not pd.api.types.is_bool_dtype(obj[c]):
+            return False
+    return True

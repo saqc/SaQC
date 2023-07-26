@@ -68,7 +68,7 @@ We can check out the fields, the newly generated :py:class:`~saqc.SaQC` object c
 .. doctest:: exampleMV
 
    >>> qc.data.columns
-   Index(['sac254_raw', 'level_raw', 'water_temp_raw', 'maint'], dtype='object', name='columns')
+   Index(['sac254_raw', 'level_raw', 'water_temp_raw', 'maint'], dtype='object')
 
 The variables represent meassurements of *water level*, the *specific absorption coefficient* at 254 nm Wavelength,
 the *water temperature* and there is also a variable, *maint*, that refers to time periods, where the *sac254* sensor
@@ -123,68 +123,66 @@ Lets check out the resulting flags for the *sac254* variable with the :py:meth:`
 
 
 Now we should figure out, what sampling rate the data is intended to have, by accessing the *_raw* variables
-constituting the sensor data. Since :py:attr:`saqc.SaQC.data` yields a 
+constituting the sensor data. Since :py:attr:`saqc.SaQC.data` yields a
 `pandas.DataFrame <https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html>`_ like object, we can index it with
 the desired variables as column names and have a look at the console output to get a first impression.
 
 .. doctest:: exampleMV
 
    >>> qc.data[['sac254_raw', 'level_raw', 'water_temp_raw']] # doctest:+NORMALIZE_WHITESPACE
-                       sac254_raw |                     level_raw |                     water_temp_raw | 
-   ============================== | ============================= | ================================== | 
-   Timestamp                      | Timestamp                     | Timestamp                          | 
-   2016-01-01 00:02:00    18.4500 | 2016-01-01 00:02:00   103.290 | 2016-01-01 00:02:00           4.84 | 
-   2016-01-01 00:17:00    18.6437 | 2016-01-01 00:17:00   103.285 | 2016-01-01 00:17:00           4.82 | 
-   2016-01-01 00:32:00    18.9887 | 2016-01-01 00:32:00   103.253 | 2016-01-01 00:32:00           4.81 | 
-   2016-01-01 00:47:00    18.8388 | 2016-01-01 00:47:00   103.210 | 2016-01-01 00:47:00           4.80 | 
-   2016-01-01 01:02:00    18.7438 | 2016-01-01 01:02:00   103.167 | 2016-01-01 01:02:00           4.78 | 
-   ...                        ... | ...                       ... | ...                            ... | 
-   2017-12-31 22:47:00    43.2275 | 2017-12-31 22:47:00   186.060 | 2017-12-31 22:47:00           5.49 | 
-   2017-12-31 23:02:00    43.6937 | 2017-12-31 23:02:00   186.115 | 2017-12-31 23:02:00           5.49 | 
-   2017-12-31 23:17:00    43.6012 | 2017-12-31 23:17:00   186.137 | 2017-12-31 23:17:00           5.50 | 
-   2017-12-31 23:32:00    43.2237 | 2017-12-31 23:32:00   186.128 | 2017-12-31 23:32:00           5.51 | 
-   [70163]                          [70163]                         [70163]                              
+                     sac254_raw |                    level_raw |            water_temp_raw |
+   ============================ | ============================ | ========================= |
+   2016-01-01 00:02:00  18.4500 | 2016-01-01 00:02:00  103.290 | 2016-01-01 00:02:00  4.84 |
+   2016-01-01 00:17:00  18.6437 | 2016-01-01 00:17:00  103.285 | 2016-01-01 00:17:00  4.82 |
+   2016-01-01 00:32:00  18.9887 | 2016-01-01 00:32:00  103.253 | 2016-01-01 00:32:00  4.81 |
+   2016-01-01 00:47:00  18.8388 | 2016-01-01 00:47:00  103.210 | 2016-01-01 00:47:00  4.80 |
+   2016-01-01 01:02:00  18.7438 | 2016-01-01 01:02:00  103.167 | 2016-01-01 01:02:00  4.78 |
+   ...                      ... | ...                      ... | ...                   ... |
+   2017-12-31 22:47:00  43.2275 | 2017-12-31 22:47:00  186.060 | 2017-12-31 22:47:00  5.49 |
+   2017-12-31 23:02:00  43.6937 | 2017-12-31 23:02:00  186.115 | 2017-12-31 23:02:00  5.49 |
+   2017-12-31 23:17:00  43.6012 | 2017-12-31 23:17:00  186.137 | 2017-12-31 23:17:00  5.50 |
+   2017-12-31 23:32:00  43.2237 | 2017-12-31 23:32:00  186.128 | 2017-12-31 23:32:00  5.51 |
+   2017-12-31 23:47:00  43.7438 | 2017-12-31 23:47:00  186.130 | 2017-12-31 23:47:00  5.53 |
    <BLANKLINE>
-   max: [70163 rows x 3 columns]
 
 The data seems to have a fairly regular sampling rate of *15* minutes at first glance.
 But checking out values around *2017-10-29*, we notice, that the sampling rate seems not to be totally stable:
 
 .. doctest:: exampleMV
 
-   >>> qc.data[['sac254_raw', 'level_raw', 'water_temp_raw']]['2017-10-29 07:00:00':'2017-10-29 09:00:00'] # doctest:+NORMALIZE_WHITESPACE
-                       sac254_raw |                     level_raw |                     water_temp_raw | 
-   ============================== | ============================= | ================================== | 
-   Timestamp                      | Timestamp                     | Timestamp                          | 
-   2017-10-29 07:02:00    40.3050 | 2017-10-29 07:02:00   112.570 | 2017-10-29 07:02:00          10.91 | 
-   2017-10-29 07:17:00    39.6287 | 2017-10-29 07:17:00   112.497 | 2017-10-29 07:17:00          10.90 | 
-   2017-10-29 07:32:00    39.5800 | 2017-10-29 07:32:00   112.460 | 2017-10-29 07:32:00          10.88 | 
-   2017-10-29 07:32:01    39.9750 | 2017-10-29 07:32:01   111.837 | 2017-10-29 07:32:01          10.70 | 
-   2017-10-29 07:47:00    39.1350 | 2017-10-29 07:47:00   112.330 | 2017-10-29 07:47:00          10.84 | 
-   2017-10-29 07:47:01    40.6937 | 2017-10-29 07:47:01   111.615 | 2017-10-29 07:47:01          10.68 | 
-   2017-10-29 08:02:00    40.4938 | 2017-10-29 08:02:00   112.040 | 2017-10-29 08:02:00          10.77 | 
-   2017-10-29 08:02:01    39.3337 | 2017-10-29 08:02:01   111.552 | 2017-10-29 08:02:01          10.68 | 
-   2017-10-29 08:17:00    41.5238 | 2017-10-29 08:17:00   111.835 | 2017-10-29 08:17:00          10.72 | 
-   2017-10-29 08:17:01    38.6963 | 2017-10-29 08:17:01   111.750 | 2017-10-29 08:17:01          10.69 | 
-   2017-10-29 08:32:01    39.4337 | 2017-10-29 08:32:01   112.027 | 2017-10-29 08:32:01          10.66 | 
+   >>> qc.data['sac254_raw']['2017-10-29 07:00:00':'2017-10-29 09:00:00'] # doctest:+NORMALIZE_WHITESPACE
+   Timestamp
+   2017-10-29 07:02:00    40.3050
+   2017-10-29 07:17:00    39.6287
+   2017-10-29 07:32:00    39.5800
+   2017-10-29 07:32:01    39.9750
+   2017-10-29 07:47:00    39.1350
+   2017-10-29 07:47:01    40.6937
+   2017-10-29 08:02:00    40.4938
+   2017-10-29 08:02:01    39.3337
+   2017-10-29 08:17:00    41.5238
+   2017-10-29 08:17:01    38.6963
+   2017-10-29 08:32:01    39.4337
+   2017-10-29 08:47:01    40.4987
+   dtype: float64
 
 Those instabilities do bias most statistical evaluations and it is common practice to apply some
-:doc:`resampling functions <../funcs/resampling>` onto the data, to obtain a regularly spaced timestamp.
+alignment onto the data, to obtain a regularly spaced timestamp.
 (See also the :ref:`harmonization tutorial <cookbooks/DataRegularisation:data regularization>` for more informations
 on that topic.)
 
-We will apply :py:meth:`linear harmonisation <saqc.SaQC.linear>` to all the sensor data variables,
+We will apply :py:meth:`linearly <saqc.SaQC.align>` obtained alignment to all the sensor data variables,
 to interpolate pillar points of multiples of *15* minutes linearly.
 
 .. doctest:: exampleMV
 
-   >>> qc = qc.linear(['sac254_raw', 'level_raw', 'water_temp_raw'], freq='15min')
+   >>> qc = qc.align(['sac254_raw', 'level_raw', 'water_temp_raw'], freq='15min')
 
 .. plot::
    :context: close-figs
    :include-source: False
 
-   qc = qc.linear(['sac254_raw', 'level_raw', 'water_temp_raw'], freq='15min')
+   qc = qc.align(['sac254_raw', 'level_raw', 'water_temp_raw'], freq='15min')
 
 
 The resulting timeseries now has has regular timestamp.
@@ -193,19 +191,19 @@ The resulting timeseries now has has regular timestamp.
 .. doctest:: exampleMV
 
    >>> qc.data['sac254_raw'] #doctest:+NORMALIZE_WHITESPACE
-   Timestamp                                                                                                          
-   2016-01-01 00:00:00          NaN                                                                                   
-   2016-01-01 00:15:00    18.617873                                                                                   
-   2016-01-01 00:30:00    18.942700                                                                                   
-   2016-01-01 00:45:00    18.858787                                                                                   
-   2016-01-01 01:00:00    18.756467                                                                                   
-                            ...                                                                                       
-   2017-12-31 23:00:00    43.631540                                                                                   
-   2017-12-31 23:15:00    43.613533                                                                                   
-   2017-12-31 23:30:00    43.274033                                                                                   
-   2017-12-31 23:45:00    43.674453                                                                                   
-   2018-01-01 00:00:00          NaN                                                                                   
-   Name: sac254_raw, Length: 70177, dtype: float64     
+   Timestamp
+   2016-01-01 00:00:00          NaN
+   2016-01-01 00:15:00    18.617873
+   2016-01-01 00:30:00    18.942700
+   2016-01-01 00:45:00    18.858787
+   2016-01-01 01:00:00    18.756467
+                            ...
+   2017-12-31 23:00:00    43.631540
+   2017-12-31 23:15:00    43.613533
+   2017-12-31 23:30:00    43.274033
+   2017-12-31 23:45:00    43.674453
+   2018-01-01 00:00:00          NaN
+   Length: 70177, dtype: float64
 
 Since points, that were identified as malicous get excluded before the harmonization, the resulting regularly sampled
 timeseries does not include them anymore:
@@ -396,4 +394,3 @@ To configure `saqc` to execute the above data processing and flagging steps, the
 as follows:
 
 .. literalinclude:: ../resources/data/hydro_config.csv
-

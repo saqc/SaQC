@@ -3,7 +3,6 @@
 # SPDX-FileCopyrightText: 2021 Helmholtz-Zentrum für Umweltforschung GmbH - UFZ
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
-
 from __future__ import annotations
 
 import functools
@@ -15,15 +14,21 @@ import numpy as np
 import pandas as pd
 from typing_extensions import ParamSpec
 
-import dios
-from saqc.constants import FILTER_ALL, FILTER_NONE, UNFLAGGED
-from saqc.core.flags import Flags, History
+from saqc import FILTER_ALL, FILTER_NONE
+from saqc.core import DictOfSeries, Flags, History
 from saqc.core.translation.basescheme import TranslationScheme
-from saqc.lib.tools import squeezeSequence, toSequence
+from saqc.lib.docs import ParamDict, docurator
+from saqc.lib.tools import isflagged, squeezeSequence, toSequence
 from saqc.lib.types import ExternalFlag, OptionalNone
 
 if TYPE_CHECKING:
-    from saqc.core.core import SaQC
+    from saqc import SaQC
+
+__all__ = [
+    "register",
+    "processing",
+    "flagging",
+]
 
 # NOTE:
 # the global SaQC function store,
@@ -136,7 +141,6 @@ def _squeezeFlags(old_flags, new_flags: Flags, columns: pd.Index, meta) -> Flags
     for col in columns.union(
         new_flags.columns.difference(old_flags.columns)
     ):  # account for newly added columns
-
         if col not in out:  # ensure existence
             out.history[col] = History(index=new_flags.history[col].index)
 
@@ -154,39 +158,37 @@ def _squeezeFlags(old_flags, new_flags: Flags, columns: pd.Index, meta) -> Flags
 
 
 def _maskData(
-    data: dios.DictOfSeries, flags: Flags, columns: Sequence[str], thresh: float
-) -> Tuple[dios.DictOfSeries, dios.DictOfSeries]:
+    data: DictOfSeries, flags: Flags, columns: Sequence[str], thresh: float
+) -> Tuple[DictOfSeries, DictOfSeries]:
     """
     Mask data with Nans, if the flags are worse than a threshold.
         - mask only passed `columns` (preselected by `datamask`-kw from decorator)
 
     Returns
     -------
-    masked : dios.DictOfSeries
+    masked : DictOfSeries
         masked data, same dim as original
-    mask : dios.DictOfSeries
+    mask : DictOfSeries
         dios holding iloc-data-pairs for every column in `data`
     """
-    mask = dios.DictOfSeries(columns=columns)
+    mask = DictOfSeries()
 
     # we use numpy here because it is faster
     for c in columns:
-        col_mask = _isflagged(flags[c], thresh)
+        col_mask = isflagged(flags[c].to_numpy(), thresh)
 
         if col_mask.any():
-            col_data = data[c].to_numpy(dtype=np.float64)
-
+            col_data = data[c].to_numpy(dtype=np.float64, copy=True)
             mask[c] = pd.Series(col_data[col_mask], index=np.where(col_mask)[0])
-
             col_data[col_mask] = np.nan
-            data[c] = col_data
+            data[c] = pd.Series(col_data, index=data[c].index)
 
     return data, mask
 
 
 def _unmaskData(
-    data: dios.DictOfSeries, mask: dios.DictOfSeries, columns: pd.Index | None = None
-) -> dios.DictOfSeries:
+    data: DictOfSeries, mask: DictOfSeries, columns: pd.Index | None = None
+) -> DictOfSeries:
     """
     Restore the masked data.
 
@@ -202,7 +204,6 @@ def _unmaskData(
     columns = mask.columns.intersection(columns)
 
     for c in columns:
-
         # ignore
         if data[c].empty or mask[c].empty:
             continue
@@ -262,6 +263,7 @@ def register(
     squeeze: list[str],
     multivariate: bool = False,
     handles_target: bool = False,
+    docstring: dict[str, ParamDict] | None = None,
 ):
     """
     Generalized decorator for any saqc functions.
@@ -276,8 +278,8 @@ def register(
     Parameters
     ----------
     mask : list of string
-        A list of all parameter of the decorated function, that specify a column in
-        data, that is read by the function and therefore should be masked by flags.
+        List of parameters of the decorated function, that specify column(s) in
+        ``SaQC._data``, that are read by the function and therefore should be masked.
 
         The masking takes place before the call of the decorated function and
         temporary sets data to `NaN` at flagged locations. It is undone by ``demask``.
@@ -285,15 +287,15 @@ def register(
         via ``dfilter``, a parameter each function takes.
 
     demask : list of string
-        A list of all parameter of the decorated function, that specify a column in
-        data, that was masked (see ``mask``) and needs unmasking after the call.
+        List of parameters of the decorated function, that specify column(s) in
+        ``SaQC._data``, that were masked (see ``mask``) and needs unmasking after the call.
 
-        The unmasking replace all remaining(!) ``NaN`` by its original values from
-        before the call of the decorated function.
+        The unmasking replaces all remaining(!) ``NaN`` inserted in the masking process by
+        its their original values.
 
     squeeze : list of string
-        A list of all parameter of the decorated function, that specify a column in
-        flags, that is written by the function.
+        List of parameters of the decorated function, that specify flag column(s),
+        that are written by the function.
 
         The squeezing combines multiple columns in the history of flags to one
         single column. This is because, multiple writes to flags, (eg. using
@@ -302,24 +304,28 @@ def register(
         happened.
 
     multivariate : bool, default False
-        If ``True``, the decorated function, process multiple data or flags
+        If ``True``, the decorated function, processes multiple data or flag
         columns at once. Therefore the decorated function must handle a list
         of columns in the parameter ``field``.
 
-        If ``False``, the decorated function must take a single column (``str``)
-        in ``field``.
+        If ``False``, the decorated function must define ``field: str``
 
     handles_target : bool, default False
         If ``True``, the decorated function, handles the target parameter by
         itself. Mandatory for multivariate functions.
+
+    docstring : dict, default None
+        Allows to modify the default docstring description of the parameters ``field``,
+        ``target``, ``dfilter`` and ``flag``
+
     """
 
     def outer(func: Callable[P, SaQC]) -> Callable[P, SaQC]:
-
         func_signature = inspect.signature(func)
         _checkDecoratorKeywords(
             func_signature, func.__name__, mask, demask, squeeze, handles_target
         )
+        func = docurator(func, docstring)
 
         @functools.wraps(func)
         def inner(
@@ -330,12 +336,19 @@ def register(
             flag: ExternalFlag | OptionalNone = OptionalNone(),
             **kwargs,
         ) -> "SaQC":
-
             # args -> kwargs
             paramnames = tuple(func_signature.parameters.keys())[
                 2:
             ]  # skip (self, field)
-            kwargs = {**dict(zip(paramnames, args)), **kwargs}
+
+            # check for duplicated arguments
+            args_map = dict(zip(paramnames, args))
+            intersection = set(args_map).intersection(set(kwargs))
+            if intersection:
+                raise TypeError(
+                    f"SaQC.{func.__name__}() got multiple values for argument '{intersection.pop()}'"
+                )
+            kwargs = {**args_map, **kwargs}
             kwargs["dfilter"] = _getDfilter(func_signature, saqc._scheme, kwargs)
 
             # translate flag
@@ -466,19 +479,3 @@ def processing(**kwargs):
     if kwargs:
         raise ValueError("use '@register' to pass keywords")
     return register(mask=[], demask=[], squeeze=[])
-
-
-A = TypeVar("A", np.ndarray, pd.Series)
-
-
-def _isflagged(flagscol: A, thresh: float) -> A:
-    """
-    Return a mask of flags accordingly to `thresh`. Return type is same as flags.
-    """
-    if not isinstance(thresh, (float, int)):
-        raise TypeError(f"thresh must be of type float, not {repr(type(thresh))}")
-
-    if thresh == FILTER_ALL:
-        return flagscol > UNFLAGGED
-
-    return flagscol >= thresh

@@ -77,8 +77,9 @@ coverage:
 
 python38:
   stage: test
+  image: python:3.8
   script:
-    - pytest tests dios/test -Werror --junitxml=report.xml
+    - pytest tests -Werror --junitxml=report.xml
     - python -m saqc --config docs/resources/data/config.csv --data docs/resources/data/data.csv --outfile /tmp/test.csv
   artifacts:
     when: always
@@ -90,7 +91,7 @@ python39:
   stage: test
   image: python:3.9
   script:
-    - pytest tests dios/test -Werror --junitxml=report.xml
+    - pytest tests -Werror --junitxml=report.xml
     - python -m saqc --config docs/resources/data/config.csv --data docs/resources/data/data.csv --outfile /tmp/test.csv
   artifacts:
     when: always
@@ -102,12 +103,23 @@ python310:
   stage: test
   image: python:3.10
   script:
-    - pytest tests dios/test -Werror --junitxml=report.xml
+    - pytest tests -Werror --junitxml=report.xml
     - python -m saqc --config docs/resources/data/config.csv --data docs/resources/data/data.csv --outfile /tmp/test.csv
   artifacts:
     when: always
     reports:
       junit: report.xml
+
+# python311:
+#   stage: test
+#   image: python:3.11
+#   script:
+#     - pytest tests -Werror --junitxml=report.xml
+#     - python -m saqc --config docs/resources/data/config.csv --data docs/resources/data/data.csv --outfile /tmp/test.csv
+#   artifacts:
+#     when: always
+#     reports:
+#       junit: report.xml
 
 doctest:
   stage: test
@@ -122,12 +134,39 @@ doctest:
 # Building stage
 # ===========================================================
 # check if we are able to build a wheel
-wheel:
+# and if the import works
+wheel38:
   stage: build
+  image: python:3.8
   script:
     - pip install wheel
     - pip wheel .
     - pip install .
+    - python -c 'import saqc; print(f"{saqc.__version__=}")'
+wheel39:
+  stage: build
+  image: python:3.9
+  script:
+    - pip install wheel
+    - pip wheel .
+    - pip install .
+    - python -c 'import saqc; print(f"{saqc.__version__=}")'
+wheel310:
+  stage: build
+  image: python:3.10
+  script:
+    - pip install wheel
+    - pip wheel .
+    - pip install .
+    - python -c 'import saqc; print(f"{saqc.__version__=}")'
+wheel311:
+  stage: build
+  image: python:3.11
+  script:
+    - pip install wheel
+    - pip wheel .
+    - pip install .
+    - python -c 'import saqc; print(f"{saqc.__version__=}")'
 
 docs:
   stage: build

@@ -15,20 +15,27 @@ import matplotlib.pyplot as plt
 import numpy as np
 from typing_extensions import Literal
 
-from saqc.constants import FILTER_NONE, UNFLAGGED
-from saqc.core.register import processing, register
+from saqc import FILTER_NONE, UNFLAGGED
+from saqc.core import processing, register
+from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.plotting import makeFig
 from saqc.lib.tools import periodicMask
 
 if TYPE_CHECKING:
-    from saqc.core.core import SaQC
+    from saqc import SaQC
 
 
 _MPL_DEFAULT_BACKEND = mpl.get_backend()
 
 
 class ToolsMixin:
-    @register(mask=[], demask=[], squeeze=[], handles_target=True)
+    @register(
+        mask=[],
+        demask=[],
+        squeeze=[],
+        handles_target=True,
+        docstring={"target": DOC_TEMPLATES["target"]},
+    )
     def copyField(
         self: "SaQC",
         field: str,
@@ -38,18 +45,6 @@ class ToolsMixin:
     ) -> "SaQC":
         """
         Copy data and flags to a new name (preserve flags history).
-
-        Parameters
-        ----------
-        field : str
-            The fieldname of the data column, you want to fork (copy).
-
-        target: str
-            Target name.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         if field == target:
             return self
@@ -68,15 +63,6 @@ class ToolsMixin:
     def dropField(self: "SaQC", field: str, **kwargs) -> "SaQC":
         """
         Drops field from the data and flags.
-
-        Parameters
-        ----------
-        field : str
-            The fieldname of the data column, you want to drop.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         del self._data[field]
         del self._flags[field]
@@ -89,15 +75,8 @@ class ToolsMixin:
 
         Parameters
         ----------
-        field : str
-            The fieldname of the data column, you want to rename.
-
-        new_name : str
+        new_name :
             String, field is to be replaced with.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         self._data[new_name] = self._data[field]
         self._flags.history[new_name] = self._flags.history[field]
@@ -110,9 +89,9 @@ class ToolsMixin:
         self: "SaQC",
         field: str,
         mode: Literal["periodic", "selection_field"],
-        selection_field: Optional[str] = None,
-        start: Optional[str] = None,
-        end: Optional[str] = None,
+        selection_field: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
         closed: bool = True,
         **kwargs,
     ) -> "SaQC":
@@ -137,41 +116,31 @@ class ToolsMixin:
 
         Parameters
         ----------
-        field : str
-            The fieldname of the column, holding the data-to-be-masked.
-
-        flags : saqc.Flags
-            Container to store flags of the data.
-
-        mode : {"periodic", "mask_field"}
+        mode :
             The masking mode.
             - "periodic": parameters "period_start", "end" are evaluated to generate a periodical mask
             - "mask_var": data[mask_var] is expected to be a boolean valued timeseries and is used as mask.
 
-        selection_field : {None, str}, default None
+        selection_field :
             Only effective if mode == "mask_var"
             Fieldname of the column, holding the data that is to be used as mask. (must be boolean series)
             Neither the series` length nor its labels have to match data[field]`s index and length. An inner join of the
             indices will be calculated and values get masked where the values of the inner join are ``True``.
 
-        start : {None, str}, default None
+        start :
             Only effective if mode == "seasonal"
             String denoting starting point of every period. Formally, it has to be a truncated instance of "mm-ddTHH:MM:SS".
             Has to be of same length as `end` parameter.
             See examples section below for some examples.
 
-        end : {None, str}, default None
+        end :
             Only effective if mode == "periodic"
             String denoting starting point of every period. Formally, it has to be a truncated instance of "mm-ddTHH:MM:SS".
             Has to be of same length as `end` parameter.
             See examples section below for some examples.
 
-        closed : boolean
+        closed :
             Wheather or not to include the mask defining bounds to the mask.
-
-        Returns
-        -------
-        saqc.SaQC
 
         Examples
         --------
@@ -214,13 +183,14 @@ class ToolsMixin:
             mask = periodicMask(datcol_idx, start, end, ~closed)
         elif mode == "selection_field":
             idx = self._data[selection_field].index.intersection(datcol_idx)
-            mask = self._data.loc[idx, selection_field]
+            mask = self._data[selection_field].loc[idx]
         else:
             raise ValueError(
                 "Keyword passed as masking mode is unknown ({})!".format(mode)
             )
 
-        self._data.aloc[mask, field] = np.nan
+        mask = mask.reindex(self._data[field].index, fill_value=False).astype(bool)
+        self._data[field].loc[mask] = np.nan
         self._flags[mask, field] = UNFLAGGED
         return self
 
@@ -228,21 +198,21 @@ class ToolsMixin:
     def plot(
         self: "SaQC",
         field: str,
-        path: Optional[str] = None,
-        max_gap: Optional[str] = None,
-        history: Optional[Literal["valid", "complete"] | list] = "valid",
-        xscope: Optional[slice] = None,
-        phaseplot: Optional[str] = None,
-        store_kwargs: Optional[dict] = None,
+        path: str | None = None,
+        max_gap: str | None = None,
+        history: Literal["valid", "complete"] | list[str] | None = "valid",
+        xscope: slice | None = None,
+        phaseplot: str | None = None,
+        store_kwargs: dict | None = None,
         ax: mpl.axes.Axes | None = None,
-        ax_kwargs: Optional[dict] = None,
+        ax_kwargs: dict | None = None,
         dfilter: float = FILTER_NONE,
         **kwargs,
     ) -> "SaQC":
         """
         Plot data and flags or store plot to file.
 
-        There are two modes, 'interactive' and 'store', which are determind through the
+        There are two modes, 'interactive' and 'store', which are determined through the
         ``save_path`` keyword. In interactive mode (default) the plot is shown at runtime
         and the program execution stops until the plot window is closed manually. In
         store mode the generated plot is stored to disk and no manually interaction is
@@ -250,58 +220,59 @@ class ToolsMixin:
 
         Parameters
         ----------
-        field : str
-            Name of the variable-to-plot
-
-        path : str, default None
+        path :
             If ``None`` is passed, interactive mode is entered; plots are shown immediatly
             and a user need to close them manually before execution continues.
             If a filepath is passed instead, store-mode is entered and
             the plot is stored unter the passed location.
 
-        max_gap : str, default None
-            If None, all the points in the data will be connected, resulting in long linear
-            lines, where continous chunks of data is missing. Nans in the data get dropped
-            before plotting. If an offset string is passed, only points that have a distance
-            below `max_gap` get connected via the plotting line.
+        max_gap :
+            If ``None``, all data points will be connected, resulting in long linear
+            lines, in case of large data gaps. ``NaN`` values will be removed before
+            plotting. If an offset string is passed, only points that have a distance
+            below ``max_gap`` are connected via the plotting line.
 
-        history : {"valid", "complete", None, list of strings}, default "valid"
+        history :
             Discriminate the plotted flags with respect to the tests they originate from.
 
-            * "valid" - Only plot those flags, that do not get altered or "unflagged" by subsequent tests. Only list tests
-              in the legend, that actually contributed flags to the overall resault.
-            * "complete" - plot all the flags set and list all the tests ran on a variable. Suitable for debugging/tracking.
-            * None - just plot the resulting flags for one variable, without any historical meta information.
-            * list of strings - plot only flags set by those tests listed.
+            * ``"valid"``: Only plot flags, that are not overwritten by subsequent tests.
+              Only list tests in the legend, that actually contributed flags to the overall
+              result.
+            * ``"complete"``: Plot all flags set and list all the tests executed on a variable.
+              Suitable for debugging/tracking.
+            * ``None``: Just plot the resulting flags for one variable, without any historical
+              and/or meta information.
+            * list of strings: List of tests. Plot flags from the given tests, only.
 
-        xscope : slice or Offset, default None
-            Parameter, that determines a chunk of the data to be plotted
-            processed. `xscope` can be anything, that is a valid argument to the ``pandas.Series.__getitem__`` method.
+        xscope :
+            Determine a chunk of the data to be plotted processed. ``xscope`` can be anything,
+            that is a valid argument to the ``pandas.Series.__getitem__`` method.
 
-        phaseplot : str or None, default None
-            If a string is passed, plot ``field`` in the phase space it forms together with the Variable ``phaseplot``.
+        phaseplot :
+            If a string is passed, plot ``field`` in the phase space it forms together with the
+            variable ``phaseplot``.
 
-        store_kwargs : dict, default {}
+        ax :
+            If not ``None``, plot into the given ``matplotlib.Axes`` instance, instead of a
+            newly created ``matplotlib.Figure``. This option offers a possibility to integrate
+            ``SaQC`` plots into custom figure layouts.
+
+        store_kwargs :
             Keywords to be passed on to the ``matplotlib.pyplot.savefig`` method, handling
             the figure storing. To store an pickle object of the figure, use the option
-            ``{'pickle': True}``, but note that all other store_kwargs are ignored then.
-            Reopen with: ``pickle.load(open(savepath,'w')).show()``
+            ``{"pickle": True}``, but note that all other ``store_kwargs`` are ignored then.
+            To reopen a pickled figure execute: ``pickle.load(open(savepath, "w")).show()``
 
-        ax_kwargs : dict, default {}
+        ax_kwargs :
             Axis keywords. Change the axis labeling defaults. Most important keywords:
-            'x_label', 'y_label', 'title', 'fontsize', 'cycleskip'.
-
-
-        Returns
-        -------
-        saqc.SaQC
+            ``"xlabel"``, ``"ylabel"``, ``"title"``, ``"fontsize"``, ``"cycleskip"``.
         """
         data, flags = self._data.copy(), self._flags.copy()
 
         level = kwargs.get("flag", UNFLAGGED)
 
         if dfilter < np.inf:
-            data.loc[flags[field] >= dfilter, field] = np.nan
+            data[field].loc[flags[field] >= dfilter] = np.nan
 
         if store_kwargs is None:
             store_kwargs = {}

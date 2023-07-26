@@ -22,9 +22,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pandas as pd
 
-from saqc.constants import BAD, FILTER_ALL
-from saqc.core.register import _isflagged, flagging, register
-from saqc.funcs.changepoints import _assignChangePointCluster
+from saqc import BAD, FILTER_ALL
+from saqc.core import flagging, register
+from saqc.funcs.changepoints import _getChangePoints
+from saqc.lib.tools import isunflagged
 
 if TYPE_CHECKING:
     from saqc.core.core import SaQC
@@ -42,29 +43,17 @@ class BreaksMixin:
         """
         Flag NaNs in data.
 
-        By default only NaNs are flagged, that not already have a flag.
+        By default, only NaNs are flagged, that not already have a flag.
         `dfilter` can be used to pass a flag that is used as threshold.
         Each flag worse than the threshold is replaced by the function.
         This is, because the data gets masked (with NaNs) before the
         function evaluates the NaNs.
-
-        Parameters
-        ----------
-        field : str
-            Column(s) in flags and data.
-
-        flag : float, default BAD
-            Flag to set.
-
-        Returns
-        -------
-        saqc.SaQC
         """
 
         datacol = self._data[field]
         mask = datacol.isna()
 
-        mask = ~_isflagged(self._flags[field], dfilter) & mask
+        mask = isunflagged(self._flags[field], dfilter) & mask
 
         self._flags[mask, field] = flag
         return self
@@ -87,25 +76,15 @@ class BreaksMixin:
 
         Parameters
         ----------
-        field : str
-            Column(s) in flags and data.
-
-        gap_window : str
+        gap_window :
             Minimum gap size required before and after a data group to consider it
             isolated. See condition (2) and (3)
 
-        group_window : str
+        group_window :
             Maximum size of a data chunk to consider it a candidate for an isolated group.
             Data chunks that are bigger than the ``group_window`` are ignored.
             This does not include the possible gaps surrounding it.
             See condition (1).
-
-        flag : float, default BAD
-            Flag to set.
-
-        Returns
-        -------
-        saqc.SaQC
 
         Notes
         -----
@@ -155,6 +134,7 @@ class BreaksMixin:
         window: str,
         min_periods: int = 1,
         flag: float = BAD,
+        dfilter: float = FILTER_ALL,
         **kwargs,
     ) -> "SaQC":
         """
@@ -166,16 +146,12 @@ class BreaksMixin:
         Whenever the difference between the mean in the two windows exceeds `thresh`, the value between the windows
         is flagged a jump.
 
-
         Parameters
         ----------
-        field : str
-            Column(s) in flags and data.
-
-        thresh : float
+        thresh :
             Threshold value by which the mean of data has to jump, to trigger flagging.
 
-        window : str
+        window :
             Size of the two moving windows. This determines the number of observations used
             for calculating the mean in every window.
             The window size should be big enough to yield enough samples for a reliable mean calculation,
@@ -183,12 +159,9 @@ class BreaksMixin:
             More precisely: Jumps that are not distanced to each other by more than three fourth (3/4) of the
             selected window size, will not be detected reliably.
 
-        min_periods : int, default 1
+        min_periods :
             The minimum number of observations in window required to calculate a valid
             mean value.
-
-        flag : float, default BAD
-            Flag to set.
 
         Examples
         --------
@@ -206,24 +179,16 @@ class BreaksMixin:
 
         Jumps that are not distanced to each other by more than three fourth (3/4) of the
         selected window size, will not be detected reliably.
-
-
-        Returns
-        -------
-        saqc.SaQC
         """
-        self._data, self._flags = _assignChangePointCluster(
-            self._data,
-            field,
-            self._flags,
+        mask = _getChangePoints(
+            data=self._data[field],
             stat_func=lambda x, y: np.abs(np.mean(x) - np.mean(y)),
             thresh_func=lambda x, y: thresh,
             window=window,
             min_periods=min_periods,
-            set_flags=True,
-            model_by_resids=False,
-            assign_cluster=False,
-            flag=flag,
-            **kwargs,
+            result="mask",
         )
+
+        mask = isunflagged(self._flags[field], dfilter) & mask
+        self._flags[mask, field] = flag
         return self

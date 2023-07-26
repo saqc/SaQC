@@ -6,11 +6,11 @@
 
 # -*- coding: utf-8 -*-
 
-
 from __future__ import annotations
 
 import functools
 import inspect
+import warnings
 from typing import TYPE_CHECKING, Callable, Optional, Sequence, Tuple
 
 import numpy as np
@@ -19,16 +19,17 @@ from scipy.optimize import curve_fit
 from scipy.spatial.distance import pdist
 from typing_extensions import Literal
 
-from dios import DictOfSeries
-from saqc.constants import BAD
-from saqc.core.register import Flags, flagging, register
-from saqc.funcs.changepoints import _assignChangePointCluster
-from saqc.lib.tools import detectDeviants, filterKwargs, toSequence
+from saqc import BAD
+from saqc.core import DictOfSeries, Flags, flagging, register
+from saqc.funcs.changepoints import _getChangePoints
+from saqc.lib.docs import DOC_TEMPLATES
+from saqc.lib.exceptions import ParameterOutOfBounds
+from saqc.lib.tools import detectDeviants, filterKwargs, isInBounds, toSequence
 from saqc.lib.ts_operators import expDriftModel, linearDriftModel
 from saqc.lib.types import CurveFitter
 
 if TYPE_CHECKING:
-    from saqc.core.core import SaQC
+    from saqc import SaQC
 
 
 LinkageString = Literal[
@@ -38,6 +39,10 @@ LinkageString = Literal[
 MODELDICT = {"linear": linearDriftModel, "exponential": expDriftModel}
 
 
+def cityblock(x: np.ndarray | pd.Series, y: np.ndarray | pd.Series) -> np.ndarray:
+    return pdist(np.array([x, y]), metric="cityblock") / len(x)
+
+
 class DriftMixin:
     @register(
         mask=["field"],
@@ -45,17 +50,17 @@ class DriftMixin:
         squeeze=["field"],  # reference is written !
         multivariate=True,
         handles_target=False,
+        docstring=DOC_TEMPLATES["field"],
     )
     def flagDriftFromNorm(
         self: "SaQC",
         field: Sequence[str],
-        freq: str,
+        window: str,
         spread: float,
         frac: float = 0.5,
-        metric: Callable[[np.ndarray, np.ndarray], float] = lambda x, y: pdist(
-            np.array([x, y]), metric="cityblock"
-        )
-        / len(x),
+        metric: Callable[
+            [np.ndarray | pd.Series, np.ndarray | pd.Series], np.ndarray
+        ] = cityblock,
         method: LinkageString = "single",
         flag: float = BAD,
         **kwargs,
@@ -71,36 +76,26 @@ class DriftMixin:
 
         Parameters
         ----------
-        field : str
-            A column in flags and data.
-
-        freq : str
+        window :
             Frequency, that split the data in chunks.
 
-        spread : float
+        spread :
             Maximum spread allowed in the group of *normal* data. See Notes section for more details.
 
-        frac : float, default 0.5
+        frac :
             Fraction defining the normal group. Use a value from the interval [0,1].
             The higher the value, the more stable the algorithm will be. For values below
             0.5 the results are undefined.
 
-        metric : Callable, default ``lambda x,y:pdist(np.array([x,y]),metric="cityblock")/len(x)``
+        metric : default cityblock
             Distance function that takes two arrays as input and returns a scalar float.
             This value is interpreted as the distance of the two input arrays.
             Defaults to the `averaged manhattan metric` (see Notes).
 
-        method : {"single", "complete", "average", "weighted", "centroid", "median", "ward"}, default "single"
+        method :
             Linkage method used for hierarchical (agglomerative) clustering of the data.
             `method` is directly passed to ``scipy.hierarchy.linkage``. See its documentation [1] for
             more details. For a general introduction on hierarchical clustering see [2].
-
-        flag : float, default BAD
-            flag to set.
-
-        Returns
-        -------
-        saqc.SaQC
 
         Notes
         -----
@@ -137,15 +132,27 @@ class DriftMixin:
         Introduction to Hierarchical clustering:
             [2] https://en.wikipedia.org/wiki/Hierarchical_clustering
         """
+        if not isInBounds(frac, (0.5, 1), closed="both"):
+            raise ParameterOutOfBounds(frac, "frac", (0.5, 1), "both")
+
+        if "freq" in kwargs:
+            warnings.warn(
+                """
+                The parameter `freq` is deprecated and will be removed in version 3.0 of saqc.
+                Please us the parameter `window` instead.'
+                """,
+                DeprecationWarning,
+            )
+            window = kwargs["freq"]
+
         fields = toSequence(field)
 
-        data_to_flag = self._data[fields].to_df()
-        data_to_flag.dropna(inplace=True)
+        data = self._data[fields].to_pandas()
+        data.dropna(inplace=True)
 
-        segments = data_to_flag.groupby(pd.Grouper(freq=freq))
+        segments = data.groupby(pd.Grouper(freq=window))
         for segment in segments:
-
-            if segment[1].shape[0] <= 1:
+            if len(segment[1]) <= 1:
                 continue
 
             drifters = detectDeviants(
@@ -170,46 +177,31 @@ class DriftMixin:
         reference: str,
         freq: str,
         thresh: float,
-        metric: Callable[[np.ndarray, np.ndarray], float] = lambda x, y: pdist(
-            np.array([x, y]), metric="cityblock"
-        )
-        / len(x),
+        metric: Callable[
+            [np.ndarray | pd.Series, np.ndarray | pd.Series], np.ndarray
+        ] = cityblock,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
         """
-        Flags data that deviates from a reference course.
-
-        The deviation is measured by a passed distance function.
+        Flags data that deviates from a reference course. Deviation is measured by a
+        custom distance function.
 
         Parameters
         ----------
-        field : str
-            A column in flags and data.
-
-        freq : str
+        freq :
             Frequency, that split the data in chunks.
 
-        reference : str
+        reference :
             Reference variable, the deviation is calculated from.
 
-        thresh : float
+        thresh :
             Maximum deviation from reference.
 
-        metric : Callable
+        metric : default cityblock
             Distance function. Takes two arrays as input and returns a scalar float.
             This value is interpreted as the mutual distance of the two input arrays.
             Defaults to the `averaged manhattan metric` (see Notes).
-
-        target : None
-            Ignored.
-
-        flag : float, default BAD
-            Flag to set.
-
-        Returns
-        -------
-        saqc.SaQC
 
         Notes
         -----
@@ -225,12 +217,11 @@ class DriftMixin:
         if reference not in fields:
             fields.append(reference)
 
-        data_to_flag = self._data[fields].to_df().dropna()
+        data = self._data[fields].to_pandas().dropna()
 
-        segments = data_to_flag.groupby(pd.Grouper(freq=freq))
+        segments = data.groupby(pd.Grouper(freq=freq))
         for segment in segments:
-
-            if segment[1].shape[0] <= 1:
+            if len(segment[1]) <= 1:
                 continue
 
             for i in range(len(fields)):
@@ -259,31 +250,24 @@ class DriftMixin:
 
         Parameters
         ----------
-        field : str
-            Column in data and flags.
-
-        maintenance_field : str
+        maintenance_field :
             Column holding the support-points information.
             The data is expected to have the following form:
             The index of the series represents the beginning of a maintenance
             event, wheras the values represent its endings.
 
-        model : Callable or {'exponential', 'linear'}
-            A modelfunction describing the drift behavior, that is to be corrected.
-            Either use built-in exponential or linear drift model by passing a string, or pass a custom callable.
-            The model function must always contain the keyword parameters 'origin' and 'target'.
-            The starting parameter must always be the parameter, by wich the data is passed to the model.
-            After the data parameter, there can occure an arbitrary number of model calibration arguments in
-            the signature.
-            See the Notes section for an extensive description.
+        model :
+            A model function describing the drift behavior, that is to be corrected.
+            Either use built-in exponential or linear drift model by passing a string,
+            or pass a custom callable. The model function must always contain the keyword
+            parameters 'origin' and 'target'. The starting parameter must always be the
+            parameter, by wich the data is passed to the model. After the data parameter,
+            there can occure an arbitrary number of model calibration arguments in the
+            signature. See the Notes section for an extensive description.
 
-        cal_range : int, default 5
+        cal_range :
             Number of values to calculate the mean of, for obtaining the value level directly
             after and directly before a maintenance event. Needed for shift calibration.
-
-        Returns
-        -------
-        saqc.SaQC
 
         Notes
         -----
@@ -291,7 +275,8 @@ class DriftMixin:
         meassurements in a way, that can be described, by a model function M(t, p, origin, target).
         (With 0<=t<=1, p being a parameter set, and origin, target being floats).
 
-        Note, that its possible for the model to have no free parameters p at all. (linear drift mainly)
+        Note, that its possible for the model to have no free parameters p at all
+        (linear drift mainly).
 
         The drift model, directly after the last support point (t=0),
         should evaluate to the origin - calibration level (origin), and directly before the next
@@ -345,11 +330,11 @@ class DriftMixin:
         maint_data = self._data[maintenance_field].copy()
 
         to_correct_clean = to_correct.dropna()
-        d = {"drift_group": np.nan, to_correct.name: to_correct_clean.values}
+        d = {"drift_group": np.nan, field: to_correct_clean.values}
         drift_frame = pd.DataFrame(d, index=to_correct_clean.index)
 
         # group the drift frame
-        for k in range(0, maint_data.shape[0] - 1):
+        for k in range(0, len(maint_data) - 1):
             # assign group numbers for the timespans in between one maintenance ending and the beginning of the next
             # maintenance time itself remains np.nan assigned
             drift_frame.loc[
@@ -364,7 +349,7 @@ class DriftMixin:
         )
 
         for k, group in drift_grouper:
-            data_series = group[to_correct.name]
+            data_series = group[field]
             data_fit, data_shiftTarget = _driftFit(
                 data_series, shift_targets.loc[k, :][0], cal_range, model
             )
@@ -394,38 +379,37 @@ class DriftMixin:
 
         Currently, the only correction mode supported is the "parameter propagation."
 
-        This means, any regime :math:`z`, labeled negatively and being modeled by the parameters p, gets corrected via:
+        This means, any regime :math:`z`, labeled negatively and being modeled by the parameters
+        p, gets corrected via:
 
         :math:`z_{correct} = z + (m(p^*) - m(p))`,
 
-        where :math:`p^*` denotes the parameter set belonging to the fit of the nearest not-negatively labeled cluster.
+        where :math:`p^*` denotes the parameter set belonging to the fit of the nearest
+        not-negatively labeled cluster.
 
         Parameters
         ----------
-        field : str
-            The fieldname of the data column, you want to correct.
+        cluster_field :
+            A string denoting the field in data, holding the cluster label for the data you want
+            to correct.
 
-        cluster_field : str
-            A string denoting the field in data, holding the cluster label for the data you want to correct.
-
-        model : Callable
+        model :
             The model function to be fitted to the regimes.
-            It must be a function of the form :math:`f(x, *p)`, where :math:`x` is the ``numpy.array`` holding the
-            independent variables and :math:`p` are the model parameters that are to be obtained by fitting.
-            Depending on the `x_date` parameter, independent variable x will either be the timestamps
-            of every regime transformed to seconds from epoch, or it will be just seconds, counting the regimes length.
+            It must be a function of the form :math:`f(x, *p)`, where :math:`x` is the
+            ``numpy.array`` holding the independent variables and :math:`p` are the model
+            parameters that are to be obtained by fitting. Depending on the `x_date` parameter,
+            independent variable x will either be the timestamps of every regime transformed to
+            seconds from epoch, or it will be just seconds, counting the regimes length.
 
-        tolerance : {None, str}, default None:
+        tolerance :
             If an offset string is passed, a data chunk of length `offset` right at the
-            start and right at the end is ignored when fitting the model. This is to account for the
-            unreliability of data near the changepoints of regimes.
+            start and right at the end is ignored when fitting the model. This is to account
+            for the unreliability of data near the changepoints of regimes.
 
-        epoch : bool, default False
-            If True, use "seconds from epoch" as x input to the model func, instead of "seconds from regime start".
+        epoch :
+            If True, use "seconds from epoch" as x input to the model func, instead of
+            "seconds from regime start".
 
-        Returns
-        -------
-        saqc.SaQC
         """
         cluster_ser = self._data[cluster_field]
         unique_successive = pd.unique(cluster_ser.values)
@@ -463,13 +447,13 @@ class DriftMixin:
         first_valid = np.array(
             [
                 ~pd.isna(para_dict[unique_successive[i]]).any()
-                for i in range(0, unique_successive.shape[0])
+                for i in range(0, len(unique_successive))
             ]
         )
         first_valid = np.where(first_normal & first_valid)[0][0]
         last_valid = 1
 
-        for k in range(0, unique_successive.shape[0]):
+        for k in range(0, len(unique_successive)):
             if unique_successive[k] < 0 & (
                 not pd.isna(para_dict[unique_successive[k]]).any()
             ):
@@ -501,59 +485,59 @@ class DriftMixin:
         spread: float,
         window: str,
         min_periods: int,
-        tolerance: Optional[str] = None,
+        tolerance: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
         Parameters
         ----------
-        field : str
-            The fieldname of the data column, you want to correct.
-
-        max_jump : float
+        max_jump :
             when searching for changepoints in mean - this is the threshold a mean difference in the
             sliding window search must exceed to trigger changepoint detection.
 
-        spread : float
+        spread :
             threshold denoting the maximum, regimes are allowed to abolutely differ in their means
             to form the "normal group" of values.
 
-        window : str
+        window :
             Size of the adjacent windows that are used to search for the mean changepoints.
 
-        min_periods : int
+        min_periods :
             Minimum number of periods a search window has to contain, for the result of the changepoint
             detection to be considered valid.
 
-        tolerance : {None, str}, default None:
+        tolerance :
             If an offset string is passed, a data chunk of length `offset` right from the
             start and right before the end of any regime is ignored when calculating a regimes mean for data correcture.
             This is to account for the unrelyability of data near the changepoints of regimes.
 
-        Returns
-        -------
-        saqc.SaQC
         """
-        self = self.copyField(field, field + "_CPcluster")
-        self._data, self._flags = _assignChangePointCluster(
-            self._data,
-            field + "_CPcluster",
-            self._flags,
-            lambda x, y: np.abs(np.mean(x) - np.mean(y)),
-            lambda x, y: max_jump,
+        # Hint: This whole function does not set any flags
+
+        cluster_field = field + "_CPcluster"
+        self = self.copyField(field, cluster_field)
+        self.data[cluster_field] = _getChangePoints(
+            data=self._data[cluster_field],
+            stat_func=lambda x, y: np.abs(np.mean(x) - np.mean(y)),
+            thresh_func=lambda x, y: max_jump,
             window=window,
             min_periods=min_periods,
+            result="cluster",
         )
         self._data, self._flags = _assignRegimeAnomaly(
-            self._data, field, self._flags, field + "_CPcluster", spread
+            data=self._data,
+            field=field,
+            flags=self._flags,
+            cluster_field=cluster_field,
+            spread=spread,
         )
         self = self.correctRegimeAnomaly(
             field,
-            field + "_CPcluster",
+            cluster_field,
             lambda x, p1: np.array([p1] * x.shape[0]),
             tolerance=tolerance,
         )
-        self = self.dropField(field + "_CPcluster")
+        self = self.dropField(cluster_field)
         return self
 
     @flagging()
@@ -563,15 +547,15 @@ class DriftMixin:
         cluster_field: str,
         spread: float,
         method: LinkageString = "single",
-        metric: Callable[[np.ndarray, np.ndarray], float] = lambda x, y: np.abs(
-            np.nanmean(x) - np.nanmean(y)
-        ),
+        metric: Callable[
+            [np.ndarray | pd.Series, np.ndarray | pd.Series], float
+        ] = lambda x, y: np.abs(np.nanmean(x) - np.nanmean(y)),
         frac: float = 0.5,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
         """
-        Flags anomalous regimes regarding to modelling regimes of field.
+        Flags anomalous regimes regarding to modelling regimes of ``field``.
 
         "Normality" is determined in terms of a maximum spreading distance,
         regimes must not exceed in respect to a certain metric and linkage method.
@@ -587,33 +571,23 @@ class DriftMixin:
 
         Parameters
         ----------
-        field : str
-            Name of the column to process
-
-        cluster_field : str
+        cluster_field :
             Column in data, holding the cluster labels for the samples in field.
             (has to be indexed equal to field)
 
-        spread : float
+        spread :
             A threshold denoting the value level, up to wich clusters a agglomerated.
 
-        method : {"single", "complete", "average", "weighted", "centroid", "median", "ward"}, default "single"
+        method :
             The linkage method for hierarchical (agglomerative) clustering of the variables.
 
-        metric : Callable, default lambda x,y: np.abs(np.nanmean(x) - np.nanmean(y))
+        metric : default absolute difference of means
             A metric function for calculating the dissimilarity between 2 regimes.
             Defaults to the difference in mean.
 
-        frac : float
+        frac :
             Has to be in [0,1]. Determines the minimum percentage of samples,
             the "normal" group has to comprise to be the normal group actually.
-
-        flag : float, default BAD
-            flag to set.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         reserverd = ["set_cluster", "set_flags"]
         kwargs = filterKwargs(kwargs, reserverd)
@@ -664,30 +638,23 @@ class DriftMixin:
 
         Parameters
         ----------
-        field : str
-            Name of the column to process
-
-        cluster_field : str
+        cluster_field :
             Column in data, holding the cluster labels for the samples in field.
             (has to be indexed equal to field)
 
-        spread : float
+        spread :
             A threshold denoting the value level, up to wich clusters a agglomerated.
 
-        method : {"single", "complete", "average", "weighted", "centroid", "median", "ward"}, default "single"
+        method :
             The linkage method for hierarchical (agglomerative) clustering of the variables.
 
-        metric : Callable, default lambda x,y: np.abs(np.nanmean(x) - np.nanmean(y))
+        metric : default absolute difference of means
             A metric function for calculating the dissimilarity between 2 regimes.
             Defaults to the difference in mean.
 
-        frac : float
+        frac :
             Has to be in [0,1]. Determines the minimum percentage of samples,
             the "normal" group has to comprise to be the normal group actually.
-
-        Returns
-        -------
-        saqc.SaQC
         """
         reserverd = ["set_cluster", "set_flags", "flag"]
         kwargs = filterKwargs(kwargs, reserverd)
@@ -756,12 +723,12 @@ def _assignRegimeAnomaly(
 ) -> Tuple[DictOfSeries, Flags]:
     series = data[cluster_field]
     cluster = np.unique(series)
-    cluster_dios = DictOfSeries({i: data[field][series == i] for i in cluster})
+    cluster_dios = DictOfSeries({str(i): data[field][series == i] for i in cluster})
     plateaus = detectDeviants(cluster_dios, metric, spread, frac, method, "samples")
 
     if set_flags:
-        for p in plateaus:
-            flags[cluster_dios.iloc[:, p].index, field] = flag
+        for p, cols in zip(plateaus, cluster_dios.columns[plateaus]):
+            flags[cluster_dios[cols].index, field] = flag
 
     if set_cluster:
         for p in plateaus:

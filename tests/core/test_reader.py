@@ -9,15 +9,15 @@
 import numpy as np
 import pytest
 
-import dios
-from saqc.core.flags import Flags
-from saqc.core.reader import fromConfig, readFile
-from saqc.core.register import flagging
+import saqc.lib.ts_operators as ts_ops
+from saqc.core import DictOfSeries, Flags, SaQC, flagging
+from saqc.parsing.environ import ENVIRONMENT
+from saqc.parsing.reader import fromConfig, readFile
 from tests.common import initData, writeIO
 
 
 @pytest.fixture
-def data() -> dios.DictOfSeries:
+def data() -> DictOfSeries:
     return initData(3)
 
 
@@ -31,7 +31,6 @@ def getTestedVariables(flags: Flags, test: str):
 
 
 def test_variableRegex(data):
-
     header = f"varname;test"
     function = "flagDummy"
     tests = [
@@ -92,7 +91,6 @@ def test_configReaderLineNumbers():
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
 def test_configFile(data):
-
     # check that the reader accepts different whitespace patterns
 
     config = f"""
@@ -111,7 +109,6 @@ def test_configFile(data):
 
 
 def test_configChecks(data):
-
     var1, _, var3, *_ = data.columns
 
     @flagging()
@@ -134,7 +131,6 @@ def test_configChecks(data):
 
 
 def test_supportedArguments(data):
-
     # test if the following function arguments
     # are supported (i.e. parsing does not fail)
 
@@ -161,3 +157,21 @@ def test_supportedArguments(data):
     for test in tests:
         fobj = writeIO(header + "\n" + test)
         fromConfig(fobj, data)
+
+
+@pytest.mark.parametrize(
+    "func_string", [k for k, v in ENVIRONMENT.items() if callable(v)]
+)
+def test_funtionArguments(data, func_string):
+    @flagging()
+    def testFunction(saqc, field, func, **kwargs):
+        assert func is ENVIRONMENT[func_string]
+        return saqc
+
+    config = f"""
+    varname ; test
+    {data.columns[0]} ; testFunction(func={func_string})
+    {data.columns[0]} ; testFunction(func="{func_string}")
+    """
+
+    fromConfig(writeIO(config), data)

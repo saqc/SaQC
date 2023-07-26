@@ -4,15 +4,16 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import operator
+
 import numpy as np
 import pandas as pd
-
-# -*- coding: utf-8 -*-
 import pytest
 
 from saqc import BAD as B
 from saqc import UNFLAGGED as U
 from saqc import SaQC
+from saqc.funcs.flagtools import _groupOperation
 
 N = np.nan
 
@@ -98,3 +99,105 @@ def test_propagateFlagsIrregularIndex(got, expected, kwargs):
     saqc = SaQC(data=data, flags=flags).propagateFlags(field="x", **kwargs)
     result = saqc._flags.history["x"].hist[1].astype(float)
     assert result.equals(expected)
+
+
+@pytest.mark.parametrize(
+    "left,right,expected",
+    [
+        ([B, U, U, B], [B, B, U, U], [B, U, U, U]),
+        ([B, B, B, B], [B, B, B, B], [B, B, B, B]),
+        ([U, U, U, U], [U, U, U, U], [U, U, U, U]),
+    ],
+)
+def test_andGroup(left, right, expected):
+    data = pd.DataFrame({"data": [1, 2, 3, 4]})
+
+    base = SaQC(data=data)
+    this = SaQC(data=data, flags=pd.DataFrame({"data": pd.Series(left)}))
+    that = SaQC(data=data, flags=pd.DataFrame({"data": pd.Series(right)}))
+    result = base.andGroup(field="data", group=[this, that])
+
+    assert pd.Series(expected).equals(result.flags["data"])
+
+
+@pytest.mark.parametrize(
+    "left,right,expected",
+    [
+        ([B, U, U, B], [B, B, U, U], [B, B, U, B]),
+        ([B, B, B, B], [B, B, B, B], [B, B, B, B]),
+        ([U, U, U, U], [U, U, U, U], [U, U, U, U]),
+    ],
+)
+def test_orGroup(left, right, expected):
+    data = pd.DataFrame({"data": [1, 2, 3, 4]})
+
+    base = SaQC(data=data)
+    this = SaQC(data=data, flags=pd.DataFrame({"data": pd.Series(left)}))
+    that = SaQC(data=data, flags=pd.DataFrame({"data": pd.Series(right)}))
+    result = base.orGroup(field="data", group=[this, that])
+
+    assert pd.Series(expected).equals(result.flags["data"])
+
+
+@pytest.mark.parametrize(
+    "left,right,expected",
+    [
+        ([B, U, U, B], [B, B, U, U], [B, B, U, B]),
+        ([B, B, B, B], [B, B, B, B], [B, B, B, B]),
+        ([U, U, U, U], [U, U, U, U], [U, U, U, U]),
+    ],
+)
+def test__groupOperationUnivariate(left, right, expected):
+    data = pd.DataFrame(
+        {"x": [0, 1, 2, 3], "y": [0, 11, 22, 33], "z": [0, 111, 222, 333]}
+    )
+    base = SaQC(data=data)
+    this = SaQC(
+        data=data, flags=pd.DataFrame({k: pd.Series(left) for k in data.columns})
+    )
+    that = SaQC(
+        data=data, flags=pd.DataFrame({k: pd.Series(right) for k in data.columns})
+    )
+    result = _groupOperation(
+        base=base, field="x", func=operator.or_, group={this: "y", that: ["y", "z"]}
+    )
+
+    assert pd.Series(expected).equals(result.flags["x"])
+
+
+@pytest.mark.parametrize(
+    "left,right,expected",
+    [
+        (pd.Series([B, U, U, B]), pd.Series([B, B, U, U]), pd.Series([B, B, U, B])),
+        (pd.Series([B, B, B, B]), pd.Series([B, B, B, B]), pd.Series([B, B, B, B])),
+        (pd.Series([U, U, U, U]), pd.Series([U, U, U, U]), pd.Series([U, U, U, U])),
+    ],
+)
+def test__groupOperationMultivariate(left, right, expected):
+    data = pd.DataFrame({"x": [0, 1, 2, 3], "y": [0, 11, 22, 33]})
+    flags = pd.DataFrame({"x": pd.Series(left), "y": pd.Series(right)})
+
+    qc = SaQC(data=data, flags=flags)
+
+    # multi fields, no target
+    result = _groupOperation(base=qc.copy(), field=["x", "y"], func=operator.or_)
+    for v in ["x", "y"]:
+        assert expected.equals(result.flags[v])
+
+    # multi fields, multi target
+    result = _groupOperation(
+        base=qc.copy(), target=["a", "b"], field=["x", "y"], func=operator.or_
+    )
+    for v in ["a", "b"]:
+        assert expected.equals(result.flags[v])
+    for v, e in zip(["x", "y"], [left, right]):
+        assert e.equals(result.flags[v])
+
+    # multi fields, single target
+    result = _groupOperation(
+        base=qc.copy(), target="a", field=["x", "y"], func=operator.or_
+    )
+    assert expected.equals(result.flags["a"])
+    assert result.data["a"].isna().all()
+    for v, e in zip(["x", "y"], [left, right]):
+        assert e.equals(result.flags[v])

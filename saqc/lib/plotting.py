@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import itertools
-from typing import Optional, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -17,9 +16,8 @@ import numpy as np
 import pandas as pd
 from typing_extensions import Literal
 
-from saqc.core.flags import Flags
+from saqc.core import DictOfSeries, Flags
 from saqc.lib.tools import toSequence
-from saqc.lib.types import DiosLikeT
 
 STATSDICT = {
     "values total": lambda x, y, z: len(x),
@@ -56,7 +54,7 @@ SCATTER_KWARGS = {
 
 
 def makeFig(
-    data: DiosLikeT,
+    data: DictOfSeries,
     field: str,
     flags: Flags,
     level: float,
@@ -72,10 +70,10 @@ def makeFig(
 
     Parameters
     ----------
-    data : {pd.DataFrame, dios.DictOfSeries}
+    data : {pd.DataFrame, DictOfSeries}
         data
 
-    flags : {pd.DataFrame, dios.DictOfSeries, saqc.flagger}
+    flags : {pd.DataFrame, DictOfSeries, saqc.flagger}
         Flags or flagger object
 
     field : str
@@ -119,7 +117,8 @@ def makeFig(
     if ax_kwargs is None:
         ax_kwargs = {}
     # data retrieval
-    d = data[field]
+    d = data[field].copy(deep=False)
+    d.name = field
     # data slicing:
     xscope = xscope or slice(xscope)
     d = d[xscope]

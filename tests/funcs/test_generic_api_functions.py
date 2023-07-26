@@ -9,11 +9,9 @@
 import pandas as pd
 import pytest
 
-from dios.dios.dios import DictOfSeries
-from saqc import SaQC
-from saqc.constants import BAD, FILTER_ALL, UNFLAGGED
-from saqc.core.flags import Flags
-from saqc.lib.tools import toSequence
+from saqc import BAD, UNFLAGGED, SaQC
+from saqc.constants import FILTER_NONE
+from saqc.core import DictOfSeries, Flags
 from tests.common import initData
 
 
@@ -46,21 +44,10 @@ def test_emptyData():
     ],
 )
 def test_writeTargetFlagGeneric(data, targets, func):
-    expected_meta = {
-        "func": "flagGeneric",
-        "args": (data.columns.tolist(), targets),
-        "kwargs": {
-            "func": func.__name__,
-            "flag": BAD,
-            "dfilter": FILTER_ALL,
-        },
-    }
-
     saqc = SaQC(data=data)
     saqc = saqc.flagGeneric(field=data.columns, target=targets, func=func, flag=BAD)
     for target in targets:
         assert saqc._flags.history[target].hist.iloc[0].tolist() == [BAD]
-        assert saqc._flags.history[target].meta[0] == expected_meta
 
 
 @pytest.mark.parametrize(
@@ -74,18 +61,7 @@ def test_writeTargetFlagGeneric(data, targets, func):
     ],
 )
 def test_overwriteFieldFlagGeneric(data, fields, func):
-
     flag = 12
-
-    expected_meta = {
-        "func": "flagGeneric",
-        "args": (fields, fields),
-        "kwargs": {
-            "func": func.__name__,
-            "flag": flag,
-            "dfilter": FILTER_ALL,
-        },
-    }
 
     saqc = SaQC(
         data=data.copy(),
@@ -99,39 +75,48 @@ def test_overwriteFieldFlagGeneric(data, fields, func):
         ),
     )
 
-    res = saqc.flagGeneric(field=fields, func=func, flag=flag)
+    res = saqc.flagGeneric(field=fields, func=func, flag=flag, dfilter=FILTER_NONE)
     for field in fields:
         histcol1 = res._flags.history[field].hist[1]
         assert (histcol1 == flag).all()
         assert (data[field] == res.data[field]).all(axis=None)
         assert res._flags.history[field].meta[0] == {}
-        assert res._flags.history[field].meta[1] == expected_meta
 
 
 @pytest.mark.parametrize(
-    "targets, func",
+    "data, targets, func, expected_data",
     [
-        (["tmp"], lambda x, y: x + y),
-        (["tmp1", "tmp2"], lambda x, y: (x + y, y * 2)),
+        (
+            DictOfSeries(dict(a=pd.Series([1.0, 2.0]), b=pd.Series([10.0, 20.0]))),
+            ["t1"],
+            lambda x, y: x + y,
+            DictOfSeries(
+                dict(
+                    a=pd.Series([1.0, 2.0]),
+                    b=pd.Series([10.0, 20.0]),
+                    t1=pd.Series([11.0, 22.0]),
+                )
+            ),
+        ),
+        (
+            DictOfSeries(dict(a=pd.Series([1.0, 2.0]), b=pd.Series([10.0, 20.0]))),
+            ["t1", "t2"],
+            lambda x, y: (x + y, y * 2),
+            DictOfSeries(
+                dict(
+                    a=pd.Series([1.0, 2.0]),
+                    b=pd.Series([10.0, 20.0]),
+                    t1=pd.Series([11.0, 22.0]),
+                    t2=pd.Series([20.0, 40.0]),
+                )
+            ),
+        ),
     ],
 )
-def test_writeTargetProcGeneric(data, targets, func):
-    fields = ["var1", "var2"]
+def test_writeTargetProcGeneric(data, targets, func, expected_data):
+    fields = data.columns.tolist()
     dfilter = 128
 
-    expected_data = DictOfSeries(
-        func(*[data[f] for f in fields]), columns=toSequence(targets)
-    ).squeeze()
-
-    expected_meta = {
-        "func": "procGeneric",
-        "args": (fields, targets),
-        "kwargs": {
-            "func": func.__name__,
-            "dfilter": dfilter,
-            "label": "generic",
-        },
-    }
     saqc = SaQC(
         data=data,
         flags=Flags({k: pd.Series(127.0, index=data[k].index) for k in data.columns}),
@@ -143,35 +128,31 @@ def test_writeTargetProcGeneric(data, targets, func):
         dfilter=dfilter,
         label="generic",
     )
-    assert (expected_data == res.data[targets].squeeze()).all(axis=None)
+    assert expected_data == res.data
     # check that new histories where created
     for target in targets:
         assert res._flags.history[target].hist.iloc[0].isna().all()
-        assert res._flags.history[target].meta[0] == expected_meta
 
 
 @pytest.mark.parametrize(
-    "fields, func",
+    "data, fields, func, expected_data",
     [
-        (["var1"], lambda x: x * 2),
-        (["var1", "var2"], lambda x, y: (x + y, y * 2)),
+        (
+            DictOfSeries(dict(a=pd.Series([1.0, 2.0]), b=pd.Series([10.0, 20.0]))),
+            ["a"],
+            lambda x: x * 2,
+            DictOfSeries(dict(a=pd.Series([2.0, 4.0]), b=pd.Series([10.0, 20.0]))),
+        ),
+        (
+            DictOfSeries(dict(a=pd.Series([1.0, 2.0]), b=pd.Series([10.0, 20.0]))),
+            ["a", "b"],
+            lambda x, y: (x + y, y * 2),
+            DictOfSeries(dict(a=pd.Series([11.0, 22.0]), b=pd.Series([20.0, 40.0]))),
+        ),
     ],
 )
-def test_overwriteFieldProcGeneric(data, fields, func):
+def test_overwriteFieldProcGeneric(data, fields, func, expected_data):
     dfilter = 128
-    expected_data = DictOfSeries(
-        func(*[data[f] for f in fields]), columns=fields
-    ).squeeze()
-
-    expected_meta = {
-        "func": "procGeneric",
-        "args": (fields, fields),
-        "kwargs": {
-            "func": func.__name__,
-            "dfilter": dfilter,
-            "label": "generic",
-        },
-    }
 
     saqc = SaQC(
         data=data,
@@ -179,13 +160,12 @@ def test_overwriteFieldProcGeneric(data, fields, func):
     )
 
     res = saqc.processGeneric(field=fields, func=func, dfilter=dfilter, label="generic")
-    assert (expected_data == res.data[fields].squeeze()).all(axis=None)
+    assert expected_data == res.data
     # check that the histories got appended
     for field in fields:
         assert (res._flags.history[field].hist[0] == 127.0).all()
         assert res._flags.history[field].hist[1].isna().all()
         assert res._flags.history[field].meta[0] == {}
-        assert res._flags.history[field].meta[1] == expected_meta
 
 
 def test_label():
@@ -200,7 +180,7 @@ def test_label():
     qc = qc.flagGeneric(
         ["data1", "data3"],
         target="data2",
-        func=lambda x, y: isflagged(x, "out of range") | isflagged(y),
+        func=lambda x, y: isflagged(x, "out of range") | isflagged(y),  # noqa
     )
     assert list((qc.flags["data2"] > 0).values) == [False, False, True, False, False]
 

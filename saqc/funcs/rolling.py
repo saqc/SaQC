@@ -5,31 +5,30 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, Callable, Union
 
 import numpy as np
 import pandas as pd
 
-from dios import DictOfSeries
-from saqc.core.flags import Flags
-from saqc.core.register import register
+from saqc.core import DictOfSeries, Flags, register
 from saqc.lib.tools import getFreqDelta
 
 if TYPE_CHECKING:
-    from saqc.core.core import SaQC
+    from saqc import SaQC
 
 
 class RollingMixin:
     @register(mask=["field"], demask=[], squeeze=[])
-    def roll(
+    def rolling(
         self: "SaQC",
         field: str,
-        window: Union[str, int],
+        window: str | int,
         func: Callable[[pd.Series], np.ndarray] = np.mean,
         min_periods: int = 0,
         center: bool = True,
-        **kwargs
+        **kwargs,
     ) -> "SaQC":
         """
         Calculate a rolling-window function on the data.
@@ -38,32 +37,78 @@ class RollingMixin:
 
         Parameters
         ----------
-        field : str
-            The column to calculate on.
-
-        flags : saqc.Flags
-            Container to store quality flags to data.
-
-        window : {int, str}
+        window :
             The size of the window you want to roll with. If an integer is passed, the size
             refers to the number of periods for every fitting window. If an offset string
             is passed, the size refers to the total temporal extension. For regularly
             sampled timeseries, the period number will be casted down to an odd number if
             ``center=True``.
 
-        func : Callable, default np.mean
+        func : default mean
             Function to roll with.
 
-        min_periods : int, default 0
+        min_periods :
             The minimum number of periods to get a valid value
 
-        center : bool, default True
+        center :
             If True, center the rolling window.
-
-        Returns
-        -------
-        saqc.SaQC
         """
+        self._data, self._flags = _roll(
+            data=self._data,
+            field=field,
+            flags=self._flags,
+            window=window,
+            func=func,
+            min_periods=min_periods,
+            center=center,
+            **kwargs,
+        )
+        return self
+
+    @register(mask=["field"], demask=[], squeeze=[])
+    def roll(
+        self: "SaQC",
+        field: str,
+        window: Union[str, int],
+        func: Callable[[pd.Series], np.ndarray] = np.mean,
+        min_periods: int = 0,
+        center: bool = True,
+        **kwargs,
+    ) -> "SaQC":
+        """
+        Calculate a rolling-window function on the data.
+
+        .. deprecated:: 2.4.0
+           Use :py:meth:`~saqc.SaQC.rolling` instead.
+
+        Note, that the data gets assigned the worst flag present in the original data.
+
+        Parameters
+        ----------
+        window :
+            The size of the window you want to roll with. If an integer is passed, the size
+            refers to the number of periods for every fitting window. If an offset string
+            is passed, the size refers to the total temporal extension. For regularly
+            sampled timeseries, the period number will be casted down to an odd number if
+            ``center=True``.
+
+        func : default mean
+            Function to roll with.
+
+        min_periods :
+            The minimum number of periods to get a valid value
+
+        center :
+            If True, center the rolling window.
+        """
+        import warnings
+
+        warnings.warn(
+            """The function `roll` was renamed to `rolling` and will be removed with version 3.0 of saqc
+            Please use `SaQC.rolling` with the same arguments, instead
+            """,
+            DeprecationWarning,
+        )
         self._data, self._flags = _roll(
             data=self._data,
             field=field,
@@ -85,7 +130,7 @@ def _roll(
     func: Callable[[pd.Series], np.ndarray] = np.mean,
     min_periods: int = 0,
     center: bool = True,
-    **kwargs
+    **kwargs,
 ):
     to_fit = data[field].copy()
     if to_fit.empty:

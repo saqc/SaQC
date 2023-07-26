@@ -14,10 +14,10 @@ from functools import reduce
 import numpy as np
 import pandas as pd
 
-from saqc.constants import BAD, DOUBTFUL, GOOD, UNFLAGGED
-from saqc.core.flags import Flags
-from saqc.core.history import History
+from saqc import BAD, DOUBTFUL, GOOD, UNFLAGGED
+from saqc.core import Flags, History
 from saqc.core.translation.basescheme import BackwardMap, ForwardMap, MappingScheme
+from saqc.lib.tools import getUnionIndex
 
 _QUALITY_CAUSES = [
     "",
@@ -134,12 +134,11 @@ class DmpScheme(MappingScheme):
         tflags = super().toExternal(flags, attrs=attrs)
 
         out = pd.DataFrame(
-            index=reduce(lambda x, y: x.union(y), tflags.indexes).sort_values(),
+            index=getUnionIndex(tflags),
             columns=pd.MultiIndex.from_product([flags.columns, _QUALITY_LABELS]),
         )
 
         for field in tflags.columns:
-
             df = pd.DataFrame(
                 {
                     "quality_flag": tflags[field],
@@ -150,7 +149,6 @@ class DmpScheme(MappingScheme):
 
             history = flags.history[field]
             for col in history.columns:
-
                 valid = (history.hist[col] != UNFLAGGED) & history.hist[col].notna()
 
                 # extract from meta
@@ -191,7 +189,6 @@ class DmpScheme(MappingScheme):
             )
 
         for field in df.columns.get_level_values(0):
-
             # we might have NaN injected by DictOfSeries -> DataFrame conversions
             field_df = df[field].dropna(how="all", axis="index")
             flags = field_df["quality_flag"]
@@ -213,7 +210,7 @@ class DmpScheme(MappingScheme):
                     "quality flags other than 'OK and 'NIL' need a non-empty quality cause"
                 )
 
-            if ((causes == "OTHER") & (comments == "")).any(None):
+            if ((causes == "OTHER") & (comments == "")).any(axis=None):
                 raise ValueError(
                     "quality cause 'OTHER' needs a non-empty quality comment"
                 )
