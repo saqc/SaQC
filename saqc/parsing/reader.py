@@ -10,6 +10,7 @@ import io
 import json
 import logging
 import textwrap
+import warnings
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, TextIO, Tuple
 from urllib.request import urlopen
@@ -240,14 +241,19 @@ from urllib.request import urlopen
 import pandas as pd
 
 
-def file_exists(path_or_buffer):
-    return True
+def fileExists(path_or_buffer):
+    try:
+        return os.path.exists(path_or_buffer)
+    except (ValueError, TypeError, OSError):
+        return False
 
 
-def is_url(path: str):
-    from pandas.io.common import is_url
+def isUrl(s: str) -> bool:
+    try:
+        return bool(urlparse(s).scheme)
+    except (TypeError, ValueError):
+        return False
 
-    is_url(path)
 
 class ConfigTest:
     def __init__(self):
@@ -291,38 +297,33 @@ class RawConfig:
     def __iter__(self):
         yield from self.tests
 
-    def filter(self, var=None, func=None):
-        tests = self.tests
-        if var is not None:
-            # todo regex
-            tests = [t for t in tests if var == t.var]
-        if func is not None:
-            tests = [t for t in tests if func == t.func]
-        return RawConfig(tests, src=self.src)
-
+def isOpenFileLike(obj) -> bool:
+    return isinstance(obj, io.IOBase) or hasattr(obj, 'read') and hasattr(obj, 'readlines')
 
 class Reader(abc.ABC):
     _file_extensions = tuple()
 
     def __init__(self, path_or_buffer):
-        self.src = None
-        if urlparse(path_or_buffer).scheme:
+        src = None
+        if isUrl(path_or_buffer):
             data = urlopen(path_or_buffer).read().decode("utf-8")
             src = path_or_buffer
-        elif hasattr(path_or_buffer, "read"):  # Path
+        elif isOpenFileLike(path_or_buffer):
             data = path_or_buffer.read()
-            if hasattr(path_or_buffer, "name"):
-                src = path_or_buffer.name
-        elif isinstance(path_or_buffer, str) and (  # file path
+            # io.StringIO has no name attribute
+            src = getattr(path_or_buffer, 'name', None)
+        elif isinstance(path_or_buffer, str) and (
                 self._file_extensions
                 and path_or_buffer.lower().endswith(self._file_extensions)
-                or os.path.exists(path_or_buffer)
+                or fileExists(path_or_buffer)
         ):
             with open(path_or_buffer, "r") as fh:
                 data = fh.read()
                 src = path_or_buffer
-        else:  # string data
+        elif isinstance(path_or_buffer, str):
             data = path_or_buffer
+        else:
+            raise TypeError(f"unsupported type {type(path_or_buffer)}")
         self.data = data
         self.src = src
 
@@ -334,8 +335,35 @@ class Reader(abc.ABC):
 class CsvReader(Reader):
     _file_extensions = (".csv",)
 
+    def __init__(self, path_or_buffer, header=1, comment='#', sep=";"):
+        super().__init__(path_or_buffer)
+        self.sep = sep
+        self.header = header
+        self.comment = comment
+
     def read(self):
-        lines = self.data.splitlines()
+        entries = []
+        skip = max(self.header or 0, 0) + 1
+        comment = self.comment or None
+        for i, line in enumerate(self.data.splitlines()):
+            lineno = i + 1
+            if (skip := skip - 1) > 0:
+                continue
+            line: str = line.strip()
+            if comment is not None and line.startswith(comment):
+                continue
+            parts = [p.strip() for p in line.split(sep=self.sep)]
+            if len(parts) != 2:
+                raise ParsingError(
+                    f"The configuration format expects exactly two "
+                    f"columns, one for the variable name and one for "
+                    f"the tests, but {len(parts)} columns were found "
+                    f"in line {lineno}.\n\t{line!r}"
+                )
+            entries.append([lineno] + parts)
+
+        # todo
+
 
 
 class JsonReader(Reader):
@@ -372,6 +400,8 @@ class JsonReader(Reader):
             if missing:
                 raise ValueError(f"Tests {missing} have no {c!r} entry")
 
+        # todo: maybe try out pypi package `json_source_map`
+        #       to get line numbers
         df["lineno"] = None
         return RawConfig(df.itertuples(index=False), src=self.src)
 
