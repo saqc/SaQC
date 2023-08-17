@@ -49,13 +49,13 @@ def extractLiteral(lit: type(Literal)) -> List:
 
 # fmt: off
 @overload
-def toSequence(value: T) -> List[T]:
+def toSequence(value: str | float | int | None) -> List[str | float | int | None]:
     ...
 @overload
 def toSequence(value: Sequence[T]) -> List[T]:
     ...
 def toSequence(value) -> List:
-    if value is None or isinstance(value, (str, float, int)):
+    if isinstance(value, (str, float, int, type(None))):
         return [value]
     return list(value)
 # fmt: on
@@ -186,8 +186,9 @@ def periodicMask(
     return out
 
 
-def isQuoted(string):
-    return bool(re.search(r"'.*'|\".*\"", string))
+def isQuoted(s: str) -> bool:
+    # isQuoted ∈ O(1) [linear]
+    return len(s) > 1 and s[0] in ["'", '"'] and s[0] == s[-1]
 
 
 def mutateIndex(index: pd.Index, old_name, new_name):
