@@ -223,3 +223,166 @@ class _ConfigReader:
             self._parseLine()
             self._execLine()
         return self.saqc
+
+# #################################################################
+# new impl
+# #################################################################
+
+import abc
+import io
+import json
+import os.path
+from textwrap import indent
+from typing import Iterable, overload
+from urllib.parse import urlparse
+from urllib.request import urlopen
+
+import pandas as pd
+
+
+def file_exists(path_or_buffer):
+    return True
+
+
+def is_url(path: str):
+    from pandas.io.common import is_url
+
+    is_url(path)
+
+class ConfigTest:
+    def __init__(self):
+        pass
+
+class RawConfigEntry:
+    def __init__(self, var: str, func: str, kws: dict, lineno: int | None):
+        self.var = var
+        self.func = func
+        self.kws = kws
+        self.lineno = lineno
+
+    def __iter__(self):
+        yield from [self.var, self.func, self.kws, self.lineno]
+
+    def __repr__(self):
+        s = ""
+        if self.lineno is not None:
+            s = f"line {self.lineno}: "
+        return s + f"{{{self.var}, {self.func}, {self.kws}}}"
+
+    def parse(self) -> ConfigTest:
+        pass
+
+
+class RawConfig:
+    def __init__(self, obj: Iterable, src=None):
+        self.src = src
+        self.tests = []
+        for args in obj:
+            self.tests.append(RawConfigEntry(*args))
+
+    def __repr__(self):
+        cname = self.__class__.__qualname__
+        src = f"({self.src!r})" if self.src else ""
+        if not self.tests:
+            return f"Empty {cname}{src}"
+        tests = "\n".join(["[", *[indent(repr(t), " ") for t in self.tests], "]"])
+        return f"{cname}{src}\n{tests}\n"
+
+    def __iter__(self):
+        yield from self.tests
+
+    def filter(self, var=None, func=None):
+        tests = self.tests
+        if var is not None:
+            # todo regex
+            tests = [t for t in tests if var == t.var]
+        if func is not None:
+            tests = [t for t in tests if func == t.func]
+        return RawConfig(tests, src=self.src)
+
+
+class Reader(abc.ABC):
+    _file_extensions = tuple()
+
+    def __init__(self, path_or_buffer):
+        self.src = None
+        if urlparse(path_or_buffer).scheme:
+            data = urlopen(path_or_buffer).read().decode("utf-8")
+            src = path_or_buffer
+        elif hasattr(path_or_buffer, "read"):  # Path
+            data = path_or_buffer.read()
+            if hasattr(path_or_buffer, "name"):
+                src = path_or_buffer.name
+        elif isinstance(path_or_buffer, str) and (  # file path
+                self._file_extensions
+                and path_or_buffer.lower().endswith(self._file_extensions)
+                or os.path.exists(path_or_buffer)
+        ):
+            with open(path_or_buffer, "r") as fh:
+                data = fh.read()
+                src = path_or_buffer
+        else:  # string data
+            data = path_or_buffer
+        self.data = data
+        self.src = src
+
+    @abc.abstractmethod
+    def read(self) -> RawConfig:
+        ...
+
+
+class CsvReader(Reader):
+    _file_extensions = (".csv",)
+
+    def read(self):
+        lines = self.data.splitlines()
+
+
+class JsonReader(Reader):
+    _file_extensions = (".json",)
+
+    def __init__(self, path_or_buffer, root_key: str | None = None):
+        super().__init__(path_or_buffer)
+        self.root_key = root_key
+
+    def read(self):
+        d = json.loads(self.data)
+        if self.root_key is not None:
+            d = d[self.root_key]
+
+        if not isinstance(d, list):
+            msg = "Expected a json array"
+            if self.root_key is not None:
+                msg += f" under key {self.root_key}"
+            if isinstance(d, dict):
+                msg += f", but got a object with keys {d.keys()}"
+                if self.root_key is None:
+                    msg += ". Maybe use a key as root_key."
+            raise ValueError(msg)
+        df = pd.DataFrame(d)
+
+        if not df.columns.equals(pd.Index(["varname", "function", "kwargs"])):
+            raise ValueError(
+                f'expected fields "varname", "function" and "kwargs" '
+                f"for each test but got {set(df.columns)}"
+            )
+
+        for c in ["varname", "function", "kwargs"]:
+            missing = list(df.loc[df[c].isna(), c].index + 1)
+            if missing:
+                raise ValueError(f"Tests {missing} have no {c!r} entry")
+
+        df["lineno"] = None
+        return RawConfig(df.itertuples(index=False), src=self.src)
+
+
+if __name__ == "__main__":
+    path0 = "/home/palmb/projects/saqc/ignore/ressources/config.json"
+    path1 = "/home/palmb/projects/saqc/ignore/ressources/configArr.json"
+
+    # jr = JsonReader(path0)
+    jr = JsonReader(path0, root_key="tests")
+    cf = jr.read()
+    print(cf)
+    print(cf.filter(var="SM1"))
+    print(cf.filter(var="SM4"))
