@@ -10,6 +10,7 @@ import io
 import json
 import logging
 import textwrap
+import traceback
 import warnings
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Sequence, TextIO, Tuple
@@ -21,6 +22,22 @@ from saqc import SaQC
 from saqc.exceptions import ParsingError
 from saqc.lib.tools import isQuoted
 from saqc.parsing.visitor import ConfigFunctionParser
+
+
+class Explanation(Exception):
+    def __str__(self):
+        return f"\n{self.args[0]}\n\n>> See the Exception above this one, for the real reason. <<"
+
+
+def _add_note(e: Exception, note: str) -> Exception:
+    if hasattr(e, "add_note"):  # python 3.11+
+        e.add_note(note)
+        return e
+    if len(e.args) == 1 and isinstance(e.args[0], str):
+        args = f"{e}\n{note}"
+    else:
+        args = *e.args, f"\n{note}"
+    return type(e)(*args).with_traceback(e.__traceback__)
 
 
 def _readLines(
@@ -167,8 +184,9 @@ class _ConfigReader:
             if hasattr(e, "add_note"):  # python 3.11+
                 e = err(*e.args)
                 e.add_note(meta)
-                raise e from None
-            raise err(str(e) + meta) from None
+            else:
+                e = err(f"{e}\n{meta}")
+            raise e from None
 
         if "field" in kws:
             kws["target"] = self.field
@@ -189,8 +207,8 @@ class _ConfigReader:
                 regex=self.regex, **self.func_kws
             )
         except Exception as e:
-            # We use a special technique for raising here, because
-            # we want this location of rising, line up in the traceback,
+            # We use a special technique for raising here, because we
+            # want this location of rising, line up in the traceback,
             # instead of showing up at last (most relevant). Also, we
             # want to include some meta information about the config.
             meta = self._getFormattedInfo(
@@ -225,6 +243,7 @@ class _ConfigReader:
             self._execLine()
         return self.saqc
 
+
 # #################################################################
 # new impl
 # #################################################################
@@ -241,11 +260,32 @@ from urllib.request import urlopen
 import pandas as pd
 
 
+class LoggerMixin:
+    """
+    Adds a logger to the class, named as the qualified name of the
+    class. A super call to init is not necessary. Each instance has its
+    own logger, but in the logging backend they refer to the very same
+    logger, unless an instance sets a new logger with another name.
+    """
+
+    logger: logging.Logger
+
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls)
+        obj.__dict__["logger"] = logging.getLogger(cls.__qualname__)
+        return obj
+
+
 def fileExists(path_or_buffer):
     try:
         return os.path.exists(path_or_buffer)
     except (ValueError, TypeError, OSError):
         return False
+
+
+def getFileExtension(path) -> str:
+    """Returns empty string, if no extension present."""
+    return str(os.path.splitext(path)[1].strip().lower())
 
 
 def isUrl(s: str) -> bool:
@@ -256,27 +296,79 @@ def isUrl(s: str) -> bool:
 
 
 class ConfigTest:
-    def __init__(self):
-        pass
-
-class RawConfigEntry:
-    def __init__(self, var: str, func: str, kws: dict, lineno: int | None):
-        self.var = var
-        self.func = func
+    def __init__(self, func, kws, src):
+        self.funcname = func
+        self.func = getattr(SaQC, self.funcname)
         self.kws = kws
-        self.lineno = lineno
+        self.src = src
 
-    def __iter__(self):
-        yield from [self.var, self.func, self.kws, self.lineno]
+    def __str__(self):
+        return self.__repr__()
 
     def __repr__(self):
-        s = ""
-        if self.lineno is not None:
-            s = f"line {self.lineno}: "
-        return s + f"{{{self.var}, {self.func}, {self.kws}}}"
+        src = "" if self.src is None else self.src
+        return f"{src}: parsed to: {self.funcname}({self.kws})"
+
+    def run(self, qc):
+        # We explicitly route all function calls through SaQC.__getattr__
+        # in order to do a FUNC_MAP lookup. Otherwise, we wouldn't be able
+        # to overwrite existing test functions with custom register calls.
+        try:
+            return self.func(qc, **self.kws)
+        except Exception as e:
+            meta = (
+                f"The exception occurred during execution of "
+                f"the config line:\n{indent(str(self), '  ')}"
+            )
+            if hasattr(e, "add_note"):  # python 3.11+
+                e.add_note(meta)
+                raise e
+            raise Explanation(meta) from e
+
+
+class RawConfigEntry(LoggerMixin):
+    def __init__(self, var: str, functxt: str, src: int | None):
+        self.var = var
+        self.functxt = functxt
+        self.src = src
+
+    def __iter__(self):
+        yield from [self.var, self.functxt, self.src]
+
+    def __repr__(self):
+        src = "" if self.src is None else self.src
+        return f"{src}: {{{self.var}, {self.functxt}}}"
 
     def parse(self) -> ConfigTest:
-        pass
+        field = self.var
+        if regex := isQuoted(self.var):
+            field = field[1:-1]
+
+        try:
+            tree = ast.parse(self.functxt, mode="eval").body
+            func, kws = ConfigFunctionParser().parse(tree)
+        except Exception as e:
+            meta = (
+                f"The exception occurred during parsing of "
+                f"the config line:\n{indent(str(self), '  ')}"
+            )
+            # We raise a NEW exception here, because the
+            # traceback hold no relevant info for a CLI user.
+            e = (type(e) if isinstance(e, NameError) else ParsingError)(*e.args)
+            if hasattr(e, "add_note"):  # python 3.11+
+                e.add_note(meta)
+                raise e
+            raise Explanation(meta) from e
+
+        if "field" in kws:
+            kws["target"] = field
+        else:
+            kws["field"] = field
+
+        if regex:
+            kws["regex"] = True
+
+        return ConfigTest(func, kws, self.src)
 
 
 class RawConfig:
@@ -297,13 +389,40 @@ class RawConfig:
     def __iter__(self):
         yield from self.tests
 
-def isOpenFileLike(obj) -> bool:
-    return isinstance(obj, io.IOBase) or hasattr(obj, 'read') and hasattr(obj, 'readlines')
+    def __getitem__(self, item):
+        return self.tests[item]
 
-class Reader(abc.ABC):
-    _file_extensions = tuple()
+
+def isOpenFileLike(obj) -> bool:
+    return (
+        isinstance(obj, io.IOBase) or hasattr(obj, "read") and hasattr(obj, "readlines")
+    )
+
+
+class R:
+    # _default = CsvReader
+    def __new__(cls, path_or_buffer, *args, **kwargs):
+        if cls == Reader:
+            cls = cls._default
+            if ext := cls._getExtension(path_or_buffer):
+                if ext == "json":
+                    cls = JsonReader
+                elif ext == "csv":
+                    cls = CsvReader
+        return object.__new__(cls)
+
+
+class Reader(abc.ABC, LoggerMixin):
+    _supported_file_extensions = tuple()
 
     def __init__(self, path_or_buffer):
+        try:
+            ext = getFileExtension(path_or_buffer)
+        except (ValueError, TypeError):
+            ext = None
+        self.file_ext = ext or None
+        self.logger.debug(f"{self.file_ext=}")
+
         src = None
         if isUrl(path_or_buffer):
             data = urlopen(path_or_buffer).read().decode("utf-8")
@@ -311,21 +430,37 @@ class Reader(abc.ABC):
         elif isOpenFileLike(path_or_buffer):
             data = path_or_buffer.read()
             # io.StringIO has no name attribute
-            src = getattr(path_or_buffer, 'name', None)
-        elif isinstance(path_or_buffer, str) and (
-                self._file_extensions
-                and path_or_buffer.lower().endswith(self._file_extensions)
-                or fileExists(path_or_buffer)
+            src = getattr(path_or_buffer, "name", None)
+        elif (
+            self.file_ext is not None
+            and self.file_ext in self._supported_file_extensions
+            and not fileExists(path_or_buffer)
         ):
+            raise FileNotFoundError(f"No such file {path_or_buffer!r}")
+        elif fileExists(path_or_buffer):
             with open(path_or_buffer, "r") as fh:
                 data = fh.read()
-                src = path_or_buffer
-        elif isinstance(path_or_buffer, str):
+            src = path_or_buffer
+        else:  # input string
             data = path_or_buffer
-        else:
+        if not isinstance(data, str):
             raise TypeError(f"unsupported type {type(path_or_buffer)}")
+
         self.data = data
         self.src = src
+        self._maybeWarn()
+
+    def _maybeWarn(self):
+        if (
+            self.file_ext is not None
+            and self.file_ext not in self._supported_file_extensions
+        ):
+            warnings.warn(
+                f"File extension is {self.file_ext!r} but the reader "
+                f"expects one of {self._supported_file_extensions}",
+                category=RuntimeWarning,
+                stacklevel=4,  # at call to AnyReader
+            )
 
     @abc.abstractmethod
     def read(self) -> RawConfig:
@@ -333,9 +468,9 @@ class Reader(abc.ABC):
 
 
 class CsvReader(Reader):
-    _file_extensions = (".csv",)
+    _supported_file_extensions = (".csv",)
 
-    def __init__(self, path_or_buffer, header=1, comment='#', sep=";"):
+    def __init__(self, path_or_buffer, header=1, comment="#", sep=";"):
         super().__init__(path_or_buffer)
         self.sep = sep
         self.header = header
@@ -353,21 +488,20 @@ class CsvReader(Reader):
             if comment is not None and line.startswith(comment):
                 continue
             parts = [p.strip() for p in line.split(sep=self.sep)]
-            if len(parts) != 2:
+            if (n := len(parts)) != 2:
                 raise ParsingError(
                     f"The configuration format expects exactly two "
                     f"columns, one for the variable name and one for "
-                    f"the tests, but {len(parts)} columns were found "
-                    f"in line {lineno}.\n\t{line!r}"
+                    f"the tests, but {n} columns were found in line "
+                    f"{lineno}.\n\t{line!r}"
                 )
-            entries.append([lineno] + parts)
+            entries.append(parts + [lineno])
 
-        # todo
-
+        return RawConfig(entries)
 
 
 class JsonReader(Reader):
-    _file_extensions = (".json",)
+    _supported_file_extensions = (".json",)
 
     def __init__(self, path_or_buffer, root_key: str | None = None):
         super().__init__(path_or_buffer)
@@ -402,17 +536,27 @@ class JsonReader(Reader):
 
         # todo: maybe try out pypi package `json_source_map`
         #       to get line numbers
-        df["lineno"] = None
+        df["src"] = self.src
+
+        kws = df["kwargs"].apply(
+            lambda e: ", ".join([f"{k}={v}" for k, v in e.items()])
+        )
+        df["test"] = df["function"] + "(" + kws + ")"
+        df = df[["varname", "test", "src"]]
         return RawConfig(df.itertuples(index=False), src=self.src)
 
 
 if __name__ == "__main__":
     path0 = "/home/palmb/projects/saqc/ignore/ressources/config.json"
     path1 = "/home/palmb/projects/saqc/ignore/ressources/configArr.json"
+    path3 = "/home/palmb/projects/saqc/ignore/ressources/config.csv"
 
+    logging.basicConfig(level="DEBUG")
+    cr = CsvReader(path3).read()
+    cr[1].parse().run(SaQC())
+    exit(99)
     # jr = JsonReader(path0)
     jr = JsonReader(path0, root_key="tests")
     cf = jr.read()
-    print(cf)
-    print(cf.filter(var="SM1"))
-    print(cf.filter(var="SM4"))
+
+    print(cf.tests[1])
