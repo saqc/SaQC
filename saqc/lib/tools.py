@@ -10,11 +10,14 @@ from __future__ import annotations
 import collections
 import functools
 import itertools
+import logging
 import operator as op
+import os
 import re
 import warnings
 from typing import (
     Any,
+    AnyStr,
     Callable,
     Collection,
     Iterable,
@@ -28,6 +31,7 @@ from typing import (
     get_origin,
     overload,
 )
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
@@ -626,3 +630,31 @@ def joinExt(sep: str, iterable: Iterable[str], last_sep: str | None = None) -> s
     if len(iterable) < 2:
         return sep.join(iterable)
     return f"{sep.join(iterable[:-1])}{last_sep}{iterable[-1]}"
+
+
+def getFileExtension(path: os.PathLike[AnyStr]) -> str:
+    """Returns empty string, if no extension present."""
+    return str(os.path.splitext(path)[1].strip().lower())
+
+
+def fileExists(path_or_buffer: Any):
+    try:
+        return os.path.exists(path_or_buffer)
+    except (TypeError, ValueError, OSError):
+        return False
+
+
+class LoggerMixin:
+    """
+    Adds a logger to the class, named as the qualified name of the
+    class. A super call to init is not necessary. Each instance has its
+    own logger, but in the logging backend they refer to the very same
+    logger, unless an instance sets a new logger with another name.
+    """
+
+    logger: logging.Logger
+
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls)
+        obj.__dict__["logger"] = logging.getLogger(cls.__qualname__)
+        return obj
