@@ -11,7 +11,7 @@ import json
 import logging
 import warnings
 from textwrap import indent
-from typing import Generic, Iterable, List, TypeVar
+from typing import Collection, Iterable, Iterator, List, Literal
 from urllib.request import urlopen
 
 import pandas as pd
@@ -31,11 +31,20 @@ class _ConfigReader:
     def __init__(self, *args, **kwargs):
         self.qc = SaQC(*args, **kwargs)
 
+    def readJson(self, c):
+        self.config: Config = JsonReader(c).read()
+        self.reader: Config = self.config.parse()
+        return self
+
     def readString(self, c):
-        self.reader = CsvReader(c).read().parse()
+        self.config: Config = CsvReader(c).read()
+        self.reader: Config = self.config.parse()
+        return self
+
+    readCsv = readString
 
     def run(self):
-        self.reader.run(self.qc)
+        return self.reader.run(self.qc)
 
 
 def _formatSrc(src: str | None, lineno: int | None, long: bool = False):
@@ -50,34 +59,47 @@ def _formatSrc(src: str | None, lineno: int | None, long: bool = False):
     return f"{src}:{lineno}"
 
 
-class ConfigTest:
-    def __init__(self, func, kws, src, lineno):
-        self.func_name = func
-        self.func = getattr(SaQC, self.func_name)
-        self.kws = kws
-        self.src = src
-        self.lineno = lineno
-
-    def __repr__(self):
-        src = _formatSrc(self.src, self.lineno)
-        return f"{src} func={self.func_name}, kws={self.kws}"
-
-    def run(self, qc):
-        return self.func(qc, **self.kws)
-
-
-class RawConfigEntry:
-    def __init__(self, var: str, functxt: str, src: str, lineno: int | None = None):
+class ConfigEntry:
+    def __init__(self, var: str, func_text: str, src: str, lineno: int | None = None):
         self.var = var
-        self.functxt = functxt
+        self.functxt = func_text
         self.src = src
         self.lineno = lineno
 
-    def __repr__(self):
-        src = _formatSrc(self.src, self.lineno)
-        return f"{src}: {{{self.var}, {self.functxt}}}"
+        # filled by parse
+        self.func_name = None
+        self.kws = None
 
-    def parse(self) -> ConfigTest:
+    def __repr__(self):
+        lno = ""
+        if self.lineno is not None:
+            lno = f"line {self.lineno}: "
+        if self.parsed:
+            first = self.func_name
+            second = self.kws
+        else:
+            first = self.var
+            second = self.functxt
+
+        return f"{lno}{{{first}, {second}}}"
+
+    def __str__(self):
+        return (
+            f"{self.__class__.__qualname__}\n"
+            f"  source:       {self.src}\n"
+            f"  lineno:       {self.lineno}\n"
+            f"  varname:      {self.var}\n"
+            f"  functext:     {self.functxt}\n"
+            f"  parsed:       {self.parsed}\n"
+            f"  parsed-func:  {self.func_name}\n"
+            f"  parsed-kws:   {self.kws}\n"
+        )
+
+    @property
+    def parsed(self):
+        return self.func_name is not None
+
+    def parse(self):
         tree = ast.parse(self.functxt, mode="eval").body
         func, kws = ConfigFunctionParser().parse(tree)
 
@@ -91,21 +113,35 @@ class RawConfigEntry:
         else:
             kws["field"] = field
 
-        return ConfigTest(func, kws, self.src, self.lineno)
+        self.func_name = func
+        self.kws = kws
+        return self
+
+    def run(self, qc):
+        if not self.parsed:
+            raise RuntimeError(f"{self.__class__.__qualname__} must be parsed first")
+        return getattr(qc, self.func_name)(**self.kws)
 
 
-EntryT = TypeVar("EntryT", RawConfigEntry, ConfigTest)
+class Config(LoggerMixin, Collection[ConfigEntry]):
+    def __contains__(self, item: object) -> bool:
+        return item in self.tests
 
+    def __len__(self):
+        return len(self.tests)
 
-class Config(LoggerMixin, Generic[EntryT]):
-    tests: List[EntryT]
+    def __iter__(self) -> Iterator[ConfigEntry]:
+        yield from self.tests
+
+    def __getitem__(self, item) -> ConfigEntry:
+        return self.tests[item]
 
     def __init__(self, obj: Iterable, src: str | None = None):
         self.src = src
-        self.tests: List[RawConfigEntry] = []
+        self.tests: List[ConfigEntry] = []
         self.is_parsed = False
         for args in obj:
-            self.tests.append(RawConfigEntry(*args))
+            self.tests.append(ConfigEntry(*args))
 
     def __repr__(self):
         cname = self.__class__.__qualname__
@@ -115,22 +151,22 @@ class Config(LoggerMixin, Generic[EntryT]):
         tests = "\n".join(["[", *[indent(repr(t), " ") for t in self.tests], "]"])
         return f"{cname}{src}\n{tests}\n"
 
-    def __iter__(self) -> EntryT:
-        yield from self.tests
+    @staticmethod
+    def _formatErrMsg(e: Exception, test: ConfigEntry, msg: str = "") -> str:
+        return "\n".join([str(e), msg, str(test)])
 
-    def __getitem__(self, item) -> EntryT:
-        return self.tests[item]
-
-    def parse(self) -> Config[ConfigTest]:
+    def parse(self) -> Config[ConfigEntry]:
         if self.is_parsed:
             raise RuntimeError("config is already parsed")
-        parsed: List[ConfigTest] = []
+        parsed: List[ConfigEntry] = []
+        msg = "Parsing config failed"
         for i, test in enumerate(self.tests):
             try:
                 parsed.append(test.parse())
+            except NameError as e:
+                raise NameError(self._formatErrMsg(e, test, msg)) from None
             except Exception as e:
-                msg = self.formatErrMessage(test, e, "Parsing failed")
-                raise ParsingError(msg) from None
+                raise ParsingError(self._formatErrMsg(e, test, msg)) from None
         self.tests = parsed
         self.is_parsed = True
         return self
@@ -138,82 +174,24 @@ class Config(LoggerMixin, Generic[EntryT]):
     def run(self, qc: SaQC) -> SaQC:
         if not self.is_parsed:
             raise RuntimeError("config must be parsed first")
+        msg = f"Executing config failed"
         for i, test in enumerate(self.tests):
-            assert isinstance(test, ConfigTest)
             try:
                 qc = test.run(qc)
             except KeyError as e:
                 # We need to handle KeyError differently, because
                 # it uses `repr` instead of `str` and would mess
                 # up our message with extra text and newlines.
-                msg = self.formatErrMessage(test, e, "Executing config failed")
-                raise _SpecialKeyError(msg).with_traceback(e.__traceback__) from None
+                e = _SpecialKeyError(self._formatErrMsg(e, test, msg))
+                raise e.with_traceback(e.__traceback__) from None
             except Exception as e:
-                msg = self.formatErrMessage(test, e, "Executing config failed")
-                raise type(e)(msg).with_traceback(e.__traceback__) from None
+                e = type(e)(self._formatErrMsg(e, test, msg))
+                raise e.with_traceback(e.__traceback__) from None
         return qc
-
-    @staticmethod
-    def formatErrMessage(test: EntryT, e: Exception, message: str = "") -> str:
-        exc_typ = type(e).__name__
-        exc_msg = str(e)
-        src = _formatSrc(test.src, test.lineno, long=True)
-        if isinstance(test, ConfigTest):
-            return (
-                f"{message}\n"
-                f"  config:     {src}\n"
-                f"  SaQC-func:  {test.func_name}\n"
-                f"  kwargs:     {test.kws}\n"
-                f"  Exception:  {exc_typ}: {exc_msg}\n"
-            )
-        if isinstance(test, RawConfigEntry):
-            return (
-                f"{message}\n"
-                f"  config:     {src}\n"
-                f"  varname:    {test.var}\n"
-                f"  test:       {test.functxt}\n"
-                f"  Exception:  {exc_typ}: {exc_msg}\n"
-            )
-        else:
-            raise TypeError(f"{test=}")
-
-
-class ConfigRunException(RuntimeError):
-    def __init__(
-        self,
-        test: ConfigTest | RawConfigEntry,
-        orig_e: Exception,
-        testno: int | None = None,
-    ):
-        self.src = test.src
-        self.lineno = test.lineno
-        self.func = None
-        if isinstance(test, ConfigTest):
-            self.func = test.func_name
-        if isinstance(test, RawConfigEntry):
-            self.func = test.functxt
-
-        self.ex_typ = type(orig_e).__name__
-        self.ex_msg = str(orig_e)
-        self.testno = testno
-
-    def __str__(self):
-        lno = "" if self.lineno is None else f", line {self.lineno}"
-        return (
-            f"\n"
-            f"  config:       {self.src}{lno}\n"
-            f"  test number:  {self.testno}\n"
-            f"  saqc-func:    {self.func}\n"
-            f"  Exception:    {self.ex_typ}: {self.ex_msg}\n"
-        )
-
-
-class ConfigParseException(ConfigRunException):
-    pass
 
 
 class Reader(abc.ABC, LoggerMixin):
-    _supported_file_extensions = tuple()
+    _supported_file_extensions = frozenset()
 
     def __init__(self, path_or_buffer):
         try:
@@ -242,15 +220,15 @@ class Reader(abc.ABC, LoggerMixin):
             src = path_or_buffer
         else:  # input string
             data = path_or_buffer
-            src = "string-config"
+            src = "String-config"
         if not isinstance(data, str):
             raise TypeError(f"unsupported type {type(path_or_buffer)}")
 
         self.data = data
         self.src = src
-        self._maybeWarn()
+        self._maybeWarnExtension()
 
-    def _maybeWarn(self):
+    def _maybeWarnExtension(self):
         if (
             self.file_ext is not None
             and self.file_ext not in self._supported_file_extensions
@@ -263,14 +241,32 @@ class Reader(abc.ABC, LoggerMixin):
             )
 
     @abc.abstractmethod
-    def read(self) -> Config[RawConfigEntry]:
+    def read(self) -> Config[ConfigEntry]:
         ...
 
 
 class CsvReader(Reader):
-    _supported_file_extensions = (".csv",)
+    _supported_file_extensions = frozenset({".csv"})
 
-    def __init__(self, path_or_buffer, header=1, comment="#", sep=";"):
+    def __init__(
+        self,
+        path_or_buffer,
+        header: int | Literal["infer"] = "infer",
+        comment: str = "#",
+        sep: str = ";",
+    ):
+        """
+
+        Parameters
+        ----------
+        path_or_buffer :
+        header :
+            If 'infer' the reader ignores a header if one is present.
+            If header is an integer, this many lines are ignored.
+            Commented lines or empty lines are not counted.
+        comment :
+        sep :
+        """
         super().__init__(path_or_buffer)
         self.sep = sep
         self.header = header
@@ -281,14 +277,19 @@ class CsvReader(Reader):
 
     def read(self):
         entries = []
-        skip = max(self.header or 0, 0) + 1
+        infer = self.header == "infer"
+        skip = 0 if infer else (self.header + 1)
         comment = self.comment or None
         for i, line in enumerate(self.data.splitlines()):
             lineno = i + 1
-            if (skip := skip - 1) > 0:
-                continue
             line: str = line.strip()
-            if comment is not None and line.startswith(comment):
+            if not line or comment is not None and line.startswith(comment):
+                continue
+            if infer and line.replace(" ", "") == f"varname{self.sep}test":
+                infer = False
+                continue
+            infer = False
+            if skip := max(skip - 1, 0):
                 continue
             parts = [p.strip() for p in line.split(sep=self.sep)]
             if (n := len(parts)) != 2:
@@ -304,7 +305,7 @@ class CsvReader(Reader):
 
 
 class JsonReader(Reader):
-    _supported_file_extensions = (".json",)
+    _supported_file_extensions = frozenset({".json"})
 
     def __init__(self, path_or_buffer, root_key: str | None = None):
         super().__init__(path_or_buffer)
@@ -360,12 +361,12 @@ if __name__ == "__main__":
     path3 = "/home/palmb/projects/saqc/ignore/ressources/config.csv"
     with open(path3) as f:
         spath = f.read()
-    # path3 = spath
+    path3 = spath
 
     logging.basicConfig(level="DEBUG")
     config = JsonReader(path0, root_key="tests").read()
-    # print(config)
-    # print(config.parse())
+    print(config)
+    print(config.parse())
     config = CsvReader(path3).read()
     qc = SaQC(dict(SM4=pd.Series([1, 2, 3]), SM2=pd.Series([2, 3, 4, 5])))
     config.parse().run(qc)

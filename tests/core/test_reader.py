@@ -86,9 +86,10 @@ def test_configReaderLineNumbers():
 
     SM1         ; flagDummy()
     """
-    planned = _ConfigReader().readString(config)
+    planned = _ConfigReader().readString(config).config
+    linenos = [test.lineno for test in planned]
     expected = [4, 5, 6, 10]
-    assert (planned.config.index == expected).all()
+    assert linenos == expected
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
@@ -115,7 +116,7 @@ def test_configFile(data):
     "test, expected",
     [
         (f"var1; min", ParsingError),  # not a function call
-        (f"var3; flagNothing()", NameError),  # unknown function
+        (f"var3; callUnknown()", NameError),  # unknown function
         (f"var1; flagFunc(mn=0)", TypeError),  # bad argument name
         (f"var1; flagFunc()", TypeError),  # not enough arguments
     ],
@@ -127,8 +128,8 @@ def test_configChecks(data, test, expected):
         return data, flags
 
     header = f"varname;test"
-    cr = _ConfigReader(data).readString(header + "\n" + test)
     with pytest.raises(expected):
+        cr = _ConfigReader(data).readString(header + "\n" + test)
         cr.run()
 
 
