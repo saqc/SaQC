@@ -221,6 +221,7 @@ class Reader(abc.ABC, LoggerMixin):
         else:  # input string
             data = path_or_buffer
             src = "String-config"
+            self.file_ext = None
         if not isinstance(data, str):
             raise TypeError(f"unsupported type {type(path_or_buffer)}")
 
@@ -235,7 +236,7 @@ class Reader(abc.ABC, LoggerMixin):
         ):
             warnings.warn(
                 f"File extension is {self.file_ext!r} but the reader "
-                f"expects one of {self._supported_file_extensions}",
+                f"expects one of {set(self._supported_file_extensions)}",
                 category=RuntimeWarning,
                 stacklevel=4,  # at call to SomeReader
             )
