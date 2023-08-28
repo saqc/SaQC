@@ -31,17 +31,10 @@ class _ConfigReader:
     def __init__(self, *args, **kwargs):
         self.qc = SaQC(*args, **kwargs)
 
-    def readJson(self, c):
-        self.config: Config = JsonReader(c).read()
-        self.reader: Config = self.config.parse()
-        return self
-
     def readString(self, c):
         self.config: Config = CsvReader(c).read()
         self.reader: Config = self.config.parse()
         return self
-
-    readCsv = readString
 
     def run(self):
         return self.reader.run(self.qc)
@@ -146,7 +139,7 @@ class Config(LoggerMixin, Collection[ConfigEntry]):
     def parse(self) -> Config[ConfigEntry]:
         parsed: List[ConfigEntry] = []
         msg = "Parsing config failed"
-        for i, test in enumerate(self.tests):
+        for test in self.tests:
             try:
                 parsed.append(test.parse())
             except NameError as e:
@@ -162,7 +155,7 @@ class Config(LoggerMixin, Collection[ConfigEntry]):
             self = self.parse()  # noqa
 
         msg = f"Executing config failed"
-        for i, test in enumerate(self.tests):
+        for test in self.tests:
             try:
                 qc = test.run(qc)
             except KeyError as e:

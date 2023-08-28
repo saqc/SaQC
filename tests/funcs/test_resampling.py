@@ -33,26 +33,6 @@ def data():
     return data
 
 
-def test_flagsSurviveReshaping():
-    """
-    flagging -> reshaping -> test (flags also was reshaped correctly)
-    """
-    pass
-
-
-def test_flagsSurviveInverseReshaping():
-    """
-    inverse reshaping -> flagging -> test (flags also was reshaped correctly)"""
-    pass
-
-
-def test_flagsSurviveBackprojection():
-    """
-    flagging -> reshaping -> inverse reshaping -> test (flags == original-flags)
-    """
-    pass
-
-
 @pytest.mark.parametrize(
     "method, freq, expected",
     [

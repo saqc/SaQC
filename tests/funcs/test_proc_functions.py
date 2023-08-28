@@ -114,7 +114,6 @@ def test_interpolateGrid(course_5, course_3):
     SaQC(data, flags).align("data", "1h", "time", grid_field="grid", limit=10)
 
 
-@pytest.mark.slow
 def test_offsetCorrecture():
     data = pd.Series(0, index=pd.date_range("2000", freq="1d", periods=100), name="dat")
     data.iloc[30:40] = -100

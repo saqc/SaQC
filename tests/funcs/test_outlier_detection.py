@@ -52,7 +52,6 @@ def test_flagSpikesBasic(spiky_data):
     assert test_sum == len(spiky_data[1])
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize(
     "dat",
     [
