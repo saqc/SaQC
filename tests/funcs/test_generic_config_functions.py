@@ -15,7 +15,7 @@ import pytest
 from saqc import BAD, UNFLAGGED, SaQC
 from saqc.core import DictOfSeries, Flags, initFlagsLike, register
 from saqc.funcs.generic import _execGeneric
-from saqc.parsing.reader import _ConfigReader
+from saqc.parsing.reader import CsvReader
 from saqc.parsing.visitor import ConfigFunctionParser
 from tests.common import initData
 
@@ -147,12 +147,11 @@ def test_variableAssignments(data):
     dummy2  ; flagGeneric(field=["var1", "var2"], func=x + y > 0)
     """
 
-    cr = _ConfigReader(data)
-    saqc = cr.readString(config).run()
+    qc = CsvReader(config).read().parse().run(SaQC(data))
 
     expected_columns = set(data.columns) | {"dummy1", "dummy2"}
-    assert set(saqc.data.columns) == expected_columns
-    assert set(saqc.flags.columns) == expected_columns
+    assert set(qc._data.columns) == expected_columns
+    assert set(qc._flags.columns) == expected_columns
 
 
 def test_processExistingTarget(data):
@@ -162,12 +161,11 @@ def test_processExistingTarget(data):
     var2   ; processGeneric(func=y - 1)
     """
 
-    cr = _ConfigReader(data)
-    saqc = cr.readString(config).run()
-    assert (saqc._data["var2"] == data["var2"] - 1).all()
-    assert len(saqc._flags.history["var2"]) == 2
-    assert saqc._flags.history["var2"].hist[0].isna().all()
-    assert saqc._flags.history["var2"].hist[1].isna().all()
+    qc = CsvReader(config).read().parse().run(SaQC(data))
+    assert (qc._data["var2"] == data["var2"] - 1).all()
+    assert len(qc._flags.history["var2"]) == 2
+    assert qc._flags.history["var2"].hist[0].isna().all()
+    assert qc._flags.history["var2"].hist[1].isna().all()
 
 
 def test_flagTargetExisting(data):
@@ -177,9 +175,8 @@ def test_flagTargetExisting(data):
     dummy   ; processGeneric(field="var2", func=y >1)
     """
 
-    cr = _ConfigReader(data)
-    saqc = cr.readString(config).run()
-    assert len(saqc.data["dummy"]) == len(saqc.flags["dummy"])
+    qc = CsvReader(config).read().parse().run(SaQC(data))
+    assert len(qc.data["dummy"]) == len(qc.flags["dummy"])
 
 
 def test_processTargetExistingFail(data_diff):
@@ -189,9 +186,9 @@ def test_processTargetExistingFail(data_diff):
     dummy   ; processGeneric(field="var2", func=y - 1)
     """
 
-    cr = _ConfigReader(data_diff).readString(config)
+    cnf = CsvReader(config).read().parse()
     with pytest.raises(ValueError):
-        cr.run()
+        cnf.run(SaQC(data_diff))
 
 
 def test_flagTargetExistingFail(data_diff):
@@ -201,9 +198,9 @@ def test_flagTargetExistingFail(data_diff):
     dummy   ; flagGeneric(field="var2", func=y > 1)
     """
 
-    cr = _ConfigReader(data_diff).readString(config)
+    cnf = CsvReader(config).read().parse()
     with pytest.raises(ValueError):
-        cr.run()
+        cnf.run(SaQC(data_diff))
 
 
 def test_callableArgumentsUnary(data):
@@ -231,8 +228,8 @@ def test_callableArgumentsUnary(data):
     ]
 
     for name, func in tests:
-        cr = _ConfigReader(data).readString(config.format(name))
-        result_config = cr.run().data
+        qc = CsvReader(config.format(name)).read().parse().run(SaQC(data))
+        result_config = qc.data
         result_api = SaQC(data).testFuncUnary(var, func=func).data
         expected = data[var].rolling(window=window).apply(func)
         assert (result_config[var].dropna() == expected.dropna()).all(axis=None)
@@ -258,8 +255,8 @@ def test_callableArgumentsBinary(data):
     ]
 
     for name, func in tests:
-        cr = _ConfigReader(data).readString(config.format(name))
-        result_config = cr.run().data
+        qc = CsvReader(config.format(name)).read().parse().run(SaQC(data))
+        result_config = qc.data
         result_api = SaQC(data).testFuncBinary(var1, func=func).data
         expected = func(data[var1], data[var2])
         assert (result_config[var1].dropna() == expected.dropna()).all(axis=None)
