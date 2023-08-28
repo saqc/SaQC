@@ -27,6 +27,11 @@ def isUrl(s: str) -> bool:
         return False
 
 
+def isQuoted(s: str) -> bool:
+    # isQuoted ∈ O(1) [linear]
+    return len(s) > 1 and s[0] in ["'", '"'] and s[0] == s[-1]
+
+
 def isOpenFileLike(obj) -> bool:
     return (
         isinstance(obj, io.IOBase) or hasattr(obj, "read") and hasattr(obj, "readlines")

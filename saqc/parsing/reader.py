@@ -18,8 +18,8 @@ import pandas as pd
 
 from saqc import SaQC
 from saqc.exceptions import ParsingError, _SpecialKeyError
-from saqc.lib.checking import isOpenFileLike, isUrl
-from saqc.lib.tools import LoggerMixin, fileExists, getFileExtension, isQuoted
+from saqc.lib.checking import isOpenFileLike, isUrl, isQuoted
+from saqc.lib.tools import LoggerMixin, fileExists, getFileExtension
 from saqc.parsing.visitor import ConfigFunctionParser
 
 

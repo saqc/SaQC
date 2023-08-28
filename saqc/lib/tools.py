@@ -11,7 +11,6 @@ import collections
 import functools
 import itertools
 import logging
-import operator as op
 import os
 import re
 import warnings
@@ -28,10 +27,8 @@ from typing import (
     TypeVar,
     Union,
     get_args,
-    get_origin,
     overload,
 )
-from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
@@ -188,11 +185,6 @@ def periodicMask(
     if invert:
         out = ~out
     return out
-
-
-def isQuoted(s: str) -> bool:
-    # isQuoted ∈ O(1) [linear]
-    return len(s) > 1 and s[0] in ["'", '"'] and s[0] == s[-1]
 
 
 def mutateIndex(index: pd.Index, old_name, new_name):
