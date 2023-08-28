@@ -345,22 +345,3 @@ class JsonReader(Reader):
         df["src"] = self.src
         df = df[["varname", "test", "src", "lineno"]]
         return Config(df.itertuples(index=False), src=self.src)
-
-
-if __name__ == "__main__":
-    path0 = "/home/palmb/projects/saqc/ignore/ressources/config.json"
-    path1 = "/home/palmb/projects/saqc/ignore/ressources/configArr.json"
-    path3 = "/home/palmb/projects/saqc/ignore/ressources/config.csv"
-    with open(path3) as f:
-        spath = f.read()
-    path3 = spath
-
-    logging.basicConfig(level="DEBUG")
-    config = JsonReader(path0, root_key="tests").read()
-    print(config)
-    print(config.parse())
-    config = CsvReader(path3).read()
-    qc = SaQC(dict(SM4=pd.Series([1, 2, 3]), SM2=pd.Series([2, 3, 4, 5])))
-    config.parse().run(qc)
-    # config[1].parse().run(SaQC())
-    exit(99)

@@ -624,7 +624,7 @@ def joinExt(sep: str, iterable: Iterable[str], last_sep: str | None = None) -> s
     return f"{sep.join(iterable[:-1])}{last_sep}{iterable[-1]}"
 
 
-def getFileExtension(path: os.PathLike[AnyStr]) -> str:
+def getFileExtension(path: os.PathLike[AnyStr] | str) -> str:
     """Returns empty string, if no extension present."""
     ext = str(os.path.splitext(path)[1].strip().lower())
     return "" if " " in ext else ext
