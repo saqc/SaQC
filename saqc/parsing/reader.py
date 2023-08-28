@@ -112,6 +112,13 @@ class ConfigEntry:
 
 
 class Config(LoggerMixin, Collection[ConfigEntry]):
+    def __init__(self, obj: Iterable, src: str | None = None):
+        self.src = src
+        self.tests: List[ConfigEntry] = []
+        self.is_parsed = False
+        for args in obj:
+            self.tests.append(ConfigEntry(*args))
+
     def __contains__(self, item: object) -> bool:
         return item in self.tests
 
@@ -123,13 +130,6 @@ class Config(LoggerMixin, Collection[ConfigEntry]):
 
     def __getitem__(self, item) -> ConfigEntry:
         return self.tests[item]
-
-    def __init__(self, obj: Iterable, src: str | None = None):
-        self.src = src
-        self.tests: List[ConfigEntry] = []
-        self.is_parsed = False
-        for args in obj:
-            self.tests.append(ConfigEntry(*args))
 
     def __repr__(self):
         cname = self.__class__.__qualname__
