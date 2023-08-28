@@ -132,12 +132,12 @@ class Config(LoggerMixin, Collection[ConfigEntry]):
         return self.tests[item]
 
     def __repr__(self):
-        cname = self.__class__.__qualname__
-        src = f"({self.src!r})" if self.src else ""
+        name = self.__class__.__qualname__
+        header = f"{name}(parsed={self.is_parsed}, src={self.src!r})"
         if not self.tests:
-            return f"Empty {cname}{src}"
+            return f"Empty {header}"
         tests = "\n".join(["[", *[indent(repr(t), " ") for t in self.tests], "]"])
-        return f"{cname}{src}\n{tests}\n"
+        return f"{header}\n{tests}\n"
 
     @staticmethod
     def _formatErrMsg(e: Exception, test: ConfigEntry, msg: str = "") -> str:
