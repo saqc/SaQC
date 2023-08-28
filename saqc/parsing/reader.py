@@ -8,7 +8,6 @@ from __future__ import annotations
 import abc
 import ast
 import json
-import logging
 import warnings
 from textwrap import indent
 from typing import Collection, Iterable, Iterator, List, Literal
@@ -25,19 +24,6 @@ from saqc.parsing.visitor import ConfigFunctionParser
 
 def fromConfig(fname, *args, **func_kwargs):
     return CsvReader(fname).read().parse().run(SaQC(*args, **func_kwargs))
-
-
-class _ConfigReader:
-    def __init__(self, *args, **kwargs):
-        self.qc = SaQC(*args, **kwargs)
-
-    def readString(self, c):
-        self.config: Config = CsvReader(c).read()
-        self.reader: Config = self.config.parse()
-        return self
-
-    def run(self):
-        return self.reader.run(self.qc)
 
 
 class ConfigEntry:

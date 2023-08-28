@@ -604,7 +604,7 @@ def joinExt(sep: str, iterable: Iterable[str], last_sep: str | None = None) -> s
     'a, b or c'
 
     >>> joinExt(', ', ['a', 'b'], ' or ')
-    'a or c'
+    'a or b'
 
     >>> joinExt(', ', ['a'], ' or ')
     'a'
