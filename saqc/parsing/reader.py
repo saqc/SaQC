@@ -47,18 +47,6 @@ class _ConfigReader:
         return self.reader.run(self.qc)
 
 
-def _formatSrc(src: str | None, lineno: int | None, long: bool = False):
-    if src is None and lineno is None:
-        return ""
-    if src is None:
-        return f"line {lineno}"
-    if lineno is None:
-        return f"{src}"
-    if long:
-        return f"{src}, line {lineno}"
-    return f"{src}:{lineno}"
-
-
 class ConfigEntry:
     def __init__(self, var: str, func_text: str, src: str, lineno: int | None = None):
         self.var = var
