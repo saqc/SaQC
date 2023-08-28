@@ -18,7 +18,7 @@ import pandas as pd
 
 from saqc import SaQC
 from saqc.exceptions import ParsingError, _SpecialKeyError
-from saqc.lib.checking import isOpenFileLike, isUrl, isQuoted
+from saqc.lib.checking import isOpenFileLike, isQuoted, isUrl
 from saqc.lib.tools import LoggerMixin, fileExists, getFileExtension
 from saqc.parsing.visitor import ConfigFunctionParser
 
@@ -144,8 +144,6 @@ class Config(LoggerMixin, Collection[ConfigEntry]):
         return "\n".join([str(e), msg, str(test)])
 
     def parse(self) -> Config[ConfigEntry]:
-        if self.is_parsed:
-            raise RuntimeError("config is already parsed")
         parsed: List[ConfigEntry] = []
         msg = "Parsing config failed"
         for i, test in enumerate(self.tests):
@@ -161,7 +159,8 @@ class Config(LoggerMixin, Collection[ConfigEntry]):
 
     def run(self, qc: SaQC) -> SaQC:
         if not self.is_parsed:
-            raise RuntimeError("config must be parsed first")
+            self = self.parse()  # noqa
+
         msg = f"Executing config failed"
         for i, test in enumerate(self.tests):
             try:
@@ -180,6 +179,10 @@ class Config(LoggerMixin, Collection[ConfigEntry]):
 
 class Reader(abc.ABC, LoggerMixin):
     _supported_file_extensions = frozenset()
+
+    file_ext: str | None
+    data: str
+    src: str
 
     def __init__(self, path_or_buffer):
         try:
