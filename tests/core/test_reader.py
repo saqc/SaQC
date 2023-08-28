@@ -12,7 +12,7 @@ import pytest
 from saqc.core import DictOfSeries, Flags, SaQC, flagging
 from saqc.exceptions import ParsingError
 from saqc.parsing.environ import ENVIRONMENT
-from saqc.parsing.reader import _ConfigReader
+from saqc.parsing.reader import CsvReader
 from tests.common import initData
 
 
@@ -30,33 +30,33 @@ def getTestedVariables(flags: Flags, test: str):
     return out
 
 
-def test_variableRegex(data):
-    header = f"varname;test"
-    function = "flagDummy"
-    tests = [
-        ("'.*'", data.columns),
-        ("'var(1|2)'", [c for c in data.columns if c[-1] in ("1", "2")]),
-        ("'var[12]'", [c for c in data.columns if c[-1] in ("1", "2")]),
-        ('".*3"', [c for c in data.columns if c[-1] == "3"]),
-    ]
+@pytest.mark.parametrize(
+    "row,expected",
+    [
+        ("'.*'       ; flagDummy()", ["var1", "var2", "var3"]),
+        ("'var(1|2)' ; flagDummy()", ["var1", "var2"]),
+        ("'var[12]'  ; flagDummy()", ["var1", "var2"]),
+        ("'.*3'      ; flagDummy()", ["var3"]),
+    ],
+)
+def test_variableRegex(data, row, expected):
+    qc = SaQC(data)
+    saqc = CsvReader(row).read().parse().run(qc)
+    result = getTestedVariables(saqc._flags, "flagDummy")
+    assert np.all(result == expected)
 
-    for regex, expected in tests:
-        cr = _ConfigReader(data)
-        cr.readString(header + "\n" + f"{regex} ; {function}()")
-        saqc = cr.run()
-        result = getTestedVariables(saqc._flags, function)
-        assert np.all(result == expected)
 
-    tests = [
-        ("var[12]", []),  # not quoted -> not a regex
-    ]
-    for regex, expected in tests:
-        cr = _ConfigReader(data=data)
-        cr.readString(header + "\n" + f"{regex} ; {function}()")
-        with pytest.warns(RuntimeWarning):
-            saqc = cr.run()
-        result = getTestedVariables(saqc._flags, function)
-        assert np.all(result == expected)
+@pytest.mark.parametrize(
+    # not quoted -> no regex
+    "row,expected",
+    [("var[12]  ; flagDummy()", [])],
+)
+def test_variableNoRegexWarning(data, row, expected):
+    qc = SaQC(data)
+    with pytest.warns(RuntimeWarning):
+        qc = CsvReader(row).read().parse().run(qc)
+    result = getTestedVariables(qc._flags, "flagDummy")
+    assert np.all(result == expected)
 
 
 @pytest.mark.filterwarnings("ignore::RuntimeWarning")
@@ -69,8 +69,8 @@ def test_inlineComments(data):
     var1    ; flagDummy() # test
     """
 
-    saqc = _ConfigReader(data).readString(config).run()
-    func = saqc._flags.history["var1"].meta[0]["func"]
+    qc = CsvReader(config).read().parse().run(SaQC(data))
+    func = qc._flags.history["var1"].meta[0]["func"]
     assert func == "flagDummy"
 
 
@@ -86,8 +86,8 @@ def test_configReaderLineNumbers():
 
     SM1         ; flagDummy()
     """
-    planned = _ConfigReader().readString(config).config
-    linenos = [test.lineno for test in planned]
+    cnf = CsvReader(config).read()
+    linenos = [test.lineno for test in cnf]
     expected = [4, 5, 6, 10]
     assert linenos == expected
 
@@ -108,8 +108,8 @@ def test_configFile(data):
 
     SM1;flagDummy()
     """
-    c = _ConfigReader().readString(config).config
-    assert len(c) == 4
+    cnf = CsvReader(config).read()
+    assert len(cnf) == 4
 
 
 @pytest.mark.parametrize(
@@ -127,29 +127,39 @@ def test_configChecks(data, test, expected):
         flags[:, field] = np.nan
         return data, flags
 
-    header = f"varname;test"
     with pytest.raises(expected):
-        cr = _ConfigReader(data).readString(header + "\n" + test)
-        cr.run()
+        CsvReader(test).read().parse().run(SaQC(data))
 
 
 @pytest.mark.parametrize(
-    "kwarg", ["NAN", "'a string'", "5", "5.5", "-5", "True", "sum([1, 2, 3])"]
+    "kwarg, expected",
+    [
+        ("NAN", np.nan),
+        ("nan", np.nan),
+        ("inf", np.inf),
+        ("'a string'", "a string"),
+        ("5", 5),
+        ("5.5", 5.5),
+        ("-5", -5),
+        ("True", True),
+        ("sum([1, 2, 3])", 6),
+    ],
 )
-def test_supportedArguments(data, kwarg):
+def test_supportedArguments(data, kwarg, expected):
     # test if the following function arguments
     # are supported (i.e. parsing does not fail)
 
-    # TODO: necessary?
-
     @flagging()
-    def func(saqc, field, kwarg, **kwargs):
-        saqc._flags[:, field] = np.nan
+    def func(saqc, field, x, **kwargs):
+        if kwarg.lower() == "nan":
+            assert np.isnan(x)
+        else:
+            assert x == expected
+        saqc.func_was_called = True
         return saqc
 
-    var1 = data.columns[0]
-    conf = f"varname;test" + "\n" + f"{var1};func(kwarg={kwarg})"
-    _ConfigReader(data).readString(conf).run()
+    qc = CsvReader(f"var1; func(x={kwarg})").read().parse().run(SaQC(data))
+    assert qc.func_was_called
 
 
 @pytest.mark.parametrize(
@@ -159,6 +169,7 @@ def test_funtionArguments(data, func_string):
     @flagging()
     def testFunction(saqc, field, func, **kwargs):
         assert func is ENVIRONMENT[func_string]
+        saqc.func_was_called = True
         return saqc
 
     config = f"""
@@ -166,6 +177,5 @@ def test_funtionArguments(data, func_string):
     {data.columns[0]} ; testFunction(func={func_string})
     {data.columns[0]} ; testFunction(func="{func_string}")
     """
-    cr = _ConfigReader(data)
-    cr.readString(config)
-    cr.run()
+    qc = CsvReader(config).read().parse().run(SaQC(data))
+    assert qc.func_was_called
