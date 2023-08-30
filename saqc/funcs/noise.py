@@ -24,7 +24,7 @@ from saqc.lib.checking import (
 )
 from saqc.lib.tools import isunflagged, statPass
 
-STATS_DICT = {"std": np.nanstd, "var": np.nanvar, "mad": median_abs_deviation}
+STATS_DICT = {"std": np.std, "var": np.var, "mad": median_abs_deviation}
 
 if TYPE_CHECKING:
     from saqc import SaQC
