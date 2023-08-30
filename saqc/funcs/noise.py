@@ -8,15 +8,21 @@
 from __future__ import annotations
 
 import operator
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Literal
 
 import numpy as np
 import pandas as pd
 
 from saqc.constants import BAD
 from saqc.core.register import flagging
-from saqc.lib.checking import validateCallable, validateMinPeriods, validateWindow
+from saqc.lib.checking import validateCallable, validateMinPeriods, validateWindow, validateChoice
 from saqc.lib.tools import isunflagged, statPass
+from scipy.stats import median_abs_deviation
+
+
+STATS_DICT = {'std': np.nanstd,
+              'var': np.nanvar,
+              'mad': median_abs_deviation}
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -27,9 +33,9 @@ class NoiseMixin:
     def flagByStatLowPass(
         self: "SaQC",
         field: str,
-        func: Callable[[np.ndarray, pd.Series], float],
         window: str | pd.Timedelta,
         thresh: float,
+        func: Literal['std', 'var', 'mad'] = 'std',
         sub_window: str | pd.Timedelta | None = None,
         sub_thresh: float | None = None,
         min_periods: int | None = None,
@@ -37,7 +43,9 @@ class NoiseMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        Flag data chunks of length ``window``, if:
+        Flag data chunks of length ``window`` dependent on the data deviation.
+
+        Flag data chunks of length ``window`` if
 
         1. they excexceed ``thresh`` with regard to ``func`` and
         2. all (maybe overlapping) sub-chunks of the data chunks with length ``sub_window``,
@@ -46,7 +54,10 @@ class NoiseMixin:
         Parameters
         ----------
         func :
-            Aggregation function applied on every chunk.
+            String value determining the aggregation function applied on every chunk.
+            * 'std': standard deviation
+            * 'var': variance
+            * 'mad': median absolute deviation
 
         window :
             Window (i.e. chunk) size.
@@ -65,12 +76,14 @@ class NoiseMixin:
             Minimum number of values needed in a chunk to perfom the test.
             Ignored if ``window`` is an integer.
         """
-        validateCallable(func, "func")
+        validateChoice(func, "func", ['std', 'var', 'mad'])
         validateWindow(window, allow_int=False)
         validateMinPeriods(min_periods)
         if sub_window is not None:
             validateWindow(sub_window, "sub_window", allow_int=False)
             sub_window = pd.Timedelta(sub_window)
+
+        func = STATS_DICT[func]
 
         to_set = statPass(
             datcol=self._data[field],
