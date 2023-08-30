@@ -12,17 +12,19 @@ from typing import TYPE_CHECKING, Callable, Literal
 
 import numpy as np
 import pandas as pd
+from scipy.stats import median_abs_deviation
 
 from saqc.constants import BAD
 from saqc.core.register import flagging
-from saqc.lib.checking import validateCallable, validateMinPeriods, validateWindow, validateChoice
+from saqc.lib.checking import (
+    validateCallable,
+    validateChoice,
+    validateMinPeriods,
+    validateWindow,
+)
 from saqc.lib.tools import isunflagged, statPass
-from scipy.stats import median_abs_deviation
 
-
-STATS_DICT = {'std': np.nanstd,
-              'var': np.nanvar,
-              'mad': median_abs_deviation}
+STATS_DICT = {"std": np.nanstd, "var": np.nanvar, "mad": median_abs_deviation}
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -35,7 +37,7 @@ class NoiseMixin:
         field: str,
         window: str | pd.Timedelta,
         thresh: float,
-        func: Literal['std', 'var', 'mad'] = 'std',
+        func: Literal["std", "var", "mad"] = "std",
         sub_window: str | pd.Timedelta | None = None,
         sub_thresh: float | None = None,
         min_periods: int | None = None,
@@ -76,7 +78,7 @@ class NoiseMixin:
             Minimum number of values needed in a chunk to perfom the test.
             Ignored if ``window`` is an integer.
         """
-        validateChoice(func, "func", ['std', 'var', 'mad'])
+        validateChoice(func, "func", ["std", "var", "mad"])
         validateWindow(window, allow_int=False)
         validateMinPeriods(min_periods)
         if sub_window is not None:
