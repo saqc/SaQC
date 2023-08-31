@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 class NoiseMixin:
     @flagging()
-    def flagByStatLowPass(
+    def flagByScatterLowPass(
         self: "SaQC",
         field: str,
         window: str | pd.Timedelta,

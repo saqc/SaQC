@@ -34,7 +34,7 @@ def test_statPass():
     data[200:210] = noise[:10]
     data = DictOfSeries(data=data)
     flags = initFlagsLike(data)
-    qc = SaQC(data, flags).flagByStatLowPass(
+    qc = SaQC(data, flags).flagByScatterLowPass(
         "data", "20D", 0.999, "std", "5D", 0.999, 0, flag=BAD
     )
     assert (qc.flags["data"].iloc[:100] == UNFLAGGED).all()

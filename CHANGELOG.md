@@ -63,7 +63,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `func` arguments in text configurations were not parsed correctly
 - fail on duplicated arguments to test methods
 - `reample` was not writing meta entries
-- `flagByStatLowPass` was overwriting existing flags
+- `flagByScatterLowPass` was overwriting existing flags
 - `flagUniLOF` and `flagLOF` were overwriting existing flags
 ### Deprecated
 - Deprecate `flagMVScore` parameters: `partition` in favor of `window`, `partition_min` in favor of `min_periods`, `min_periods` in favor of `min_periods_r`
