@@ -40,9 +40,6 @@ PLOT_COL_CYCLE = [(0, 0, 0)] + MARKER_COL_CYCLE  # itertools.cycle(MARKER_COL_CY
 # default data plot configuration (color kwarg only effective for many-to-one-plots)
 PLOT_KWARGS = {"alpha": 0.8, "linewidth": 1, "color": PLOT_COL_CYCLE}
 
-# default figure configuration
-FIG_KWARGS = {"figsize": (16, 9)}
-
 # default flags markers configuration
 SCATTER_KWARGS = {
     "marker": ["s", "D", "^", "o", "v"],
@@ -175,7 +172,7 @@ def makeFig(
     plt.rcParams["font.size"] = (
         ax_kwargs.pop("fontsize", None) or plt.rcParams["font.size"]
     )
-
+    plt.rcParams["figure.figsize"] = [16, 9]
     # set default axis sharing behavior (share x axis over rows if not explicitly opted sharex=False):
     sharex = False
     if len(d) > 1:
@@ -248,7 +245,8 @@ def makeFig(
         mode,
     )
 
-    # readability formattin fo the x-tick labels:
+    # readability formattin of the x-tick labels:
+
     fig.autofmt_xdate()
     return fig
 
