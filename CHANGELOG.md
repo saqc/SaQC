@@ -5,19 +5,48 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 # Changelog
-
 ## Unreleased
-[List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.4.0...develop)
+[List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.5.0...develop)
 ### Added
 ### Changed
-- pin pandas to versions >= 2.0
 ### Removed
-- removed deprecated `DictOfSeries.to_df`
 ### Fixed
+
+## [2.5.0](https://git.ufz.de/rdm-software/saqc/-/tags/v2.4.1) - 2023-06-22
+[List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.4.1...v2.5.0)
+### Added
+- `SaQC.plot`:
+  - enable multivariate plots
+  - keyword `plot_kwargs` to pass matplotlib related arguments
+- CLI:
+  - `--version` to print the SaQC version
+  - `-ll` as a shorthand for `--log-level`
+  - `--json-field` to use a non-root element of a json file.
+  - basic json support for CLI config files, which are detected by `.json`-extension.
+- `SaQC.flagScatterLowpass`: option to select function based on string names.
+- Checks and unified error message for common function inputs.
+### Changed
+- Require pandas >= 2.0
+- `SaQC.flagUniLOF` and `SaQC.assignUniLOF`: changed parameter `fill_na` to type `bool`.
+- `SaQC.plot`:
+   - changed default color for single variables to `black` with `80% transparency`
+   - added seperate legend for flags
+### Removed
+- `SaQC.plot`: option to plot with complete history (`history="complete"`)
+- Support for Python 3.8
+### Fixed
+- `SaQC.assignChangePointCluster` and `SaQC.flagChangePoints`: A tuple passed `min_period`
+   was only recognised if `window` was also a tuple.
+- `SaQC.propagateFlags` was overwriting existing flags
 ### Deprecated
+- `SaQC.andGroup` and `SaQC.orGroup`: option to pass dictionaries to `group`.
+- `SaQC.plot`:
+  - `phaseplot` in favor of usage with `mode="biplot"`
+  - `cyclestart` in favor of usage with `marker_kwargs`
+- `SaQC.flagStatLowPass` in favor of `SaQC.flagScatterLowpass`
 
 ## [2.4.1](https://git.ufz.de/rdm-software/saqc/-/tags/v2.4.1) - 2023-06-22
-[List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.4.0...develop)
+[List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.4.0...v.2.4.1)
 ### Added
 ### Changed
 - pin pandas to versions >= 2.0
@@ -44,14 +73,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `func` arguments in text configurations were not parsed correctly
 - fail on duplicated arguments to test methods
 - `reample` was not writing meta entries
-- `flagByStatLowPass` was overwriting existing flags
+- `flagByScatterLowpass` was overwriting existing flags
 - `flagUniLOF` and `flagLOF` were overwriting existing flags
 ### Deprecated
 - Deprecate `flagMVScore` parameters: `partition` in favor of `window`, `partition_min` in favor of `min_periods`, `min_periods` in favor of `min_periods_r`
 - Deprecate `interpolate`, `linear` and `shift` in favor of `align`
 - Deprecate `roll` in favor of `rolling`
 - Deprecate `DictOfSeries.to_df` in favor of `DictOfSeries.to_pandas`
-
 ## [2.3.0](https://git.ufz.de/rdm-software/saqc/-/tags/v2.3.0) - 2023-01-17
 [List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.2.1...v2.3.0)
 ### Added

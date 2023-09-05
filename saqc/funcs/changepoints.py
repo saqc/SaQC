@@ -7,15 +7,21 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import typing
-from typing import TYPE_CHECKING, Callable, Tuple
+from typing import TYPE_CHECKING, Callable, Literal, Tuple
 
-import numba
 import numpy as np
 import pandas as pd
 
 from saqc import BAD, UNFLAGGED
 from saqc.core import DictOfSeries, Flags, flagging, register
+from saqc.lib.checking import (
+    isInBounds,
+    validateCallable,
+    validateChoice,
+    validateMinPeriods,
+    validateValueBounds,
+    validateWindow,
+)
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -87,6 +93,11 @@ class ChangepointsMixin:
             The default reduction function just selects the value that maximizes the
             `stat_func`.
         """
+        validateCallable(stat_func, "stat_func")
+        validateCallable(thresh_func, "thresh_func")
+        validateCallable(reduce_func, "reduce_func")
+        # Hint: windows are checked in _getChangePoints
+
         mask = _getChangePoints(
             data=self._data[field],
             stat_func=stat_func,
@@ -168,6 +179,11 @@ class ChangepointsMixin:
         model_by_resids :
             If True, the results of `stat_funcs` are written, otherwise the regime labels.
         """
+        validateCallable(stat_func, "stat_func")
+        validateCallable(thresh_func, "thresh_func")
+        validateCallable(reduce_func, "reduce_func")
+        # Hint: windows are checked in _getChangePoints
+
         rtyp = "residual" if model_by_resids else "cluster"
         cluster = _getChangePoints(
             data=self._data[field],
@@ -194,19 +210,44 @@ def _getChangePoints(
     min_periods: int | Tuple[int, int],
     reduce_window: str | None = None,
     reduce_func: Callable[[np.ndarray, np.ndarray], float] = lambda x, _: x.argmax(),
-    result: typing.Literal["cluster", "residual", "mask"] = "mask",
+    result: Literal["cluster", "residual", "mask"] = "mask",
 ) -> pd.Series:
+    """
+    TODO: missing docstring
+
+    Parameters
+    ----------
+    data :
+    stat_func :
+    thresh_func :
+    window :
+    min_periods :
+    reduce_window :
+    reduce_func :
+    result :
+
+    Returns
+    -------
+    """
+    validateChoice(result, "result", ["cluster", "residual", "mask"])
+
     orig_index = data.index
     data = data.dropna()  # implicit copy
 
     if isinstance(window, (list, tuple)):
         bwd_window, fwd_window = window
+        validateWindow(fwd_window, name="window[0]", allow_int=False)
+        validateWindow(bwd_window, name="window[1]", allow_int=False)
     else:
+        validateWindow(window, name="window", allow_int=False)
         bwd_window = fwd_window = window
 
-    if isinstance(window, (list, tuple)):
+    if isinstance(min_periods, (list, tuple)):
         bwd_min_periods, fwd_min_periods = min_periods
+        validateMinPeriods(bwd_min_periods, "min_periods[0]")
+        validateMinPeriods(fwd_min_periods, "min_periods[1]")
     else:
+        validateMinPeriods(min_periods)
         bwd_min_periods = fwd_min_periods = min_periods
 
     if reduce_window is None:
@@ -215,13 +256,7 @@ def _getChangePoints(
             + pd.Timedelta(fwd_window).total_seconds()
         )
         reduce_window = f"{s}s"
-
-    for window in [fwd_window, bwd_window, reduce_window]:
-        if isinstance(window, int):
-            raise TypeError(
-                "all parameter defining a size of a window "
-                "must be time-offsets, not integer."
-            )
+    validateWindow(reduce_window, name="reduce_window", allow_int=False)
 
     # find window bounds arrays..
     num_index = pd.Series(range(len(data)), index=data.index, dtype=int)
@@ -245,31 +280,8 @@ def _getChangePoints(
     check_len = len(fwd_end)
     data_arr = data.values
 
-    # Please keep this as I sometimes need to disable jitting manually
-    # to make it work with my debugger :/
-    # --palmb
-    try_to_jit = True
-    if try_to_jit:
-        jit_sf = numba.jit(stat_func, nopython=True)
-        jit_tf = numba.jit(thresh_func, nopython=True)
-        try:
-            jit_sf(
-                data_arr[bwd_start[0] : bwd_end[0]], data_arr[fwd_start[0] : fwd_end[0]]
-            )
-            jit_tf(
-                data_arr[bwd_start[0] : bwd_end[0]], data_arr[fwd_start[0] : fwd_end[0]]
-            )
-            stat_func = jit_sf
-            thresh_func = jit_tf
-        except (numba.TypingError, numba.UnsupportedError, IndexError):
-            try_to_jit = False
-
     args = data_arr, bwd_start, fwd_end, split, stat_func, thresh_func, check_len
-
-    if try_to_jit:
-        stat_arr, thresh_arr = _slidingWindowSearchNumba(*args)
-    else:
-        stat_arr, thresh_arr = _slidingWindowSearch(*args)
+    stat_arr, thresh_arr = _slidingWindowSearch(*args)
 
     result_arr = stat_arr > thresh_arr
 
@@ -280,24 +292,23 @@ def _getChangePoints(
 
     det_index = masked_index[result_arr]
     detected = pd.Series(True, index=det_index)
-    if reduce_window:
-        length = len(detected)
 
-        # find window bounds arrays
-        num_index = pd.Series(range(length), index=detected.index, dtype=int)
-        rolling = num_index.rolling(window=reduce_window, closed="both", center=True)
-        start = rolling.min().to_numpy(dtype=int)
-        end = (rolling.max() + 1).to_numpy(dtype=int)
+    length = len(detected)
+    # find window bounds arrays
+    num_index = pd.Series(range(length), index=detected.index, dtype=int)
+    rolling = num_index.rolling(window=reduce_window, closed="both", center=True)
+    start = rolling.min().to_numpy(dtype=int)
+    end = (rolling.max() + 1).to_numpy(dtype=int)
 
-        detected = _reduceCPCluster(
-            stat_arr[result_arr],
-            thresh_arr[result_arr],
-            start,
-            end,
-            reduce_func,
-            length,
-        )
-        det_index = det_index[detected]
+    detected = _reduceCPCluster(
+        stat_arr[result_arr],
+        thresh_arr[result_arr],
+        start,
+        end,
+        reduce_func,
+        length,
+    )
+    det_index = det_index[detected]
 
     # The changepoint is the point "after" the change.
     # So the detected index has to be shifted by one
@@ -324,20 +335,6 @@ def _getChangePoints(
     )
 
 
-@numba.jit(parallel=True, nopython=True)
-def _slidingWindowSearchNumba(
-    data_arr, bwd_start, fwd_end, split, stat_func, thresh_func, num_val
-):
-    stat_arr = np.zeros(num_val)
-    thresh_arr = np.zeros(num_val)
-    for win_i in numba.prange(0, num_val - 1):
-        x = data_arr[bwd_start[win_i] : split[win_i]]
-        y = data_arr[split[win_i] : fwd_end[win_i]]
-        stat_arr[win_i] = stat_func(x, y)
-        thresh_arr[win_i] = thresh_func(x, y)
-    return stat_arr, thresh_arr
-
-
 def _slidingWindowSearch(
     data_arr, bwd_start, fwd_end, split, stat_func, thresh_func, num_val
 ):
@@ -353,7 +350,7 @@ def _slidingWindowSearch(
 
 def _reduceCPCluster(stat_arr, thresh_arr, start, end, obj_func, num_val):
     out_arr = np.zeros(shape=num_val, dtype=bool)
-    for win_i in numba.prange(0, num_val):
+    for win_i in range(num_val):
         s, e = start[win_i], end[win_i]
         x = stat_arr[s:e]
         y = thresh_arr[s:e]

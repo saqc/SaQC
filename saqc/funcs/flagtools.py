@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import operator
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 import numpy as np
 import pandas as pd
@@ -17,7 +17,9 @@ from typing_extensions import Literal
 
 from saqc import BAD, FILTER_ALL, UNFLAGGED
 from saqc.core import DictOfSeries, flagging, register
-from saqc.lib.tools import isflagged, toSequence
+from saqc.core.history import History
+from saqc.lib.checking import validateChoice, validateWindow
+from saqc.lib.tools import initializeTargets, isflagged, isunflagged, toSequence
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -51,10 +53,10 @@ class FlagtoolsMixin:
 
         Notes
         -----
-        This function ignores the ``dfilter`` keyword, because the data is not relevant
-        for processing.
-        A warning is triggered if the ``flag`` keyword is given, because the flags are
-        always set to `UNFLAGGED`.
+        This function ignores the ``dfilter`` keyword, because the data
+        is not relevant for processing.
+        A warning is triggered if the ``flag`` keyword is given, because
+        the flags are always set to `UNFLAGGED`.
 
         See Also
         --------
@@ -81,7 +83,8 @@ class FlagtoolsMixin:
 
         Notes
         -----
-        This function ignores the ``dfilter`` keyword, because the data is not relevant for processing.
+        This function ignores the ``dfilter`` keyword, because the
+        data is not relevant for processing.
         """
         unflagged = self._flags[field].isna() | (self._flags[field] == UNFLAGGED)
         self._flags[unflagged, field] = flag
@@ -91,7 +94,7 @@ class FlagtoolsMixin:
     def flagManual(
         self: "SaQC",
         field: str,
-        mdata: pd.Series | pd.DataFrame | DictOfSeries | list | np.ndarray,
+        mdata: str | pd.Series | np.ndarray | list | pd.DataFrame | DictOfSeries,
         method: Literal[
             "left-open", "right-open", "closed", "plain", "ontime"
         ] = "left-open",
@@ -101,49 +104,64 @@ class FlagtoolsMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        Flag data by given, "manually generated" data.
+        Include flags listed in external data.
 
-        The data is flagged at locations where `mdata` is equal to a provided flag (`mflag`).
-        The format of mdata can be an indexed object, like pd.Series, pd.Dataframe or dios.DictOfSeries,
-        but also can be a plain list- or array-like.
-        How indexed mdata is aligned to data is specified via the `method` parameter.
+        The method allows to integrate pre-existing flagging information.
 
         Parameters
         ----------
         mdata :
-            The Data determining, wich intervals are to be flagged, or a string, denoting under which field the data is
-            accessable.
+            Determines which values or intervals will be flagged. Supported input types:
 
+            * ``pd.Series``: Needs a datetime index and values of type:
+
+              - datetime, for :py:attr:`method` values ``"right-closed"``, ``"left-closed"``, ``"closed"``
+              - or any scalar, for :py:attr:`method` values ``"plain"``, ``"ontime"``
+
+            * ``str``: Variable holding the manual flag information.
+            * ``pd.DataFrame``, ``DictOfSeries``: Need to provide a ``pd.Series`` with column name
+              :py:attr:`field`.
+            * ``list``, ``np.ndarray``: Only supported with :py:attr:`method` value ``"plain"`` and
+              :py:attr:`mformat` value ``"mflag"``
         method :
-            Defines how mdata is projected on data. Except for the 'plain' method, the methods assume mdata to have an
-            index.
+            Defines how :py:attr:`mdata` is projected to data:
 
-            * 'plain': mdata must have the same length as data and is projected one-to-one on data.
-            * 'ontime': works only with indexed mdata. mdata entries are matched with data entries that have the same index.
-            * 'right-open': mdata defines intervals, values are to be projected on.
-              The intervals are defined,
-
-              (1) Either, by any two consecutive timestamps t_1 and 1_2 where t_1 is valued with mflag, or by a series,
-              (2) Or, a Series, where the index contains in the t1 timestamps nd the values the respective t2 stamps.
-
-              The value at t_1 gets projected onto all data timestamps t with t_1 <= t < t_2.
-
-            * 'left-open': like 'right-open', but the projected interval now covers all t with t_1 < t <= t_2.
-            * 'closed': like 'right-open', but the projected interval now covers all t with t_1 <= t <= t_2.
-
+            * ``"plain"``: :py:attr:`mdata` must have the same length as :py:attr:`field`, flags
+              are set, where the values in :py:attr:`mdata` equal :py:attr:`mflag`.
+            * ``"ontime"``: Expects datetime indexed :py:attr:`mdata` (types ``pd.Series``,
+              ``pd.DataFrame``, ``DictOfSeries``). Flags are set, where the values in
+              :py:attr:`mdata` equal :py:attr:`mflag` and the indices of :py:attr:`field` and
+              :py:attr:`mdata` match.
+            * ``"right-open"``: Expects datetime indexed :py:attr:`mdata`, which will be interpreted
+              as a number of time intervals ``t_1, t_2``. Flags are set to all timestamps ``t`` of
+              :py:attr:`field` with ``t_1 <= t < t_2``.
+            * ``"left-open"``: like ``"right-open"``, but the interval covers all ``t`` with
+              ``t_1 < t <= t_2``.
+            * ``"closed"``: like ``"right-open"``, but the interval now covers all ``t`` with
+              ``t_1 <= t <= t_2``.
         mformat :
+            Controls the interval definition in :py:attr:`mdata` (see examples):
 
-            * "start-end": mdata is a Series, where every entry indicates an interval to-flag. The index defines the left
-              bound, the value defines the right bound.
-            * "mflag": mdata is an array like, with entries containing 'mflag',where flags shall be set. See documentation
-              for examples.
+            * ``"start-end"``: expects datetime indexed :py:attr:`mdata` (types ``pd.Series``,
+              ``pd.DataFrame``, ``DictOfSeries``) with values of type datetime. Each
+              index-value pair is interpreted as an interval to flag, the index defines the
+              left bound, the respective value the right bound.
+            * ``"mflag"``:
+
+              - :py:attr:`mdata` of type ``pd.Series``, ``pd.DataFrame``, ``DictOfSeries``:
+                Two successive index values ``i_1, i_2`` will be interpreted as an interval
+                ``t_1, t_2`` to flag, if the value of ``t_1`` equals :py:attr:`mflag`
+              - :py:attr:`mdata` of type ``list``, ``np.ndarray``: Flags all :py:attr:`field`
+                where :py:attr:`mdata` euqals :py:attr:`mflag`.
 
         mflag :
-            The flag that indicates data points in `mdata`, of wich the projection in data should be flagged.
+            Value in :py:attr:`mdata` indicating that a flag should be set at the respective
+            position, timestamp or interval. Ignored if :py:attr:`mformat` is set to ``"start-end"``.
+
 
         Examples
         --------
-        An example for mdata
+        Usage of :py:attr:`mdata`
 
         .. doctest:: ExampleFlagManual
 
@@ -155,15 +173,14 @@ class FlagtoolsMixin:
            2000-05-01    1
            dtype: int64
 
-        On *dayly* data, with the 'ontime' method, only the provided timestamps are used.
-        Bear in mind that only exact timestamps apply, any offset will result in ignoring
-        the timestamp.
+        On *daily* data, with :py:attr:`method` ``"ontime"``, only the provided timestamps
+        are used. Only exact matches apply, offsets will be ignored.
 
         .. doctest:: ExampleFlagManual
 
            >>> data = pd.Series(0, index=pd.to_datetime(['2000-01-31', '2000-02-01', '2000-02-02', '2000-03-01', '2000-05-01']), name='daily_data')
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.flagManual('daily_data', mdata, mflag=1, mformat='mdata', method='ontime')
+           >>> qc = qc.flagManual('daily_data', mdata, mflag=1, mformat='mflag', method='ontime')
            >>> qc.flags['daily_data'] > UNFLAGGED
            2000-01-31    False
            2000-02-01     True
@@ -172,11 +189,11 @@ class FlagtoolsMixin:
            2000-05-01     True
            dtype: bool
 
-        With the 'right-open' method, the mdata is forward fill:
+        With :py:attr:`method` ``"right-open"`` , :py:attr:`mdata` is forward filled:
 
         .. doctest:: ExampleFlagManual
 
-           >>> qc = qc.flagManual('daily_data', mdata, mflag=1, mformat='mdata', method='right-open')
+           >>> qc = qc.flagManual('daily_data', mdata, mflag=1, mformat='mflag', method='right-open')
            >>> qc.flags['daily_data'] > UNFLAGGED
            2000-01-31    False
            2000-02-01     True
@@ -185,11 +202,11 @@ class FlagtoolsMixin:
            2000-05-01     True
            dtype: bool
 
-        With the 'left-open' method, backward filling is used:
+        With :py:attr:`method` ``"left-open"`` , :py:attr:`mdata` is backward filled:
 
         .. doctest:: ExampleFlagManual
 
-           >>> qc = qc.flagManual('daily_data', mdata, mflag=1, mformat='mdata', method='left-open')
+           >>> qc = qc.flagManual('daily_data', mdata, mflag=1, mformat='mflag', method='left-open')
            >>> qc.flags['daily_data'] > UNFLAGGED
            2000-01-31    False
            2000-02-01     True
@@ -198,6 +215,11 @@ class FlagtoolsMixin:
            2000-05-01     True
            dtype: bool
         """
+        validateChoice(
+            method, "method", ["left-open", "right-open", "closed", "plain", "ontime"]
+        )
+        validateChoice(mformat, "mformat", ["start-end", "mflag"])
+
         dat = self._data[field]
         # internal not-mflag-value -> cant go for np.nan
         not_mflag = -1 if mflag == 0 else 0
@@ -218,7 +240,8 @@ class FlagtoolsMixin:
         if mformat == "start-end":
             if method in ["plain", "ontime"]:
                 raise ValueError(
-                    "'Start-End' formatting not compatible to 'plain' or 'ontime' methods"
+                    "'start-end'-format is not compatible "
+                    "with methods 'plain' or 'ontime'"
                 )
             else:
                 mdata = pd.Series(
@@ -227,7 +250,8 @@ class FlagtoolsMixin:
                 )
                 mdata[::2] = mflag
 
-        # get rid of values that are neither mflag nor not_mflag (for bw-compatibillity mainly)
+        # get rid of values that are neither mflag
+        # nor not_mflag (for bw-compatibility mainly)
         mdata[mdata != mflag] = not_mflag
 
         # evaluate methods
@@ -236,10 +260,9 @@ class FlagtoolsMixin:
         # reindex will do the job later
         elif method == "ontime":
             pass
-
         elif method in ["left-open", "right-open", "closed"]:
             mdata = mdata.drop(mdata.index[mdata.diff() == 0])
-            app_entry = pd.Series(mdata[-1], dat.index.shift(freq="1min")[-1:])
+            app_entry = pd.Series(mdata.iloc[-1], dat.index.shift(freq="1min")[-1:])
             mdata = mdata.reindex(dat.index.union(mdata.index))
 
             if method == "right-open":
@@ -265,20 +288,25 @@ class FlagtoolsMixin:
     @register(
         mask=[],
         demask=[],
-        squeeze=["target"],
+        squeeze=[],
         handles_target=True,  # function defines a target parameter, so it needs to handle it
     )
     def transferFlags(
         self: "SaQC",
         field: str,
-        target: str,
+        target: str | None = None,
+        squeeze: bool = False,
+        overwrite: bool = False,
         **kwargs,
     ) -> "SaQC":
         """
         Transfer Flags of one variable to another.
 
-        .. deprecated:: 2.4.0
-           Use :py:meth:`~saqc.SaQC.concatFlags` with ``method="match"`` and ``squeeze=False`` instead.
+        squeeze :
+            Squeeze the history into a single column if ``True``, function specific flag information is lost.
+
+        overwrite :
+            Overwrite existing flags if ``True``.
 
         See Also
         --------
@@ -310,33 +338,50 @@ class FlagtoolsMixin:
            0   -inf   -inf -inf
            1  255.0  255.0 -inf
 
-        You can skip the explicit target parameter designation:
+        To project the flags of `a` to both the variables `b` and `c`
+        in one call, align the field and target variables in 2 lists:
 
         .. doctest:: exampleTransfer
 
-           >>> qc = qc.transferFlags('a', 'b')
-
-        To project the flags of `a` to both the variables `b` and `c` in one call, align the field and target variables in
-        2 lists:
-
-        .. doctest:: exampleTransfer
-
-           >>> qc = qc.transferFlags(['a','a'], ['b', 'c'])
+           >>> qc = qc.transferFlags(['a','a'], ['b', 'c'], overwrite=True)
            >>> qc.flags.to_pandas()
                   a      b      c
            0   -inf   -inf   -inf
            1  255.0  255.0  255.0
         """
-        import warnings
+        history = self._flags.history[field]
 
-        warnings.warn(
-            f"""The method 'transferFlags' is deprecated and
-            will be removed in version 2.5 of SaQC. Please use
-            'SaQC.concatFlags(field={field}, target={target}, method="match", squeeze=False)'
-            instead""",
-            DeprecationWarning,
-        )
-        return self.concatFlags(field, target=target, method="match", squeeze=False)
+        if target is None:
+            target = field
+
+        if overwrite is False:
+            mask = isflagged(self._flags[target], thresh=kwargs["dfilter"])
+            history._hist[mask] = np.nan
+
+        # append a dummy column
+        meta = {
+            "func": f"transferFlags",
+            "args": (),
+            "kwargs": {
+                "field": field,
+                "target": target,
+                "squeeze": squeeze,
+                "overwrite": overwrite,
+                **kwargs,
+            },
+        }
+
+        if squeeze:
+            flags = history.squeeze(raw=True)
+            # init an empty history to which we later append the squeezed flags
+            history = History(index=history.index)
+        else:
+            flags = pd.Series(np.nan, index=history.index, dtype=float)
+
+        history.append(flags, meta)
+        self._flags.history[target].append(history)
+
+        return self
 
     @flagging()
     def propagateFlags(
@@ -354,12 +399,13 @@ class FlagtoolsMixin:
         Parameters
         ----------
         window :
-            Size of the repetition window. An integer defines the exact number of repetitions,
-            strings are interpreted as time offsets to fill with .
+            Size of the repetition window. An integer defines the exact
+            number of repetitions, strings are interpreted as time offsets
+            to fill with.
 
         method :
-            Direction of repetetion. With "ffill" the subsequent values receive the flag to
-            repeat, with "bfill" the previous values.
+            Direction of repetetion. With "ffill" the subsequent values
+            receive the flag to repeat, with "bfill" the previous values.
 
         Examples
         --------
@@ -381,7 +427,8 @@ class FlagtoolsMixin:
            6     -inf
            dtype: float64
 
-        Now, to repeat the flag '255.0' two times in direction of ascending indices, execute:
+        Now, to repeat the flag '255.0' two times in direction of ascending
+        indices, execute:
 
         .. doctest:: propagateFlags
 
@@ -409,7 +456,8 @@ class FlagtoolsMixin:
            6     -inf
            dtype: float64
 
-        If an explicit flag is passed, it will be used to fill the repetition window
+        If an explicit flag is passed, it will be used to fill the
+        repetition window
 
         .. doctest:: propagateFlags
 
@@ -423,9 +471,8 @@ class FlagtoolsMixin:
            6     -inf
            dtype: float64
         """
-
-        if method not in {"bfill", "ffill"}:
-            raise ValueError(f"supported methods are 'bfill', 'ffill', got '{method}'")
+        validateWindow(window)
+        validateChoice(method, "method", ["bfill", "ffill"])
 
         # get the last history column
         hc = self._flags.history[field].hist.iloc[:, -1].astype(float)
@@ -437,7 +484,7 @@ class FlagtoolsMixin:
         # consider everything != np.nan as flag
         flagged = isflagged(hc, dfilter)
 
-        repeated = (
+        mask = (
             flagged.rolling(window, min_periods=1, closed="left")
             .max()
             .fillna(0)
@@ -445,9 +492,10 @@ class FlagtoolsMixin:
         )
 
         if method == "bfill":
-            repeated = repeated[::-1]
+            mask = mask[::-1]
+        mask = isunflagged(self._flags[field], thresh=dfilter) & mask
 
-        self._flags[repeated, field] = flag
+        self._flags[mask, field] = flag
 
         return self
 
@@ -460,27 +508,24 @@ class FlagtoolsMixin:
     )
     def andGroup(
         self: "SaQC",
-        field: str | list[str],
-        group: Sequence["SaQC"] | dict["SaQC", str | Sequence[str]] | None = None,
-        target: str | None = None,
+        field: str | list[str | list[str]],
+        group: Sequence["SaQC"] | None = None,
+        target: str | list[str | list[str]] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
         """
-        Flag all values, if all of the given ``field`` values are already flagged.
+        Flag all values, if all the given ``field`` values are already flagged.
 
         Parameters
         ----------
         group:
-            A collection of ``SaQC`` objects to check for flags, defaults to the current object.
-
-            1. If given as a sequence of ``SaQC`` objects, all objects are checked for flags of a
-               variable named :py:attr:`field`.
-            2. If given as dictionary the keys are interpreted as ``SaQC`` objects and the corresponding
-               values as variables of the respective ``SaQC`` object to check for flags.
+            A collection of ``SaQC`` objects. Flag checks are performed on all ``SaQC`` objects
+            based on the variables specified in :py:attr:`field`. Whenever all monitored variables
+            are flagged, the associated timestamps will receive a flag.
         """
         return _groupOperation(
-            base=self,
+            saqc=self,
             field=field,
             target=target,
             func=operator.and_,
@@ -498,9 +543,9 @@ class FlagtoolsMixin:
     )
     def orGroup(
         self: "SaQC",
-        field: str | list[str],
-        group: Sequence["SaQC"] | dict["SaQC", str | Sequence[str]] | None = None,
-        target: str | None = None,
+        field: str | list[str | list[str]],
+        group: Sequence["SaQC"] | None = None,
+        target: str | list[str | list[str]] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -510,15 +555,12 @@ class FlagtoolsMixin:
         Parameters
         ----------
         group:
-            A collection of ``SaQC`` objects to check for flags, defaults to the current object.
-
-            1. If given as a sequence of ``SaQC`` objects, all objects are checked for flags of a
-               variable named :py:attr:`field`.
-            2. If given as dictionary the keys are interpreted as ``SaQC`` objects and the corresponding
-               values as variables of the respective ``SaQC`` object to check for flags.
+            A collection of ``SaQC`` objects. Flag checks are performed on all ``SaQC`` objects
+            based on the variables specified in :py:attr:`field`. Whenever any of monitored variables
+            is flagged, the associated timestamps will receive a flag.
         """
         return _groupOperation(
-            base=self,
+            saqc=self,
             field=field,
             target=target,
             func=operator.or_,
@@ -529,57 +571,101 @@ class FlagtoolsMixin:
 
 
 def _groupOperation(
-    base: "SaQC",
-    field: str | list[str],
+    saqc: "SaQC",
+    field: str | Sequence[str | Sequence[str]],
     func: Callable[[pd.Series, pd.Series], pd.Series],
-    group: Sequence["SaQC"] | dict["SaQC", str | Sequence[str]] | None = None,
-    target: str | list[str] | None = None,
+    group: Sequence["SaQC"] | None = None,
+    target: str | Sequence[str | Sequence[str]] | None = None,
     flag: float = BAD,
     **kwargs,
 ) -> "SaQC":
+    """
+    Perform a group operation on a collection of ``SaQC`` objects.
+
+    This function applies a specified function to perform a group operation on a collection
+    of `SaQC` objects. The operation involves checking specified :py:attr:`field` for flags,
+    and if satisfied, assigning a flag value to corresponding timestamps.
+
+    Parameters
+    ----------
+    saqc :
+        The main `SaQC` object on which the output flags will be set.
+    field :
+        The field(s) to be checked for flags for all mebers of :py:attr:`group`.
+    func :
+        The function used to combine flags across the specified :py:attr:`field`
+        and :py:attr:`group`.
+    group :
+        A sequence of ``SaQC`` objects forming the group for the group operation.
+        If not provided, the operation is performed on the main ``SaQC`` object.
+
+    Raises
+    ------
+    ValueError
+        If input lengths or conditions are invalid.
+
+    Notes
+    -----
+    - The `func` parameter should be a function that takes two boolean ``pd.Series`` objects,
+      representing information on existing flags, and return a boolean ``pd.Series`` that
+      representing the result od the elementwise logical combination of both.
+    """
+
+    def _flatten(seq: Sequence[str | Sequence[str]]) -> list[str]:
+        out = []
+        for e in seq:
+            if isinstance(e, str):
+                out.append(e)
+            else:  # Sequence[str]
+                out.extend(e)
+        return out
+
     if target is None:
         target = field
-    field, target = toSequence(field), toSequence(target)
 
-    if len(target) != 1 and len(target) != len(field):
-        raise ValueError(
-            "'target' needs to be a string or a sequence of the same length as 'field'"
+    if isinstance(group, dict):
+        warnings.warn(
+            "The option to pass dictionaries to 'group' is deprecated and will be removed in version 2.7",
+            DeprecationWarning,
         )
+        group = list(group.keys())
+        fields = list(group.values())
 
-    # harmonise `group` to type dict[SaQC, list[str]]
-    if group is None:
-        group = {base: field}
-    if not isinstance(group, dict):
-        group = {base if isinstance(qc, str) else qc: field for qc in group}
-    for k, v in group.items():
-        group[k] = toSequence(v)
+    fields = toSequence(field)
+    targets = toSequence(target)
+
+    if group is None or not group:
+        group = [saqc]
+
+    fields_ = fields[:]
+    if len(fields_) == 1:
+        # to simplify the retrieval from all groups...
+        fields_ = fields * len(group)
+
+    if len(fields_) != len(group):
+        raise ValueError(
+            "'field' needs to be a string or a sequence of the same length as 'group'"
+        )
 
     # generate mask
     mask = pd.Series(dtype=bool)
     dfilter = kwargs.get("dfilter", FILTER_ALL)
-    for qc, fields in group.items():
-        if set(field) - qc._flags.keys():
+    for qc, flds in zip(group, fields_):
+        if set(flds := toSequence(flds)) - qc._flags.keys():
             raise KeyError(
-                f"one or more variable(s) in {field} are missing in given SaQC object"
+                f"Failed to find one or more of the given variable(s), got {field}"
             )
-        for f in fields:
+        for f in flds:
             flagged = isflagged(qc._flags[f], thresh=dfilter)
             if mask.empty:
                 mask = flagged
             mask = func(mask, flagged)
 
-    # initialize target(s)
-    if len(target) == 1:
-        if target[0] not in base._data:
-            base._data[target[0]] = pd.Series(np.nan, index=mask.index, name=target[0])
-            base._flags[target[0]] = pd.Series(np.nan, index=mask.index, name=target[0])
-    else:
-        for f, t in zip(field, target):
-            if t not in base._data:
-                base = base.copyField(field=f, target=t)
+    targets = _flatten(targets)
+    saqc = initializeTargets(saqc, _flatten(fields), targets, mask.index)
 
     # write flags
-    for t in target:
-        base._flags[mask, t] = flag
+    for t in targets:
+        saqc._flags[mask, t] = flag
 
-    return base
+    return saqc

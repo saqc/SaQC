@@ -7,21 +7,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Tuple, Union
+from typing import TYPE_CHECKING, Literal, Tuple, Union
 
 import numpy as np
 import pandas as pd
-from typing_extensions import Literal
 
 from saqc.core import DictOfSeries, Flags, register
-from saqc.lib.tools import getFreqDelta
+from saqc.lib.checking import (
+    validateChoice,
+    validateMinPeriods,
+    validateValueBounds,
+    validateWindow,
+)
+from saqc.lib.tools import extractLiteral, getFreqDelta
 from saqc.lib.ts_operators import (
     butterFilter,
     polyRoller,
     polyRollerIrregular,
     polyRollerNoMissing,
-    polyRollerNoMissingNumba,
-    polyRollerNumba,
 )
 
 if TYPE_CHECKING:
@@ -91,6 +94,9 @@ class CurvefitMixin:
             Passing 0, disables the feature and will result in over-fitting for too
             sparse windows.
         """
+        validateWindow(window)
+        validateMinPeriods(min_periods)
+        validateValueBounds(order, "order", left=0, strict_int=True)
         self._data, self._flags = _fitPolynomial(
             data=self._data,
             field=field,
@@ -131,10 +137,10 @@ class CurvefitMixin:
             Fill method to be applied on the data before filtering (butterfilter cant
             handle ''np.nan''). See documentation of pandas.Series.interpolate method for
             details on the methods associated with the different keywords.
-
-        filter_type :
-            The type of filter. Default is ‘lowpass’.
         """
+        validateValueBounds(filter_order, "filter_order", strict_int=True)
+        validateChoice(fill_method, fill_method, FILL_METHODS)
+
         self._data[field] = butterFilter(
             self._data[field],
             cutoff=cutoff,
@@ -156,6 +162,11 @@ def _fitPolynomial(
     **kwargs,
 ) -> Tuple[DictOfSeries, Flags]:
     # TODO: some (rather large) parts are functional similar to saqc.funcs.rolling.roll
+
+    validateWindow(window)
+    validateValueBounds(order, "order", 0, strict_int=True)
+    validateMinPeriods(min_periods)
+
     if data[field].empty:
         return data, flags
 
@@ -176,17 +187,13 @@ def _fitPolynomial(
         fitted = to_fit.rolling(
             pd.Timedelta(window), closed="both", min_periods=min_periods, center=True
         ).apply(polyRollerIrregular, args=(centers, order))
-    else:
+    else:  # if regular
         if isinstance(window, str):
             window = pd.Timedelta(window) // regular
         if window % 2 == 0:
             window = int(window - 1)
         if min_periods is None:
             min_periods = window
-        if len(to_fit) < 200000:
-            numba = False
-        else:
-            numba = True
 
         val_range = np.arange(0, window)
         center_index = window // 2
@@ -202,43 +209,20 @@ def _fitPolynomial(
             miss_marker = np.floor(miss_marker - 1)
             na_mask = to_fit.isna()
             to_fit[na_mask] = miss_marker
-            if numba:
-                fitted = to_fit.rolling(window).apply(
-                    polyRollerNumba,
-                    args=(miss_marker, val_range, center_index, order),
-                    raw=True,
-                    engine="numba",
-                    engine_kwargs={"no_python": True},
-                )
-                # due to a tiny bug - rolling with center=True doesnt work
-                # when using numba engine.
-                fitted = fitted.shift(-int(center_index))
-            else:
-                fitted = to_fit.rolling(window, center=True).apply(
-                    polyRoller,
-                    args=(miss_marker, val_range, center_index, order),
-                    raw=True,
-                )
+
+            fitted = to_fit.rolling(window, center=True).apply(
+                polyRoller,
+                args=(miss_marker, val_range, center_index, order),
+                raw=True,
+            )
             fitted[na_mask] = np.nan
         else:
             # we only fit fully populated intervals:
-            if numba:
-                fitted = to_fit.rolling(window).apply(
-                    polyRollerNoMissingNumba,
-                    args=(val_range, center_index, order),
-                    engine="numba",
-                    engine_kwargs={"no_python": True},
-                    raw=True,
-                )
-                # due to a tiny bug - rolling with center=True doesnt work
-                # when using numba engine.
-                fitted = fitted.shift(-int(center_index))
-            else:
-                fitted = to_fit.rolling(window, center=True).apply(
-                    polyRollerNoMissing,
-                    args=(val_range, center_index, order),
-                    raw=True,
-                )
+            fitted = to_fit.rolling(window, center=True).apply(
+                polyRollerNoMissing,
+                args=(val_range, center_index, order),
+                raw=True,
+            )
 
     data[field] = fitted
     worst = flags[field].rolling(window, center=True, min_periods=min_periods).max()

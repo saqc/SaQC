@@ -59,7 +59,7 @@ It is not a shame to name a parameter just `n` or `alpha` etc., if, for example,
 
 
 ### Test Functions
-- testnames: [testmodule_]flagTestName
+- testnames: flagTestName
  
 ## Formatting
 We use [black](https://black.readthedocs.io/en/stable/) in its default settings.
@@ -70,13 +70,17 @@ Only absolute imports are accepted.
 
 
 # Development Workflow
+
+## Releases
+Every release is planned by an associated Milestone. This milestone should have a end date, usually, the first of the month the next release is planned and contain all issue/merge requests to include. 
+
 ## Repository Structure
 
-- `master` - branch:
+- `main` - branch:
   + Stable and usually protected.
   + Regular merges from `develop`, these merges are tagged and increasing at least the minor version.
   + Irregular merges from `develop` in case of critical bugs. Such merges increase at least the patch level.
-  + Merges into `master` usually lead to a PyPI release.
+  + Merges into `main` usually lead to a PyPI release.
 - `develop` - branch:
   + The main development branch, no hard stability requirements/guarantees.
   + Merges into `develop` should mostly follow a [Merge Request Workflow](#merge-request-workflow), minor changes can however be committed directly. Such minor changes include:
@@ -105,6 +109,6 @@ Only absolute imports are accepted.
   release date. Commits to `develop` after the merge window of a release closes need to be integrated during the subsequent release
   cycle
 - The release cycle is organized by Gitlab Milestones, the expiration date of a certain milestone indicates the end of the 
-  related merge window, the actual merge into `master` and the accompanying release is scheduled for the week after the
+  related merge window, the actual merge into `main` and the accompanying release is scheduled for the week after the
   milestones expiration date. 
 - Issues and Merge Requests can and should be associated to these milestone as this help in the organization of review activities.

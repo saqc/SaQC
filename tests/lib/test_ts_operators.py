@@ -45,7 +45,7 @@ F = False
         (np.array([F, T, T, F, T, T, F]), 2, False),
     ],
 )
-def test__exceedConsecutiveNanLimit(arr, maxc, expected):
+def test_exceedConsecutiveNanLimit(arr, maxc, expected):
     result = tsops._exceedConsecutiveNanLimit(arr, maxc)
     assert result is expected
 
@@ -239,7 +239,7 @@ def test_rateOfChange(data, expected):
             4,
             "both",
             [np.nan, 0, np.nan, np.nan, np.nan, 4, np.nan],
-            [np.nan, 0, 1, 2, 3, 4, np.nan],
+            [0, 0, 1, 2, 3, 4, 4],
         ),
         (
             None,
@@ -253,7 +253,4 @@ def test_interpolatNANs(limit, extrapolate, data, expected):
     got = tsops.interpolateNANs(
         pd.Series(data), gap_limit=limit, method="linear", extrapolate=extrapolate
     )
-    try:
-        assert got.equals(pd.Series(expected, dtype=float))
-    except AssertionError:
-        print("stop")
+    assert got.equals(pd.Series(expected, dtype=float))

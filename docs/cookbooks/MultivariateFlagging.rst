@@ -246,17 +246,14 @@ Check out the results for the year *2016*
 
 .. doctest:: exampleMV
 
-   >>> plt.plot(qc.data['sac254_raw']['2016'], alpha=.5, color='black', label='original') # doctest:+SKIP
-   >>> plt.plot(qc.data['sac254_corrected']['2016'], color='black', label='corrected') # doctest:+SKIP
+   >>> qc.plot(['sac254_raw','sac254_corrected'], xscope='2016', plot_kwargs={'color':['black', 'black'], 'alpha':[.5, 1], 'label':['original', 'corrrected']}) # doctest:+SKIP
 
 .. plot::
    :context:
    :include-source: False
 
-   plt.figure(figsize=(16,9))
-   plt.plot(qc.data['sac254_raw']['2016'], alpha=.5, color='black', label='original')
-   plt.plot(qc.data['sac254_corrected']['2016'], color='black', label='corrected')
-   plt.legend()
+   >>> qc.plot(['sac254_raw','sac254_corrected'], xscope='2016', plot_kwargs={'color':['black', 'black'], 'alpha':[.5, 1], 'label':['original', 'corrrected']})
+
 
 Multivariate Flagging Procedure
 -------------------------------
@@ -345,7 +342,7 @@ correlated with relatively high *kNNscores*, we could try to calculate a thresho
 `STRAY <https://arxiv.org/pdf/1908.04000.pdf>`_ algorithm, which is available as the method:
 :py:meth:`~saqc.SaQC.flagByStray`. This method will mark some samples of the `kNNscore` variable as anomaly.
 Subsequently we project this marks (or *flags*) on to the *sac* variable with a call to
-:py:meth:`~saqc.SaQC.concatFlags`. For the sake of demonstration, we also project the flags
+:py:meth:`~saqc.SaQC.transferFlags`. For the sake of demonstration, we also project the flags
 on the normalized *sac* and plot the flagged values in the *sac254_norm* - *level_norm* feature space.
 
 
@@ -353,8 +350,8 @@ on the normalized *sac* and plot the flagged values in the *sac254_norm* - *leve
 .. doctest:: exampleMV
 
    >>> qc = qc.flagByStray(field='kNNscores', freq='30D', alpha=.3)
-   >>> qc = qc.concatFlags(field='kNNscores', target='sac254_corrected', label='STRAY')
-   >>> qc = qc.concatFlags(field='kNNscores', target='sac254_norm', label='STRAY')
+   >>> qc = qc.transferFlags(field='kNNscores', target='sac254_corrected', label='STRAY')
+   >>> qc = qc.transferFlags(field='kNNscores', target='sac254_norm', label='STRAY')
    >>> qc.plot('sac254_corrected', xscope='2016-11') # doctest:+SKIP
    >>> qc.plot('sac254_norm', phaseplot='level_norm', xscope='2016-11') # doctest:+SKIP
 
@@ -363,8 +360,8 @@ on the normalized *sac* and plot the flagged values in the *sac254_norm* - *leve
    :include-source: False
 
    qc = qc.flagByStray(field='kNNscores', freq='30D', alpha=.3)
-   qc = qc.concatFlags(field='kNNscores', target='sac254_corrected', label='STRAY')
-   qc = qc.concatFlags(field='kNNscores', target='sac254_norm', label='STRAY')
+   qc = qc.transferFlags(field='kNNscores', target='sac254_corrected', label='STRAY')
+   qc = qc.transferFlags(field='kNNscores', target='sac254_norm', label='STRAY')
 
 .. plot::
    :context: close-figs

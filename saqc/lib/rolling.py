@@ -4,11 +4,75 @@
 
 from __future__ import annotations
 
-import functools
 import math
+from typing import Literal
 
 import numpy as np
 import pandas as pd
+from numpy.lib.stride_tricks import sliding_window_view
+
+from saqc.lib.checking import validateChoice, validateMinPeriods, validateWindow
+from saqc.lib.tools import getFreqDelta
+
+
+def windowRoller(
+    data: pd.DataFrame,
+    window,
+    func: Literal["mean", "median", "std", "var", "sum"],
+    min_periods: int = 0,
+    center=True,
+):
+    """
+    pandas-rolling style computation with 2 dimensional windows, ranging over all df columns.
+    * implements efficient 2d rolling in case of regular timestamps or integer defined window
+    * else: dispatches to not optimized (no-numba) version in case of irregular timestamp
+    """
+    validateWindow(window)
+    validateMinPeriods(min_periods, optional=False)
+    validateChoice(func, "func", ["mean", "median", "std", "var", "sum"])
+
+    func_kwargs = {}
+    if func in ["std", "var"]:
+        func_kwargs.update({"ddof": 1})
+
+    roll_func = getattr(np, "nan" + func)
+    regularFreq = getFreqDelta(data.index)
+    if regularFreq is not None:
+        if isinstance(window, str):
+            window = int(pd.Timedelta(window) / pd.Timedelta(regularFreq))
+        vals = data.values
+        ramp = np.empty(((window - 1), vals.shape[1]))
+        ramp.fill(np.nan)
+        vals = np.concatenate([ramp, vals])
+        if center:
+            vals = np.roll(vals, axis=0, shift=-int(window / 2))
+
+        views = sliding_window_view(vals, (window, vals.shape[1])).squeeze()
+        result = roll_func(views, axis=(1, 2), **func_kwargs)
+
+        if min_periods > 0:
+            invalid_wins = (~np.isnan(views)).sum(axis=(1, 2)) < min_periods
+            result[invalid_wins] = np.nan
+
+        out = pd.Series(result, index=data.index, name="result")
+
+    else:  # regularFreq is None
+        i_ser = pd.Series(range(data.shape[0]), index=data.index, name="result")
+        result = i_ser.rolling(window=window, center=center).apply(
+            raw=True,
+            func=lambda x: roll_func(
+                data.values[x.astype(int), :], axis=(0, 1), **func_kwargs
+            ),
+        )
+        if min_periods > 0:
+            invalid_wins = (
+                i_ser.rolling(window=window, center=center).apply(
+                    lambda x: (~np.isnan(data.values[x.astype(int), :])).sum()
+                )
+            ) < min_periods
+            result[invalid_wins] = np.nan
+        out = result
+    return out
 
 
 def removeRollingRamps(
@@ -125,6 +189,7 @@ def removeRollingRamps(
     if data.empty:
         return data
 
+    data = data.astype(float)  # to allow nan
     if isinstance(window, int):
         window = max(window - 1, 0)
         if center:
