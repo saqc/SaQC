@@ -141,7 +141,7 @@ def _roll(
     center: bool = True,
     **kwargs,
 ):
-    validateFuncSelection("func", allow_operator_str=True)
+    validateFuncSelection(func, allow_operator_str=True)
     validateWindow(window)
     validateMinPeriods(min_periods)
 
