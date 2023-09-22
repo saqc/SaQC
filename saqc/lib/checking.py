@@ -4,7 +4,16 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import Any, Collection, Iterable, Literal, TypeVar, get_origin
+from typing import (
+    Any,
+    Collection,
+    Iterable,
+    List,
+    Literal,
+    TypeVar,
+    get_args,
+    get_origin,
+)
 
 import numpy as np
 import pandas as pd
@@ -18,6 +27,13 @@ T = TypeVar("T")
 # might rise Exceptions on wrong usage) and should return a boolean
 # value
 # ====================================================================
+
+
+def extractLiteral(lit: type(Literal)) -> List:
+    """Return a list of values from a typing.Literal[...] at runtime."""
+    if not _isLiteral(lit):
+        raise TypeError("'lit' must be a typing.Literal")
+    return list(get_args(lit))
 
 
 def isBoolLike(obj: Any, optional: bool = False) -> bool:
@@ -209,8 +225,6 @@ def _isLiteral(obj: Any) -> bool:
 
 
 def validateChoice(value: T, name: str, choices: Collection[T] | type(Literal)):
-    from saqc.lib.tools import extractLiteral
-
     if _isLiteral(choices):
         choices = extractLiteral(choices)
     if not isValidChoice(value, choices):

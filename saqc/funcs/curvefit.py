@@ -14,12 +14,13 @@ import pandas as pd
 
 from saqc.core import DictOfSeries, Flags, register
 from saqc.lib.checking import (
+    extractLiteral,
     validateChoice,
     validateMinPeriods,
     validateValueBounds,
     validateWindow,
 )
-from saqc.lib.tools import extractLiteral, getFreqDelta
+from saqc.lib.tools import getFreqDelta
 from saqc.lib.ts_operators import (
     butterFilter,
     polyRoller,

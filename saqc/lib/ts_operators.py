@@ -21,12 +21,11 @@ from scipy.signal import butter, filtfilt
 from scipy.stats import iqr, median_abs_deviation
 from sklearn.neighbors import NearestNeighbors
 
-from saqc.lib.checking import validateChoice, validateWindow
 from saqc.lib.tools import getFreqDelta
 
 
 def mad(series):
-    return median_abs_deviation(x, nan_policy="omit")
+    return median_abs_deviation(series, nan_policy="omit")
 
 
 def clip(series, lower=None, upper=None):
@@ -439,106 +438,6 @@ def interpolateNANs(data, method, order=2, gap_limit=2, extrapolate=None):
     # finally reinsert the dropped data gaps
     data = data.reindex(pre_index)
     return data
-
-
-def aggregate2Freq(
-    data: pd.Series,
-    method,
-    freq,
-    agg_func,
-    fill_value=np.nan,
-    max_invalid_total=None,
-    max_invalid_consec=None,
-):
-    """
-    The function aggregates values to an equidistant frequency grid with func.
-    Timestamps that gets no values projected, get filled with the fill-value. It
-    also serves as a replacement for "invalid" intervals.
-    """
-    validateChoice(method, "method", ["nagg", "bagg", "fagg"])
-    validateWindow(freq, "freq", allow_int=False)
-
-    methods = {
-        # offset, closed, label
-        "nagg": lambda f: (f / 2, "left", "left"),
-        "bagg": lambda _: (pd.Timedelta(0), "left", "left"),
-        "fagg": lambda _: (pd.Timedelta(0), "right", "right"),
-    }
-    # filter data for invalid patterns (since filtering is expensive we pre-check if
-    # it is demanded)
-    if max_invalid_total is not None or max_invalid_consec is not None:
-        if pd.isna(fill_value):
-            temp_mask = data.isna()
-        else:
-            temp_mask = data == fill_value
-
-        temp_mask = temp_mask.groupby(pd.Grouper(freq=freq)).transform(
-            validationTrafo,
-            max_nan_total=max_invalid_total,
-            max_nan_consec=max_invalid_consec,
-        )
-        data[temp_mask] = fill_value
-
-    freq = pd.Timedelta(freq)
-    offset, closed, label = methods[method](freq)
-
-    resampler = data.resample(
-        freq, closed=closed, label=label, origin="start_day", offset=offset
-    )
-
-    # count valid values
-    counts = resampler.count()
-
-    # native methods of resampling (median, mean, sum, ..) are much faster than apply
-    try:
-        check_name = re.sub("^nan", "", agg_func.__name__)
-        # a nasty special case: if function "count" was passed, we not want empty
-        # intervals to be replaced by fill_value:
-        if check_name == "count":
-            data = counts.copy()
-            counts[:] = np.nan
-        else:
-            data = getattr(resampler, check_name)()
-    except AttributeError:
-        data = resampler.apply(agg_func)
-
-    # we custom fill bins that have no value
-    data[counts == 0] = fill_value
-
-    # undo the temporary shift, to mimic centering the frequency
-    if method == "nagg":
-        data.index += offset
-
-    return data
-
-
-def shift2Freq(
-    data: Union[pd.Series, pd.DataFrame],
-    method: Literal["fshift", "bshift", "nshift"],
-    freq: str,
-    fill_value,
-):
-    """
-    shift timestamps backwards/forwards in order to align them with an equidistant
-    frequency grid. Resulting Nan's are replaced with the fill-value.
-    """
-    validateWindow(freq, "freq", allow_int=False)
-    validateChoice(method, "method", ["fshift", "bshift", "nshift"])
-    methods = {
-        "fshift": lambda freq: ("ffill", pd.Timedelta(freq)),
-        "bshift": lambda freq: ("bfill", pd.Timedelta(freq)),
-        "nshift": lambda freq: ("nearest", pd.Timedelta(freq) / 2),
-    }
-    direction, tolerance = methods[method](freq)
-    target_ind = pd.date_range(
-        start=pd.Timestamp(data.index[0]).floor(freq),
-        end=pd.Timestamp(data.index[-1]).ceil(freq),
-        freq=freq,
-        name=data.index.name,
-    )
-    return data.reindex(
-        target_ind, method=direction, tolerance=tolerance, fill_value=fill_value
-    )
 
 
 def butterFilter(

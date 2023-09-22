@@ -13,23 +13,6 @@ import scipy.stats as st
 import saqc.lib.ts_operators as ts_ops
 from saqc import BAD, DOUBTFUL, FILTER_ALL, FILTER_NONE, GOOD, UNFLAGGED
 
-
-def clip(series, lower=None, upper=None):
-    return series.clip(lower=lower, upper=upper)
-
-
-def zscore(obj):
-    return st.zscore(obj, nan_policy="omit")
-
-
-def cv(series: pd.Series) -> pd.Series:
-    """
-    calculates the coefficient of variation on a min-max scaled time series
-    """
-    series_ = (series - series.min()) / (series.max() - series.min())
-    return series_.std() / series_.mean()
-
-
 # operators dict (mapping array-likes to scalars)
 ENV_OPERATORS = {
     # value sum. ignores NaN.
@@ -49,7 +32,7 @@ ENV_OPERATORS = {
     # Median absolute deviation. Omits NaN values
     "mad": ts_ops.mad,
     # Sample coefficient of variation. Omits NaN values.
-    "cv": cv,
+    "cv": ts_ops.cv,
     # Sample median. Omits NaN values
     "median": np.nanmedian,
     # Count number of values. Omits NaN values.
@@ -57,7 +40,7 @@ ENV_OPERATORS = {
     # evaluate datachunks with regard to total and consecutive number of invalid values
     "isValid": ts_ops.isValid,
 }
-
+ENV_OPERATORS_KEYS = list(ENV_OPERATORS.keys())
 # transformations dict (mapping array likes to array likes of same size)
 ENV_TRAFOS = {
     # Returns a series` diff.
@@ -81,7 +64,7 @@ ENV_TRAFOS = {
     # Logarithm, returning NaN for zero input, instead of -inf.
     "nanLog": ts_ops.zeroLog,
     # clip
-    "clip": clip,
+    "clip": ts_ops.clip,
     # evaluate datachunks with regard to total and consecutive number of invalid values
     "evaluate": ts_ops.validationTrafo,
 }

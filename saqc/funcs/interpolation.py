@@ -26,7 +26,7 @@ from saqc.lib.checking import (
     validateWindow,
 )
 from saqc.lib.tools import isflagged
-from saqc.lib.ts_operators import interpolateNANs, shift2Freq
+from saqc.lib.ts_operators import interpolateNANs
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -61,6 +61,35 @@ def _resampleOverlapping(data: pd.Series, freq: str, fill_value):
     if end not in data:
         data.loc[end] = fill_value
     return data.fillna(fill_value).astype(dtype)
+
+
+def _shift2Freq(
+    data: Union[pd.Series, pd.DataFrame],
+    method: Literal["fshift", "bshift", "nshift"],
+    freq: str,
+    fill_value,
+):
+    """
+    shift timestamps backwards/forwards in order to align them with an equidistant
+    frequency grid. Resulting Nan's are replaced with the fill-value.
+    """
+    validateWindow(freq, "freq", allow_int=False)
+    validateChoice(method, "method", ["fshift", "bshift", "nshift"])
+    methods = {
+        "fshift": lambda freq: ("ffill", pd.Timedelta(freq)),
+        "bshift": lambda freq: ("bfill", pd.Timedelta(freq)),
+        "nshift": lambda freq: ("nearest", pd.Timedelta(freq) / 2),
+    }
+    direction, tolerance = methods[method](freq)
+    target_ind = pd.date_range(
+        start=pd.Timestamp(data.index[0]).floor(freq),
+        end=pd.Timestamp(data.index[-1]).ceil(freq),
+        freq=freq,
+        name=data.index.name,
+    )
+    return data.reindex(
+        target_ind, method=direction, tolerance=tolerance, fill_value=fill_value
+    )
 
 
 class InterpolationMixin:
@@ -588,7 +617,7 @@ def _shift(
         return saqc
 
     # do the shift
-    datcol = shift2Freq(datcol, method, freq, fill_value=np.nan)
+    datcol = _shift2Freq(datcol, method, freq, fill_value=np.nan)
 
     # do the shift on the history
     kws = dict(method=method, freq=freq)
@@ -596,7 +625,7 @@ def _shift(
     history = saqc._flags.history[field].apply(
         index=datcol.index,
         func_handle_df=True,
-        func=shift2Freq,
+        func=_shift2Freq,
         func_kws={**kws, "fill_value": np.nan},
     )
 
