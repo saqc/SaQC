@@ -243,7 +243,7 @@ class ScoresMixin:
         ----------
         [1] https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.NearestNeighbors.html
         """
-        validateFuncSelection("func", allow_operator_str=True)
+        validateFuncSelection(func, allow_operator_str=True)
         if isinstance(func, str):
             func = ENV_OPERATORS[func]
         validateChoice(

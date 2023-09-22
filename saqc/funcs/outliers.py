@@ -689,7 +689,7 @@ class OutliersMixin:
             fields_.append(field_)
 
         knn_field = str(uuid.uuid4())
-        qc = qc.assignKNNS1core(
+        qc = qc.assignKNNScore(
             field=fields_,
             target=knn_field,
             n=n,
