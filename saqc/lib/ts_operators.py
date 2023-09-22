@@ -24,6 +24,17 @@ from sklearn.neighbors import NearestNeighbors
 from saqc.lib.checking import validateChoice, validateWindow
 from saqc.lib.tools import getFreqDelta
 
+def mad(series):
+    return median_abs_deviation(x, nan_policy='omit')
+def clip(series, lower=None, upper=None):
+    return series.clip(lower=lower, upper=upper)
+
+def cv(series: pd.Series) -> pd.Series:
+    """
+    calculates the coefficient of variation on a min-max scaled time series
+    """
+    series_ = (series - series.min()) / (series.max() - series.min())
+    return series_.std() / series_.mean()
 
 def identity(ts):
     """
@@ -178,18 +189,18 @@ def normScale(ts):
 
 def standardizeByMean(ts):
     # standardization with mean and probe variance
-    return (ts - np.mean(ts)) / np.std(ts, ddof=1)
+    return (ts - np.nanmean(ts)) / np.nanstd(ts, ddof=1)
 
 
 def standardizeByMedian(ts):
     # standardization with median (MAD)
     # NO SCALING
-    return (ts - np.median(ts)) / median_abs_deviation(ts, nan_policy="omit")
+    return (ts - np.nanmedian(ts)) / median_abs_deviation(ts, nan_policy="omit")
 
 
 def standardizeByIQR(ts):
     # standardization with median and inter quantile range
-    return (ts - np.median(ts)) / iqr(ts, nan_policy="omit")
+    return (ts - np.nanmedian(ts)) / iqr(ts, nan_policy="omit")
 
 
 def kNN(in_arr, n_neighbors, algorithm="ball_tree", metric="minkowski", p=2):
@@ -234,24 +245,34 @@ def _exceedConsecutiveNanLimit(arr, max_consec):
     return bool(views.all(axis=1).any())
 
 
-def validationTrafo(data, max_nan_total, max_nan_consec):
+def validationTrafo(data, max_nan_total, max_nan_consec, trafo=True):
     # data has to be boolean. False=Valid Value, True=invalid Value function returns
     # True-array of input array size for invalid input arrays False array for valid
     # ones
-    data = data.copy()
-    if max_nan_total is np.inf and max_nan_consec is np.inf:
-        return data
+    if trafo:
+        data = data.copy()
 
-    if data.sum() > max_nan_total:
+    if max_nan_total is np.inf and max_nan_consec is np.inf:
+        value = False
+    elif data.sum() > max_nan_total:
         value = True
     elif max_nan_consec is np.inf:
         value = False
     else:
         value = _exceedConsecutiveNanLimit(np.asarray(data), max_nan_consec)
 
-    data[:] = value
-    return data
+    if trafo:
+        data[:] = value
+        return data
+    else:
+        return value
 
+def isValid(data, max_nan_total=np.inf, max_nan_consec=np.inf):
+    """
+    Operator wrapper around `validationTrafo` (returns scalar), meant to check if data chunks are valid with
+    regard to consecutive and total maximum number of invalid values (nan or flagged > flag)
+    """
+    return ~validationTrafo(~np.isnan(data), max_nan_total, max_nan_consec, trafo=False)
 
 def stdQC(data, max_nan_total=np.inf, max_nan_consec=np.inf):
     return np.nanstd(
@@ -604,3 +625,10 @@ def linearInterpolation(data, inter_limit=2):
 
 def polynomialInterpolation(data, inter_limit=2, inter_order=2):
     return interpolateNANs(data, "polynomial", gap_limit=inter_limit, order=inter_order)
+
+
+
+FUNCTIONS_DICT = {'identity': identity,
+                  'count': count,
+                  'diff': difference,
+                  'normScale': normScale()}
