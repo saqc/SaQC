@@ -25,7 +25,6 @@ from saqc.parsing.environ import ENV_OPERATORS
 
 if TYPE_CHECKING:
     from saqc import SaQC
-    from saqc import SaQC
 
 
 METHOD2ARGS = {
