@@ -632,11 +632,3 @@ def linearInterpolation(data, inter_limit=2):
 
 def polynomialInterpolation(data, inter_limit=2, inter_order=2):
     return interpolateNANs(data, "polynomial", gap_limit=inter_limit, order=inter_order)
-
-
-FUNCTIONS_DICT = {
-    "identity": identity,
-    "count": count,
-    "diff": difference,
-    "normScale": normScale(),
-}

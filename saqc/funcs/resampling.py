@@ -21,6 +21,7 @@ from saqc.lib.checking import validateCallable, validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.tools import filterKwargs, getFreqDelta, isflagged
 from saqc.lib.ts_operators import aggregate2Freq
+from saqc.parsing.environ import ENV_OPERATORS
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -121,7 +122,7 @@ class ResamplingMixin:
         self: "SaQC",
         field: str,
         freq: str,
-        func: Callable[[pd.Series], pd.Series] = np.mean,
+        func: Callable[[pd.Series], pd.Series] | str = np.mean,
         method: Literal["fagg", "bagg", "nagg"] = "bagg",
         maxna: int | None = None,
         maxna_group: int | None = None,
@@ -169,8 +170,12 @@ class ResamplingMixin:
         maxna_group :
             Same as `maxna` but for consecutive NaNs.
         """
+
         validateChoice(method, "method", ["fagg", "bagg", "nagg"])
-        validateCallable(func, "func")
+        if not isinstance(func, str):
+            validateCallable(func, "func")
+        else:
+            validateChoice(func, list(ENV_OPERATORS.keys()))
 
         datcol = self._data[field]
         if datcol.empty:
