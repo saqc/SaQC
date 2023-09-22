@@ -44,7 +44,7 @@ class TransformationMixin:
             * ``int`` : Apply transformation on successive data chunks of the given length. Must be grater than 0.
             * Offset String : Apply transformation on successive data chunks of the given temporal extension.
         """
-        validateFuncSelection("func", allow_trafo_str=True)
+        validateFuncSelection(func, allow_trafo_str=True)
         if isinstance(func, str):
             func = ENV_TRAFOS[func]
 
