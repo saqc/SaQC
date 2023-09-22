@@ -24,10 +24,14 @@ from sklearn.neighbors import NearestNeighbors
 from saqc.lib.checking import validateChoice, validateWindow
 from saqc.lib.tools import getFreqDelta
 
+
 def mad(series):
-    return median_abs_deviation(x, nan_policy='omit')
+    return median_abs_deviation(x, nan_policy="omit")
+
+
 def clip(series, lower=None, upper=None):
     return series.clip(lower=lower, upper=upper)
+
 
 def cv(series: pd.Series) -> pd.Series:
     """
@@ -35,6 +39,7 @@ def cv(series: pd.Series) -> pd.Series:
     """
     series_ = (series - series.min()) / (series.max() - series.min())
     return series_.std() / series_.mean()
+
 
 def identity(ts):
     """
@@ -267,12 +272,14 @@ def validationTrafo(data, max_nan_total, max_nan_consec, trafo=True):
     else:
         return value
 
+
 def isValid(data, max_nan_total=np.inf, max_nan_consec=np.inf):
     """
     Operator wrapper around `validationTrafo` (returns scalar), meant to check if data chunks are valid with
     regard to consecutive and total maximum number of invalid values (nan or flagged > flag)
     """
     return ~validationTrafo(~np.isnan(data), max_nan_total, max_nan_consec, trafo=False)
+
 
 def stdQC(data, max_nan_total=np.inf, max_nan_consec=np.inf):
     return np.nanstd(
@@ -627,8 +634,9 @@ def polynomialInterpolation(data, inter_limit=2, inter_order=2):
     return interpolateNANs(data, "polynomial", gap_limit=inter_limit, order=inter_order)
 
 
-
-FUNCTIONS_DICT = {'identity': identity,
-                  'count': count,
-                  'diff': difference,
-                  'normScale': normScale()}
+FUNCTIONS_DICT = {
+    "identity": identity,
+    "count": count,
+    "diff": difference,
+    "normScale": normScale(),
+}

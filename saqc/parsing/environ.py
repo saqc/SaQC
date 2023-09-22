@@ -29,6 +29,7 @@ def cv(series: pd.Series) -> pd.Series:
     series_ = (series - series.min()) / (series.max() - series.min())
     return series_.std() / series_.mean()
 
+
 # operators dict (mapping array-likes to scalars)
 ENV_OPERATORS = {
     # value sum. ignores NaN.
@@ -54,7 +55,7 @@ ENV_OPERATORS = {
     # Count number of values. Omits NaN values.
     "count": ts_ops.count,
     # evaluate datachunks with regard to total and consecutive number of invalid values
-    "isValid": ts_ops.isValid
+    "isValid": ts_ops.isValid,
 }
 
 # transformations dict (mapping array likes to array likes of same size)
@@ -82,7 +83,7 @@ ENV_TRAFOS = {
     # clip
     "clip": clip,
     # evaluate datachunks with regard to total and consecutive number of invalid values
-    "evaluate": ts_ops.validationTrafo
+    "evaluate": ts_ops.validationTrafo,
 }
 
 # Constants Dictionary
