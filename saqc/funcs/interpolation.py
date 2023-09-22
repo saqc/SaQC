@@ -21,12 +21,14 @@ from saqc.lib.checking import (
     isValidChoice,
     validateCallable,
     validateChoice,
+    validateFuncSelection,
     validateMinPeriods,
     validateValueBounds,
     validateWindow,
 )
 from saqc.lib.tools import isflagged
 from saqc.lib.ts_operators import interpolateNANs
+from saqc.parsing.environ import ENV_OPERATORS
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -102,7 +104,7 @@ class InterpolationMixin:
         self: "SaQC",
         field: str,
         window: str | int,
-        func: Callable[[pd.Series], float] = np.median,
+        func: Callable[[pd.Series], float] = "median",
         center: bool = True,
         min_periods: int = 0,
         flag: float = UNFLAGGED,
@@ -133,7 +135,9 @@ class InterpolationMixin:
             computed.
         """
         validateWindow(window)
-        validateCallable(func, "func")
+        validateFuncSelection(func, allow_operator_str=True)
+        if isinstance(func, str):
+            func = ENV_OPERATORS[func]
         validateMinPeriods(min_periods)
 
         datcol = self._data[field]
