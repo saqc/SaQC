@@ -8,7 +8,7 @@ from typing import Any, Collection, Iterable, Literal, TypeVar, get_origin
 
 import numpy as np
 import pandas as pd
-
+from saqc.parsing.environ import ENV_OPERATORS, ENV_TRAFOS
 T = TypeVar("T")
 
 # ====================================================================
@@ -100,6 +100,15 @@ def isValidFrequency(obj: Any, allow_str: bool = True, fixed_only: bool = False)
         and isFrequencyString(obj, fixed_only=fixed_only)
     )
 
+def isValidFuncSelection(obj: any, allow_callable: bool=True, allow_operator_str: bool=False, allow_trafo_str: bool=False):
+    return (
+        allow_callable
+        and callable(obj)
+        or allow_operator_str
+        and obj in list(ENV_OPERATORS.keys())
+        or allow_trafo_str
+        and obj in list(ENV_TRAFOS.keys())
+    )
 
 def isValidWindow(obj: Any, allow_int: bool = True, allow_str: bool = True) -> bool:
     return (
@@ -258,6 +267,20 @@ def validateFrequency(
     if not isValidFrequency(value, allow_str=allow_str, fixed_only=fixed_only):
         raise ValueError(msg)
 
+def validateFuncSelection(value: any, name: str='func', allow_callable: bool=True, allow_operator_str: bool=False, allow_trafo_str: bool=False):
+    """
+    Vali
+    """
+    is_valid = isValidFuncSelection(value, allow_callable, allow_trafo_str, allow_operator_str)
+
+    msg_c = 'a callable' if allow_callable else ''
+    msg_op = f'one out of {list(ENV_OPERATORS.keys())}' if allow_operator_str else ''
+    msg_tr = f'one out of {list(ENV_TRAFOS.keys())}' if allow_trafo_str else ''
+    msg = [msg_c, msg_op, msg_tr]
+    msg = [m for m in msg if m != '']
+    msg = ' or '.join(msg)
+    if not is_valid:
+        raise ValueError(f'Parameter {name} has to be {msg}. Got {value} instead.')
 
 def validateWindow(
     value: int | str | pd.offsets.BaseOffset | pd.Timedelta,

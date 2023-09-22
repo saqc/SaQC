@@ -17,13 +17,14 @@ from typing_extensions import Literal
 from saqc.constants import UNFLAGGED
 from saqc.core import register
 from saqc.core.history import History
-from saqc.lib.checking import validateCallable, validateChoice
+from saqc.lib.checking import validateCallable, validateChoice, validateFuncSelection
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.tools import filterKwargs, getFreqDelta, isflagged
 from saqc.lib.ts_operators import aggregate2Freq
 from saqc.parsing.environ import ENV_OPERATORS
 
 if TYPE_CHECKING:
+    from saqc import SaQC
     from saqc import SaQC
 
 
@@ -172,10 +173,7 @@ class ResamplingMixin:
         """
 
         validateChoice(method, "method", ["fagg", "bagg", "nagg"])
-        if not isinstance(func, str):
-            validateCallable(func, "func")
-        else:
-            validateChoice(func, list(ENV_OPERATORS.keys()))
+        validateFuncSelection(func, allow_operator_str=True)
 
         datcol = self._data[field]
         if datcol.empty:
