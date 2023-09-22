@@ -71,6 +71,8 @@ ENV_TRAFOS = {
 
 # Constants Dictionary
 ENV_CONSTANTS = {
+    "nan": np.nan,
+    "NAN": np.nan,
     "GOOD": GOOD,
     "BAD": BAD,
     "UNFLAGGED": UNFLAGGED,

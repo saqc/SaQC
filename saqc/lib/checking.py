@@ -302,17 +302,28 @@ def validateFuncSelection(
     Vali
     """
     is_valid = isValidFuncSelection(
-        value, allow_callable, allow_trafo_str, allow_operator_str
+        value,
+        allow_callable=allow_callable,
+        allow_trafo_str=allow_trafo_str,
+        allow_operator_str=allow_operator_str,
     )
 
-    msg_c = "a callable" if allow_callable else ""
-    msg_op = f"one out of {list(ENV_OPERATORS.keys())}" if allow_operator_str else ""
-    msg_tr = f"one out of {list(ENV_TRAFOS.keys())}" if allow_trafo_str else ""
+    msg_c = "of type callable" if allow_callable else ""
+    msg_op = (
+        f"an operator key (one out of {list(ENV_OPERATORS.keys())})"
+        if allow_operator_str
+        else ""
+    )
+    msg_tr = (
+        f"a transformation key (one out of {list(ENV_TRAFOS.keys())})"
+        if allow_trafo_str
+        else ""
+    )
     msg = [msg_c, msg_op, msg_tr]
     msg = [m for m in msg if m != ""]
     msg = " or ".join(msg)
     if not is_valid:
-        raise ValueError(f"Parameter {name} has to be {msg}. Got {value} instead.")
+        raise ValueError(f"Parameter '{name}' has to be {msg}. Got '{value}' instead.")
 
 
 def validateWindow(
