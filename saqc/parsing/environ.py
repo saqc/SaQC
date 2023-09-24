@@ -40,8 +40,8 @@ ENV_OPERATORS = {
     # evaluate datachunks with regard to total and consecutive number of invalid values
     "isValid": ts_ops.isValid,
 }
-ENV_OPERATORS_KEYS = list(ENV_OPERATORS.keys())
-# transformations dict (mapping array likes to array likes of same size)
+
+# transformations dict (mapping array likes to array likes same size)
 ENV_TRAFOS = {
     # Returns a series` diff.
     "diff": ts_ops.difference,
@@ -69,6 +69,12 @@ ENV_TRAFOS = {
     "evaluate": ts_ops.validationTrafo,
 }
 
+
+ENV_AGGREGATIONS = {
+    "climatologicalMean": ts_ops.climatologicalMean,
+    "trueDailyMean": ts_ops.trueDailyMean
+}
+
 # Constants Dictionary
 ENV_CONSTANTS = {
     "nan": np.nan,
@@ -80,5 +86,6 @@ ENV_CONSTANTS = {
     "FILTER_ALL": FILTER_ALL,
     "FILTER_NONE": FILTER_NONE,
 }
+
 # environment
 ENVIRONMENT = {**ENV_TRAFOS, **ENV_OPERATORS, **ENV_CONSTANTS}
