@@ -72,7 +72,7 @@ ENV_TRAFOS = {
 
 ENV_AGGREGATIONS = {
     "climatologicalMean": ts_ops.climatologicalMean,
-    "trueDailyMean": ts_ops.trueDailyMean
+    "trueDailyMean": ts_ops.trueDailyMean,
 }
 
 # Constants Dictionary
