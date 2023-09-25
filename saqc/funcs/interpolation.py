@@ -104,7 +104,7 @@ class InterpolationMixin:
         self: "SaQC",
         field: str,
         window: str | int,
-        func: Callable[[pd.Series], float] = "median",
+        func: Callable[[pd.Series], float] | str = "median",
         center: bool = True,
         min_periods: int = 0,
         flag: float = UNFLAGGED,
