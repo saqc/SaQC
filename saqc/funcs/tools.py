@@ -21,7 +21,8 @@ from saqc.core import processing, register
 from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.plotting import makeFig
-from saqc.lib.tools import periodicMask
+from saqc.lib.tools import periodicMask, toSequence
+from saqc.lib.flaGUI import SelectFromCollection
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -31,6 +32,60 @@ _MPL_DEFAULT_BACKEND = mpl.get_backend()
 
 
 class ToolsMixin:
+    @register(
+        mask=[],
+        demask=[],
+        squeeze=[]
+    )
+    def flagByClick(self: "SaQC",
+                    field: str,
+                    max_gap: str | None = None,
+                    mode: Literal["subplots", "oneplot"] | str = "oneplot",
+                    xscope: slice | None = None,
+                    ax: mpl.axes.Axes | None = None,
+                    ax_kwargs: dict | None = None,
+                    marker_kwargs: dict | None = None,
+                    plot_kwargs: dict | None = None,
+                    dfilter: float = FILTER_NONE,
+                    **kwargs,
+                    ) -> "SaQC":
+
+
+        data, flags = self._data.copy(), self._flags.copy()
+
+        level = kwargs.get("flag", UNFLAGGED)
+
+        if dfilter < np.inf:
+            for f in field:
+                data[f].loc[flags[f] >= dfilter] = np.nan
+
+        ax_kwargs = ax_kwargs or {}
+        marker_kwargs = marker_kwargs or {}
+        plot_kwargs = plot_kwargs or {}
+        mpl.use(_MPL_DEFAULT_BACKEND)
+
+        fig = makeFig(
+            data=data,
+            field=[field],
+            flags=flags,
+            level=level,
+            mode=mode,
+            max_gap=max_gap,
+            history='valid',
+            xscope=xscope,
+            ax=ax,
+            ax_kwargs=ax_kwargs,
+            scatter_kwargs=marker_kwargs,
+            plot_kwargs=plot_kwargs,
+        )
+        #####
+        d = data[field].dropna()
+        slc_overlay = fig.axes[0].scatter(d.index, d.values)
+        fig.axes[0].set_xlim(auto=True)
+        selector = SelectFromCollection(fig.axes[0], slc_overlay)
+        plt.show()
+        selector.disconnect()
+        return self
     @register(
         mask=[],
         demask=[],
