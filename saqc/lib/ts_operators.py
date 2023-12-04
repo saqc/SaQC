@@ -256,7 +256,7 @@ def validationTrafo(data, max_nan_total, max_nan_consec, trafo=True):
     if trafo:
         data = data.copy()
 
-    if max_nan_total is np.inf and max_nan_consec is np.inf:
+    if max_nan_total == np.inf and max_nan_consec == np.inf:
         value = False
     elif data.sum() > max_nan_total:
         value = True
@@ -531,32 +531,3 @@ def linearInterpolation(data, inter_limit=2):
 
 def polynomialInterpolation(data, inter_limit=2, inter_order=2):
     return interpolateNANs(data, "polynomial", gap_limit=inter_limit, order=inter_order)
-
-
-def climatologicalMean(data):
-    """
-    The true daily mean as defined by WMO standard:
-    true daily mean = val@6:30 + val@12:30 + 2*val@20:30, NaN if one val is missing.
-    """
-    d = data[
-        ((data.index.hour == 6) & (data.index.minute == 30))
-        | ((data.index.hour == 12) & (data.index.minute == 30))
-    ]
-    d = pd.concat([d, 2 * data[((data.index.hour == 20) & (data.index.minute == 30))]])
-    d = d[d.index.seconds == 0]
-    rs = d.resample("1D")
-    res = rs.mean()
-    invalid = rs.count() < 3
-    res[invalid] = np.nan
-    return res
-
-
-def trueDailyMean(data):
-    data = data.reindex(
-        pd.date_range(data.index[0], data.index[-1], freq="10min")
-    ).shift(1)
-    rs = data.resample("1D")
-    res = rs.mean()
-    valid = rs.apply(func=isValid, **{"max_nan_consec": 3}).astype(bool)
-    res[~valid] = np.nan
-    return res

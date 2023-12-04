@@ -136,7 +136,7 @@ def _roll(
     field: str,
     flags: Flags,
     window: Union[str, int],
-    func: Callable[[pd.Series], np.ndarray] = "mean",
+    func: Callable[[pd.Series], np.ndarray] | str = "mean",
     min_periods: int = 0,
     center: bool = True,
     **kwargs,

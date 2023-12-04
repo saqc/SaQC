@@ -16,7 +16,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 [List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.4.1...v2.5.0)
 ### Added
 - Function selection via strings for most function-expecting parameters
+<<<<<<< HEAD
 - WMO standard aggregations `trueDailyMean` and `climatologicalMean`
+=======
+>>>>>>> develop
 - `SaQC.plot`:
   - enable multivariate plots
   - keyword `plot_kwargs` to pass matplotlib related arguments

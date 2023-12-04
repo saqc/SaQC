@@ -4,38 +4,22 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import (
-    Any,
-    Collection,
-    Iterable,
-    List,
-    Literal,
-    TypeVar,
-    get_args,
-    get_origin,
-)
+from typing import Any, Collection, Iterable, Literal, TypeVar, get_origin
 
 import numpy as np
 import pandas as pd
 
-from saqc.parsing.environ import ENV_OPERATORS, ENV_TRAFOS
-
 T = TypeVar("T")
+
 
 # ====================================================================
 # `isSomething`-Checks: must not raise Exceptions by checking the value (but
 # might rise Exceptions on wrong usage) and should return a boolean
 # value
 # ====================================================================
-
-
-def extractLiteral(lit: type(Literal)) -> List:
-    """Return a list of values from a typing.Literal[...] at runtime."""
-    if not _isLiteral(lit):
-        raise TypeError("'lit' must be a typing.Literal")
-    return list(get_args(lit))
-
-
+#
+# Module should not have no saqc dependencies
+#
 def isBoolLike(obj: Any, optional: bool = False) -> bool:
     """Return True if obj is a boolean or one of the integers 0 or 1.
     If optional is True, `None` also is considered a valid boolean.
@@ -125,13 +109,15 @@ def isValidFuncSelection(
     allow_operator_str: bool = False,
     allow_trafo_str: bool = False,
 ):
+    from saqc.parsing.environ import ENV_OPERATORS, ENV_TRAFOS
+
     return (
         allow_callable
         and callable(obj)
         or allow_operator_str
-        and obj in list(ENV_OPERATORS.keys())
+        and obj in ENV_OPERATORS.keys()
         or allow_trafo_str
-        and obj in list(ENV_TRAFOS.keys())
+        and obj in ENV_TRAFOS.keys()
     )
 
 
@@ -225,6 +211,8 @@ def _isLiteral(obj: Any) -> bool:
 
 
 def validateChoice(value: T, name: str, choices: Collection[T] | type(Literal)):
+    from saqc.lib.tools import extractLiteral
+
     if _isLiteral(choices):
         choices = extractLiteral(choices)
     if not isValidChoice(value, choices):
@@ -299,8 +287,11 @@ def validateFuncSelection(
     allow_trafo_str: bool = False,
 ):
     """
-    Vali
+    Validate Function selection to be either a Callable or a kex fro the environments Dictionaries.
     """
+    from saqc.lib.tools import joinExt
+    from saqc.parsing.environ import ENV_OPERATORS, ENV_TRAFOS
+
     is_valid = isValidFuncSelection(
         value,
         allow_callable=allow_callable,
@@ -308,22 +299,12 @@ def validateFuncSelection(
         allow_operator_str=allow_operator_str,
     )
 
-    msg_c = "of type callable" if allow_callable else ""
-    msg_op = (
-        f"an operator key (one out of {list(ENV_OPERATORS.keys())})"
-        if allow_operator_str
-        else ""
-    )
-    msg_tr = (
-        f"a transformation key (one out of {list(ENV_TRAFOS.keys())})"
-        if allow_trafo_str
-        else ""
-    )
-    msg = [msg_c, msg_op, msg_tr]
-    msg = [m for m in msg if m != ""]
-    msg = " or ".join(msg)
+    msg_c = ["of type callable"] * allow_callable
+    msg_op = [f"a string out of {ENV_OPERATORS.keys()}"] * allow_operator_str
+    msg_tr = [f"a string out of {ENV_TRAFOS.keys()}"] * allow_trafo_str
+    msg = joinExt(", ", msg_c + msg_op + msg_tr, " or ")
     if not is_valid:
-        raise ValueError(f"Parameter '{name}' has to be {msg}. Got '{value}' instead.")
+        raise ValueError(f"Parameter '{name}' must be {msg}. Got '{value}' instead.")
 
 
 def validateWindow(

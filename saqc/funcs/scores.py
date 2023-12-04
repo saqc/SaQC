@@ -125,10 +125,10 @@ def _univarScoring(
     min_periods
         Minimum number of valid meassurements in a scoring window, to consider the resulting score valid.
     """
-    validateFuncSelection(model_func, allow_operator_str=True)
+    validateFuncSelection(model_func, "model_func", allow_operator_str=True)
     if isinstance(model_func, str):
         model_func = ENV_OPERATORS[model_func]
-    validateFuncSelection(norm_func, allow_operator_str=True)
+    validateFuncSelection(norm_func, "norm_func", allow_operator_str=True)
     if isinstance(norm_func, str):
         norm_func = ENV_OPERATORS[norm_func]
     validateWindow(window, optional=True)

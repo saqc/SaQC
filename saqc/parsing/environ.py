@@ -69,12 +69,6 @@ ENV_TRAFOS = {
     "evaluate": ts_ops.validationTrafo,
 }
 
-
-ENV_AGGREGATIONS = {
-    "climatologicalMean": ts_ops.climatologicalMean,
-    "trueDailyMean": ts_ops.trueDailyMean,
-}
-
 # Constants Dictionary
 ENV_CONSTANTS = {
     "nan": np.nan,
