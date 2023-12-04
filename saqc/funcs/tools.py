@@ -22,7 +22,7 @@ from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.plotting import makeFig
 from saqc.lib.tools import periodicMask, toSequence
-from saqc.lib.flaGUI import SelectFromCollection
+from saqc.lib.flaGUI import FlaGUI
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -52,7 +52,6 @@ class ToolsMixin:
 
 
         data, flags = self._data.copy(), self._flags.copy()
-
         level = kwargs.get("flag", UNFLAGGED)
 
         if dfilter < np.inf:
@@ -63,6 +62,11 @@ class ToolsMixin:
         marker_kwargs = marker_kwargs or {}
         plot_kwargs = plot_kwargs or {}
         mpl.use(_MPL_DEFAULT_BACKEND)
+        GUI_mosaic = [['plot', 'plot','plot', 'flag_button'],
+                      ['plot', 'plot', 'plot','.'],
+                      ['plot', 'plot', 'plot','.'],
+                      ['plot', 'plot', 'plot','.']]
+        gui_fig, gui_axes = plt.subplot_mosaic(GUI_mosaic)
 
         fig = makeFig(
             data=data,
@@ -73,16 +77,16 @@ class ToolsMixin:
             max_gap=max_gap,
             history='valid',
             xscope=xscope,
-            ax=ax,
+            ax=gui_axes['plot'],
             ax_kwargs=ax_kwargs,
             scatter_kwargs=marker_kwargs,
             plot_kwargs=plot_kwargs,
         )
         #####
         d = data[field].dropna()
-        slc_overlay = fig.axes[0].scatter(d.index, d.values)
-        fig.axes[0].set_xlim(auto=True)
-        selector = SelectFromCollection(fig.axes[0], slc_overlay)
+        slc_overlay = gui_axes['plot'].scatter(d.index, d.values)
+        gui_axes['plot'].set_xlim(auto=True)
+        selector = FlaGUI(gui_axes, slc_overlay, index=d.index)
         plt.show()
         selector.disconnect()
         return self
