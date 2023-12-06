@@ -90,6 +90,7 @@ class SaQC(FunctionsMixin):
             if reason:
                 msg += f" This was most likely caused by: {reason}"
             raise RuntimeError(msg)
+        return self
 
     @property
     def attrs(self) -> dict[Hashable, Any]:
@@ -119,23 +120,32 @@ class SaQC(FunctionsMixin):
         return self._flags.history
 
     @property
-    def columns(self):
+    def columns(self) -> pd.Index:
         return self._data.columns
 
-    def __getitem__(self, key: str | Iterable[str]) -> SaQC:
+    def __getitem__(self, key: str | Iterable[str] | slice) -> SaQC:
         if isinstance(key, str):
             key = [key]
+
+        if isinstance(key, slice):
+            sss = self.columns.slice_locs(key.start, key.stop, key.step)
+            key = self.columns[slice(*sss)]
+
         keys = pd.Index(key)
+        if keys.has_duplicates:
+            raise NotImplementedError(
+                "selecting the same key multiple times is not supported yet."
+            )
+
         # validation
         not_found = keys.difference(self.columns).tolist()
         if not_found:
             raise KeyError(f"{not_found} not in index")
 
-        data = self._data[keys].copy()
-        flags = self._flags[keys].copy()
-        result = SaQC(data=data, flags=flags, scheme=self._scheme)
-        result.attrs = self.attrs
-        return result
+        _data = self._data[keys].copy()
+        _flags = self._flags[keys].copy()
+        new = self._construct(_data=_data, _flags=_flags)
+        return new._validate("a bug, pls report")
 
     def __getattr__(self, key):
         """

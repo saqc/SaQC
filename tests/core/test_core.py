@@ -415,3 +415,25 @@ def test_concatDios_warning(data, expected):
     with pytest.warns(UserWarning):
         result = SaQC(data)
     assert result.data == expected
+
+
+@pytest.mark.parametrize(
+    "columns,key,expected",
+    [
+        (["a", "b", "c"], ["a", "c"], pd.Index(["a", "c"])),
+        (["a", "b", "c"], "a", pd.Index(["a"])),
+        (["a", "b", "c", "d", "e"], slice("b", "d"), pd.Index(["b", "c", "d"])),
+    ],
+)
+def test__getitem__(columns, key, expected):
+    data = [pd.Series(range(3))] * len(columns)
+    data = SaQC(dict(zip(columns, data)))
+    result = data[key]
+    assert isinstance(result, SaQC)
+    assert result.columns.equals(expected)
+
+
+def test__getitem__duplicate_key():
+    data = SaQC(dict(zip(["a", "b", "c"], [pd.Series(range(3))] * 3)))
+    with pytest.raises(NotImplementedError):
+        data[["a", "a"]]  # noqa
