@@ -7,10 +7,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import contextlib
 import warnings
 from copy import copy as shallowcopy
 from copy import deepcopy
-from typing import Any, Hashable, MutableMapping, Iterable
+from typing import Any, Hashable, MutableMapping, Iterable, overload
 
 import numpy as np
 import pandas as pd
@@ -123,29 +124,106 @@ class SaQC(FunctionsMixin):
     def columns(self) -> pd.Index:
         return self._data.columns
 
-    def __getitem__(self, key: str | Iterable[str] | slice) -> SaQC:
+    def __len__(self):
+        return len(self.columns)
+
+    def __contains__(self, item):
+        return item in self.columns
+
+    def _get_keys(self, key: str | Iterable[str] | slice):
         if isinstance(key, str):
             key = [key]
-
         if isinstance(key, slice):
             sss = self.columns.slice_locs(key.start, key.stop, key.step)
             key = self.columns[slice(*sss)]
-
         keys = pd.Index(key)
         if keys.has_duplicates:
             raise NotImplementedError(
                 "selecting the same key multiple times is not supported yet."
             )
+        return keys
 
-        # validation
+    def __delitem__(self, key):
+        if key not in self.columns:
+            raise KeyError(key)
+        with self._atomicWrite():
+            del self._data[key]
+            del self._flags[key]
+
+    def __getitem__(self, key: str | slice | Iterable[str]) -> SaQC:
+        keys = self._get_keys(key)
         not_found = keys.difference(self.columns).tolist()
         if not_found:
             raise KeyError(f"{not_found} not in index")
-
-        _data = self._data[keys].copy()
-        _flags = self._flags[keys].copy()
-        new = self._construct(_data=_data, _flags=_flags)
+        data = self._data[keys].copy()
+        flags = self._flags[keys].copy()
+        new = self._construct(_data=data, _flags=flags)
         return new._validate("a bug, pls report")
+
+    # fmt: off
+    @overload
+    def __setitem__(self, key: str, value: pd.Series): ...
+    @overload
+    def __setitem__(self, key: str | slice | Iterable[str], value: SaQC): ...
+    # fmt: on
+    def __setitem__(self, key: str | slice | Iterable[str], value: SaQC | pd.Series):
+        # insert
+        if isinstance(key, str) and key not in self.columns:
+            if isinstance(value, SaQC) and len(value) == 1:
+                k = value.columns[0]
+                with self._atomicWrite():
+                    self._data[key] = value._data[k].copy()
+                    self._flags.history[key] = value._flags.history[k].copy()
+            elif isinstance(value, pd.Series):
+                with self._atomicWrite():
+                    self._data[key] = value.copy()
+                    self._flags.history[key] = History(value.index)
+            else:
+                raise TypeError(
+                    "A new 'value' must be a pd.Series or "
+                    "a SaQC object with just one variable."
+                )
+            return
+
+        # update
+        keys = self._get_keys(key)
+        not_found = keys.difference(self.columns).tolist()
+        if not_found:
+            raise KeyError(f"{not_found} not in index")
+        if not isinstance(value, SaQC):
+            raise ValueError(f"value must be of type SaQC, not {type(value)!r}")
+        if len(keys) != len(value):
+            raise ValueError(
+                f"Length mismatch, expected {len(keys)} elements, "
+                f"but new value has {len(value)} elements"
+            )
+
+        with self._atomicWrite():
+            for lkey, rkey in zip(keys, value.columns):
+                self._data[lkey] = value._data[rkey].copy()
+                self._flags.history[lkey] = value._flags.history[rkey].copy()
+
+    @contextlib.contextmanager
+    def _atomicWrite(self):
+        """
+        Context manager to realize writing in an all-or-nothing style.
+
+        This is helpful for writing data and flags at once or resetting
+        all changes on errors.
+        It is also useful for updating multiple columns "at once".
+        """
+        # shallow copies
+        data = self._data.copy()
+        flags = self._flags.copy(deep=False)
+        try:
+            yield
+            # when we get here, everything has gone well,
+            # and we accept all changes on data and flags
+            data = self._data
+            flags = self._flags
+        finally:
+            self._data = data
+            self._flags = flags
 
     def __getattr__(self, key):
         """
