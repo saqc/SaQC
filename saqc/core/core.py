@@ -131,7 +131,7 @@ class SaQC(FunctionsMixin):
         Parameters
         ----------
         config :
-            A path to a config file or a Config object to run.
+            A path to a config file or a Config object.
         kwargs :
             All kwargs are passed to the used Reader.
 
@@ -142,14 +142,34 @@ class SaQC(FunctionsMixin):
         """
         from saqc.parsing.reader import Config, CsvReader, JsonReader
 
-        if isinstance(config, Config):
-            return config.parse().run(self)
+        if not isinstance(config, Config):
+            if not isinstance(config, (PathLike, str)):
+                raise TypeError(
+                    f"'config' must be of type Config or a path to and existing file."
+                )
+            ext = getFileExtension(config)
+            if ext == ".json":
+                klass = JsonReader
+            else:
+                klass = CsvReader
+            config = klass(config, **kwargs).read()
 
-        klass = CsvReader
-        if isinstance(config, (PathLike, str)) and getFileExtension(config) == ".json":
-            klass = JsonReader
+        # now we should have a config, otherwise this will help debugging
+        assert isinstance(config, Config)
 
-        return klass(config, **kwargs).read().parse().run(self)
+        if not config.is_parsed:
+            config = config.parse()  # raise descriptive errors
+
+        qc = self
+        for i, entry in enumerate(config):
+            try:
+                qc = getattr(qc, entry.func_name)(**entry.kws)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Execution of the config failed on entry {i+1}. "
+                    f"See exception above for the reason.\n{entry}"
+                ) from e
+        return qc
 
     def __getattr__(self, key):
         """

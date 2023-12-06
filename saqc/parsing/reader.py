@@ -23,7 +23,7 @@ from saqc.parsing.visitor import ConfigFunctionParser
 
 
 def fromConfig(fname, *args, **func_kwargs):
-    return CsvReader(fname).read().parse().run(SaQC(*args, **func_kwargs))
+    return SaQC(*args, **func_kwargs).runConfig(CsvReader(fname).read())
 
 
 class ConfigEntry:
@@ -37,7 +37,7 @@ class ConfigEntry:
         self.func_name = None
         self.kws = None
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         lno = ""
         if self.lineno is not None:
             lno = f"line {self.lineno}: "
@@ -50,7 +50,7 @@ class ConfigEntry:
 
         return f"{lno}{{{first}, {second}}}"
 
-    def __str__(self):
+    def __str__(self) -> str:
         return (
             f"{self.__class__.__qualname__}\n"
             f"  source:       {self.src}\n"
@@ -66,7 +66,7 @@ class ConfigEntry:
     def parsed(self):
         return self.func_name is not None
 
-    def parse(self):
+    def parse(self) -> ConfigEntry:
         tree = ast.parse(self.functxt, mode="eval").body
         func, kws = ConfigFunctionParser().parse(tree)
 
@@ -84,14 +84,44 @@ class ConfigEntry:
         self.kws = kws
         return self
 
-    def run(self, qc):
+    def run(self, qc: SaQC) -> SaQC:
+        """Run this single entry on a SaQC object."""
         if not self.parsed:
             raise RuntimeError(f"{self.__class__.__qualname__} must be parsed first")
         return getattr(qc, self.func_name)(**self.kws)
 
 
 class Config(LoggerMixin, Collection[ConfigEntry]):
+    """
+
+    See Also
+    """
+
     def __init__(self, obj: Iterable, src: str | None = None):
+        """
+        Config is a collection of tests to run on a SqQC object.
+
+        Normally this shouldn't be instanced directly, instead use
+        `JsonReader().read()` and `CsvReader().read()`.
+
+        Parameters
+        ----------
+        obj : Iterable
+            Initialize with a List of triplets or quadruple:
+             - variable-name: A string of a variable in the data to run the test on.
+             - saqc-test: A function known to SaQC with its kwargs together as a string
+             - source(-file): string
+             - (optional) lineno: integer
+
+        src : str or None
+            The source file path to show on exceptions.
+
+        See Also
+        --------
+        ConfigEntry: Elements in the Config
+        JsonReader: reads json configs
+        CsvReader: reads csv configs
+        """
         self.src = src
         self.tests: List[ConfigEntry] = []
         self.is_parsed = False
@@ -137,23 +167,10 @@ class Config(LoggerMixin, Collection[ConfigEntry]):
         return self
 
     def run(self, qc: SaQC) -> SaQC:
-        if not self.is_parsed:
-            self = self.parse()  # noqa
-
-        msg = f"Executing config failed"
-        for test in self.tests:
-            try:
-                qc = test.run(qc)
-            except KeyError as e:
-                # We need to handle KeyError differently, because
-                # it uses `repr` instead of `str` and would mess
-                # up our message with extra text and newlines.
-                e = _SpecialKeyError(self._formatErrMsg(e, test, msg))
-                raise e.with_traceback(e.__traceback__) from None
-            except Exception as e:
-                e = type(e)(self._formatErrMsg(e, test, msg))
-                raise e.with_traceback(e.__traceback__) from None
-        return qc
+        """
+        Shortcut for `qc.runConfig(conf.parse())`, mainly used by testing framework.
+        """
+        return qc.runConfig(self)
 
 
 class Reader(abc.ABC, LoggerMixin):
@@ -244,7 +261,6 @@ class CsvReader(Reader):
         self.comment = comment
         if self.src is None:
             self.src = ""
-            pass
 
     def read(self):
         entries = []
