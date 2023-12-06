@@ -23,7 +23,6 @@ from typing import (
     List,
     Literal,
     Sequence,
-    Tuple,
     TypeVar,
     Union,
     get_args,
@@ -32,13 +31,13 @@ from typing import (
 
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_scalar
 from scipy import fft
 from scipy.cluster.hierarchy import fcluster, linkage
 
+from saqc import FILTER_ALL, UNFLAGGED
 from saqc.lib.checking import _isLiteral
 from saqc.lib.types import CompT
-
-T = TypeVar("T")
 
 
 def extractLiteral(lit: type(Literal)) -> List:
@@ -48,13 +47,12 @@ def extractLiteral(lit: type(Literal)) -> List:
     return list(get_args(lit))
 
 
+T = TypeVar("T")
 # fmt: off
 @overload
-def toSequence(value: str | float | int | None) -> List[str | float | int | None]:
-    ...
+def toSequence(value: Sequence[T]) -> List[T]: ...
 @overload
-def toSequence(value: Sequence[T]) -> List[T]:
-    ...
+def toSequence(value: str | float | int | None) -> List[str | float | int | None]: ...
 def toSequence(value) -> List:
     if isinstance(value, (str, float, int, type(None))):
         return [value]
@@ -355,6 +353,8 @@ def detectDeviants(
         d_i = data[data.columns[i]]
         d_j = data[data.columns[j]]
         dist = metric(d_i.values, d_j.values)
+        if not is_scalar(dist):
+            dist = dist[0]
         dist_mat[i, j] = dist
 
     condensed = np.abs(dist_mat[tuple(zip(*combs))])
@@ -398,7 +398,7 @@ def getFreqDelta(index: pd.Index) -> None | pd.Timedelta:
     (``None`` will also be returned for pd.RangeIndex type.)
 
     """
-    delta = getattr(index, "window", None)
+    delta = getattr(index, "freq", None)
     if delta is None and not index.empty:
         i = pd.date_range(index[0], index[-1], len(index))
         if i.equals(index):
@@ -523,14 +523,13 @@ def filterKwargs(
     return kwargs
 
 
-from saqc import FILTER_ALL, UNFLAGGED
-
 A = TypeVar("A", np.ndarray, pd.Series)
 
 
 def isflagged(flagscol: A, thresh: float) -> A:
     """
-    Return a mask of flags accordingly to `thresh`. Return type is same as flags.
+    Check :py:attr:`flagscol` for flags according to :py:attr:`thresh`
+    Returns a boolean sequnce of the same type as :py:attr:`flagscol`
     """
     if not isinstance(thresh, (float, int)):
         raise TypeError(f"thresh must be of type float, not {repr(type(thresh))}")
@@ -543,6 +542,34 @@ def isflagged(flagscol: A, thresh: float) -> A:
 
 def isunflagged(flagscol: A, thresh: float) -> A:
     return ~isflagged(flagscol, thresh)
+
+
+def initializeTargets(
+    saqc,
+    fields: Sequence[str],
+    targets: Sequence[str],
+    index: pd.Index,
+):
+    """
+    Initialize all targets based on field.
+
+    Note
+    ----
+    The following behavior is implemented:
+    1. n 'field', n 'target', n > 0     -> direct copy
+    2. n 'field', m 'target' mit n != m -> empty targets
+    """
+    if len(fields) == len(targets):
+        for f, t in zip(fields, targets):
+            if f in saqc._data and t not in saqc._data:
+                # we might not have field in 'saqc'
+                saqc = saqc.copyField(field=f, target=t)
+    for t in targets:
+        if t not in saqc._data:
+            saqc._data[t] = pd.Series(np.nan, index=index, name=t)
+            saqc._flags[t] = pd.Series(np.nan, index=index, name=t)
+
+    return saqc
 
 
 def getUnionIndex(obj, default: pd.DatetimeIndex | None = None):

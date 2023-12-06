@@ -17,14 +17,15 @@ from typing_extensions import Literal
 from saqc import UNFLAGGED
 from saqc.core import register
 from saqc.lib.checking import (
-    validateCallable,
     validateChoice,
+    validateFuncSelection,
     validateMinPeriods,
     validateWindow,
 )
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.tools import getApply, toSequence
 from saqc.lib.ts_operators import kNN
+from saqc.parsing.environ import ENV_OPERATORS, ENV_TRAFOS
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -124,9 +125,13 @@ def _univarScoring(
     min_periods
         Minimum number of valid meassurements in a scoring window, to consider the resulting score valid.
     """
+    validateFuncSelection(model_func, "model_func", allow_operator_str=True)
+    if isinstance(model_func, str):
+        model_func = ENV_OPERATORS[model_func]
+    validateFuncSelection(norm_func, "norm_func", allow_operator_str=True)
+    if isinstance(norm_func, str):
+        norm_func = ENV_OPERATORS[norm_func]
     validateWindow(window, optional=True)
-    validateCallable(model_func, "model_func")
-    validateCallable(norm_func, "norm_func")
     validateMinPeriods(min_periods, optional=True)
 
     if data.empty:
@@ -166,7 +171,7 @@ class ScoresMixin:
         field: Sequence[str],
         target: str,
         n: int = 10,
-        func: Callable[[pd.Series], float] = np.sum,
+        func: Callable[[pd.Series], float] | str = "sum",
         freq: float | str | None = np.inf,
         min_periods: int = 2,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
@@ -238,10 +243,12 @@ class ScoresMixin:
         ----------
         [1] https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.NearestNeighbors.html
         """
+        validateFuncSelection(func, allow_operator_str=True)
+        if isinstance(func, str):
+            func = ENV_OPERATORS[func]
         validateChoice(
             algorithm, "algorithm", ["ball_tree", "kd_tree", "brute", "auto"]
         )
-        validateCallable(func, "func")
 
         if isinstance(target, list):
             if len(target) > 1:
@@ -279,8 +286,8 @@ class ScoresMixin:
         self: "SaQC",
         field: str,
         window: str | None = None,
-        norm_func: Callable = np.nanstd,
-        model_func: Callable = np.nanmean,
+        norm_func: Callable | str = "std",
+        model_func: Callable | str = "mean",
         center: bool = True,
         min_periods: int | None = None,
         **kwargs,
@@ -425,7 +432,7 @@ class ScoresMixin:
         n: int = 20,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: int = 1,
-        density: Literal["auto"] | float | Callable = "auto",
+        density: Literal["auto"] | float = "auto",
         fill_na: bool = True,
         **kwargs,
     ) -> "SaQC":
@@ -463,8 +470,6 @@ class ScoresMixin:
         density :
             How to calculate the temporal distance/density for the variable-to-be-flagged.
 
-            * `auto` - introduces linear density with an increment equal to the median of the absolute diff of the
-              variable to be flagged
             * float - introduces linear density with an increment equal to `density`
             * Callable - calculates the density by applying the function passed onto the variable to be flagged
               (passed as Series).
@@ -489,8 +494,13 @@ class ScoresMixin:
         OutliersMixin._validateLOF(algorithm, n, p, density)
 
         vals = self._data[field]
+
         if fill_na:
+            filled = vals.isna()
             vals = vals.interpolate("linear")
+            filled = filled & vals.notna()
+        else:
+            filled = pd.Series(False, index=vals.index)
 
         if density == "auto":
             density = vals.diff().abs().median()
@@ -527,5 +537,6 @@ class ScoresMixin:
         scores = scores[n:-n]
         score_ser = pd.Series(scores, index=na_bool_ser.index[~na_bool_ser.values])
         score_ser = score_ser.reindex(na_bool_ser.index)
+        score_ser[filled] = np.nan
         self._data[field] = score_ser
         return self

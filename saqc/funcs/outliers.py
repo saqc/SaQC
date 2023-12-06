@@ -24,10 +24,10 @@ from saqc.core import DictOfSeries, Flags, flagging, register
 from saqc.lib.checking import (
     isCallable,
     isFloatLike,
-    validateCallable,
     validateChoice,
     validateFraction,
     validateFrequency,
+    validateFuncSelection,
     validateMinPeriods,
     validateValueBounds,
     validateWindow,
@@ -68,7 +68,6 @@ class OutliersMixin:
         thresh: Literal["auto"] | float = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: int = 1,
-        density: Literal["auto"] | float | Callable = "auto",
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -144,7 +143,7 @@ class OutliersMixin:
           the scores are cut off at a level, determined by :py:attr:`thresh`.
 
         """
-        self._validateLOF(algorithm, n, p, density)
+        self._validateLOF(algorithm, n, p, 1.0)
         if thresh != "auto" and not isFloatLike(thresh):
             raise ValueError(f"'thresh' must be 'auto' or a float, not {thresh}")
 
@@ -156,7 +155,6 @@ class OutliersMixin:
             n=n,
             algorithm=algorithm,
             p=p,
-            density=density,
         )
         s = qc.data[field_]
         if thresh == "auto":
@@ -179,7 +177,7 @@ class OutliersMixin:
         thresh: Literal["auto"] | float = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: int = 1,
-        density: Literal["auto"] | float | Callable = "auto",
+        density: Literal["auto"] | float = "auto",
         fill_na: bool = True,
         flag: float = BAD,
         **kwargs,
@@ -245,8 +243,6 @@ class OutliersMixin:
               equal to the median of the absolute diff of the variable to flag.
             * ``float`` - introduces linear density with an increment
               equal to :py:attr:`density`
-            * Callable - calculates the density by applying the function
-              passed onto the variable to flag (passed as Series).
 
         fill_na :
             If True, NaNs in the data are filled with a linear interpolation.
@@ -329,7 +325,7 @@ class OutliersMixin:
            :include-source: False
            :class: center
 
-            qc.plot('sac254_raw')
+           qc.plot('sac254_raw')
 
         We apply :py:meth:`~saqc.SaqC.flagUniLOF` in with default parameter
         values. Meaning, that the main calibration paramters :py:attr:`n`
@@ -517,7 +513,7 @@ class OutliersMixin:
         trafo: Callable[[pd.Series], pd.Series] = lambda x: x,
         alpha: float = 0.05,
         n: int = 10,
-        func: Callable[[pd.Series], float] = np.sum,
+        func: Callable[[pd.Series], float] | str = "sum",
         iter_start: float = 0.5,
         window: int | str | None = None,
         min_periods: int = 11,
@@ -648,8 +644,8 @@ class OutliersMixin:
         if "partition" in kwargs:
             warnings.warn(
                 """
-                The parameter `partition` is deprecated and will be removed in version 
-                3.0 of saqc. Please us the parameter `window` instead.
+                The parameter `partition` is deprecated and will be removed in version
+                2.7 of saqc. Please us the parameter `window` instead.
                 """,
                 DeprecationWarning,
             )
@@ -658,8 +654,8 @@ class OutliersMixin:
         if "partition_min" in kwargs:
             warnings.warn(
                 """
-                The parameter `partition_min` is deprecated and will be removed in 
-                version 3.0 of saqc. Please us the parameter `min_periods` instead.
+                The parameter `partition_min` is deprecated and will be removed in
+                version 2.7 of saqc. Please us the parameter `min_periods` instead.
                 """,
                 DeprecationWarning,
             )
@@ -668,14 +664,14 @@ class OutliersMixin:
         if min_periods != 11:
             warnings.warn(
                 """
-                You were setting a customary value for the `min_periods` parameter: 
-                note that this parameter does no longer refer to the reduction interval 
-                length, but now controls the number of periods having to be present in 
-                an interval of size `window` (deprecated:`partition`) for the algorithm 
+                You were setting a customary value for the `min_periods` parameter:
+                note that this parameter does no longer refer to the reduction interval
+                length, but now controls the number of periods having to be present in
+                an interval of size `window` (deprecated:`partition`) for the algorithm
                 to be performed in that interval.
-                To alter the size of the reduction window, use the parameter 
-                `min_periods_r`. Changes readily apply. 
-                This warning will be removed in saqc version 3.0.
+                To alter the size of the reduction window, use the parameter
+                `min_periods_r`. Changes readily apply.
+                This warning will be removed in saqc version 2.7.
                 """,
                 DeprecationWarning,
             )
@@ -933,7 +929,7 @@ class OutliersMixin:
         """
         warnings.warn(
             f"The method `flagMAD` is deprecated and will be removed in "
-            "version 3.0 of saqc. To achieve the same behavior use:"
+            "version 2.7 of saqc. To achieve the same behavior use:"
             f"`qc.flagZScore(field={field}, window={window}, method='modified', "
             f"thresh={z}, min_residuals={min_residuals}, min_periods={min_periods}, "
             f"center={center})`",
@@ -1138,7 +1134,7 @@ class OutliersMixin:
             if not ret.empty:
                 r = ret.idxmax()
                 chunk = dat[c[0] : r]
-                sgn = np.sign(chunk[1] - c[1])
+                sgn = np.sign(chunk.iloc[1] - c[1])
                 t_val = ((chunk[1:-1] - c[1]) * sgn > thresh).all()
                 r_val = True
                 if thresh_relative:
@@ -1329,7 +1325,7 @@ class OutliersMixin:
         )
         warnings.warn(
             f"The method `flagCrossStatistics` is deprecated and will "
-            f"be removed in verion 3.0 of saqc. To achieve the same behavior "
+            f"be removed in verion 2.7 of saqc. To achieve the same behavior "
             f"use:`{call}`",
             DeprecationWarning,
         )

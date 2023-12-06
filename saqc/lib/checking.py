@@ -13,6 +13,10 @@ import pandas as pd
 
 T = TypeVar("T")
 
+#
+# Module should not have no saqc dependencies
+#
+
 # ====================================================================
 # `isSomething`-Checks: must not raise Exceptions by checking the value (but
 # might rise Exceptions on wrong usage) and should return a boolean
@@ -43,16 +47,16 @@ def isBoolLike(obj: Any, optional: bool = False) -> bool:
     If optional is True, `None` also is considered a valid boolean.
     """
     return (
-        isinstance(obj, bool)
+        pd.api.types.is_bool(obj)
         or optional
         and obj is None
-        or isinstance(obj, int)
+        or pd.api.types.is_integer(obj)
         and obj in [0, 1]
     )
 
 
 def isFloatLike(obj: Any) -> bool:
-    return isinstance(obj, (float, int))
+    return pd.api.types.is_float(obj) or pd.api.types.is_integer(obj)
 
 
 def isIterable(obj: Any) -> bool:
@@ -121,12 +125,30 @@ def isValidFrequency(obj: Any, allow_str: bool = True, fixed_only: bool = False)
     )
 
 
+def isValidFuncSelection(
+    obj: Any,
+    allow_callable: bool = True,
+    allow_operator_str: bool = False,
+    allow_trafo_str: bool = False,
+):
+    from saqc.parsing.environ import ENV_OPERATORS, ENV_TRAFOS
+
+    return (
+        allow_callable
+        and callable(obj)
+        or allow_operator_str
+        and obj in ENV_OPERATORS.keys()
+        or allow_trafo_str
+        and obj in ENV_TRAFOS.keys()
+    )
+
+
 def isValidWindow(obj: Any, allow_int: bool = True, allow_str: bool = True) -> bool:
     return (
         isinstance(obj, pd.Timedelta)
         or isFixedFrequencyOffset(obj)
         or allow_int
-        and isinstance(obj, int)
+        and pd.api.types.is_integer(obj)
         and isInBounds(obj, 0)
         or allow_str
         and isTimedeltaString(obj)
@@ -220,7 +242,7 @@ def validateChoice(value: T, name: str, choices: Collection[T] | type(Literal)):
 
 
 def isIntOrInf(obj: int | float) -> bool:
-    return isinstance(obj, int) or isinstance(obj, float) and np.isinf(obj)
+    return pd.api.types.is_integer(obj) or pd.api.types.is_float(obj) and np.isinf(obj)
 
 
 def validateValueBounds(
@@ -277,6 +299,34 @@ def validateFrequency(
 
     if not isValidFrequency(value, allow_str=allow_str, fixed_only=fixed_only):
         raise ValueError(msg)
+
+
+def validateFuncSelection(
+    value: Any,
+    name: str = "func",
+    allow_callable: bool = True,
+    allow_operator_str: bool = False,
+    allow_trafo_str: bool = False,
+):
+    """
+    Validate Function selection to be either a Callable or a kex fro the environments Dictionaries.
+    """
+    from saqc.lib.tools import joinExt
+    from saqc.parsing.environ import ENV_OPERATORS, ENV_TRAFOS
+
+    is_valid = isValidFuncSelection(
+        value,
+        allow_callable=allow_callable,
+        allow_trafo_str=allow_trafo_str,
+        allow_operator_str=allow_operator_str,
+    )
+
+    msg_c = ["of type callable"] * allow_callable
+    msg_op = [f"a string out of {ENV_OPERATORS.keys()}"] * allow_operator_str
+    msg_tr = [f"a string out of {ENV_TRAFOS.keys()}"] * allow_trafo_str
+    msg = joinExt(", ", msg_c + msg_op + msg_tr, " or ")
+    if not is_valid:
+        raise ValueError(f"Parameter '{name}' must be {msg}. Got '{value}' instead.")
 
 
 def validateWindow(

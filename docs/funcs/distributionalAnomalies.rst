@@ -3,7 +3,7 @@
 .. SPDX-License-Identifier: GPL-3.0-or-later
 
 Change Points and Noise
-=======================
+-----------------------
 
 
 .. currentmodule:: saqc
@@ -13,4 +13,4 @@ Change Points and Noise
 
    ~SaQC.flagChangePoints
    ~SaQC.assignChangePointCluster
-   ~SaQC.flagByStatLowPass
+   ~SaQC.flagByScatterLowpass
