@@ -10,10 +10,13 @@ from __future__ import annotations
 import collections
 import functools
 import itertools
+import logging
+import os
 import re
 import warnings
 from typing import (
     Any,
+    AnyStr,
     Callable,
     Collection,
     Iterable,
@@ -47,13 +50,11 @@ def extractLiteral(lit: type(Literal)) -> List:
 T = TypeVar("T")
 # fmt: off
 @overload
-def toSequence(value: Sequence[T]) -> List[T]:
-    ...
+def toSequence(value: Sequence[T]) -> List[T]: ...
 @overload
-def toSequence(value: T) -> List[T]:
-    ...
+def toSequence(value: str | float | int | None) -> List[str | float | int | None]: ...
 def toSequence(value) -> List:
-    if value is None or isinstance(value, (str, float, int)):
+    if isinstance(value, (str, float, int, type(None))):
         return [value]
     return list(value)
 # fmt: on
@@ -182,10 +183,6 @@ def periodicMask(
     if invert:
         out = ~out
     return out
-
-
-def isQuoted(string):
-    return bool(re.search(r"'.*'|\".*\"", string))
 
 
 def mutateIndex(index: pd.Index, old_name, new_name):
@@ -634,7 +631,7 @@ def joinExt(sep: str, iterable: Iterable[str], last_sep: str | None = None) -> s
     'a, b or c'
 
     >>> joinExt(', ', ['a', 'b'], ' or ')
-    'a or c'
+    'a or b'
 
     >>> joinExt(', ', ['a'], ' or ')
     'a'
@@ -652,3 +649,32 @@ def joinExt(sep: str, iterable: Iterable[str], last_sep: str | None = None) -> s
     if len(iterable) < 2:
         return sep.join(iterable)
     return f"{sep.join(iterable[:-1])}{last_sep}{iterable[-1]}"
+
+
+def getFileExtension(path: os.PathLike[AnyStr] | str) -> str:
+    """Returns empty string, if no extension present."""
+    ext = str(os.path.splitext(path)[1].strip().lower())
+    return "" if " " in ext else ext
+
+
+def fileExists(path_or_buffer: Any):
+    try:
+        return os.path.exists(path_or_buffer)
+    except (TypeError, ValueError, OSError):
+        return False
+
+
+class LoggerMixin:
+    """
+    Adds a logger to the class, named as the qualified name of the
+    class. A super call to init is not necessary. Each instance has its
+    own logger, but in the logging backend they refer to the very same
+    logger, unless an instance sets a new logger with another name.
+    """
+
+    logger: logging.Logger
+
+    def __new__(cls, *args, **kwargs):
+        obj = super().__new__(cls)
+        obj.__dict__["logger"] = logging.getLogger(cls.__qualname__)
+        return obj

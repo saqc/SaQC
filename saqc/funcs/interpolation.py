@@ -239,6 +239,7 @@ class InterpolationMixin:
 
         .. doctest:: interpolate
 
+           >>> import saqc
            >>> data = pd.DataFrame({'data':np.array([np.nan, 0, np.nan, np.nan, np.nan, 4, 5, np.nan, np.nan, 8, 9, np.nan, np.nan])}, index=pd.date_range('2000',freq='1H', periods=13))
            >>> data
                                 data

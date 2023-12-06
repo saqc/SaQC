@@ -61,7 +61,6 @@ DMP = [
 ]
 
 
-@pytest.mark.slow
 @pytest.mark.parametrize(
     "scheme, expected",
     [("float", FLOAT), ("simple", SIMPLE), ("positional", POSITIONAL), ("dmp", DMP)],

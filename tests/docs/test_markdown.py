@@ -11,6 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("fname", ["README.md"])
 def test_codeSnippets(fname):
     with open(fname, "r") as f:
@@ -29,6 +30,7 @@ def test_codeSnippets(fname):
 FILEURL = "https://git.ufz.de/rdm-software/saqc/-/blob/develop/"
 
 
+@pytest.mark.slow
 @pytest.mark.parametrize("fname", ["README.md"])
 def test_links(fname):
     with open(fname, "r") as f:

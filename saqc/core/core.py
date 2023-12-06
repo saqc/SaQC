@@ -7,10 +7,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import io
 import warnings
 from copy import copy as shallowcopy
 from copy import deepcopy
-from typing import Any, Hashable, MutableMapping
+from os import PathLike
+from typing import TYPE_CHECKING, Any, AnyStr, Hashable, MutableMapping
 
 import numpy as np
 import pandas as pd
@@ -27,6 +29,10 @@ from saqc.core.translation import (
     TranslationScheme,
 )
 from saqc.funcs import FunctionsMixin
+from saqc.lib.tools import getFileExtension
+
+if TYPE_CHECKING:
+    from saqc.parsing.reader import Config
 
 # warnings
 pd.set_option("mode.chained_assignment", "warn")
@@ -62,7 +68,7 @@ class SaQC(FunctionsMixin):
         self._attrs: dict = {}
         self._validate(reason="init")
 
-    def _construct(self, **attributes) -> "SaQC":
+    def _construct(self, **attributes) -> SaQC:
         """
         Construct a new `SaQC`-Object from `self` and optionally inject
         attributes with any chechking and overhead.
@@ -118,6 +124,53 @@ class SaQC(FunctionsMixin):
     def _history(self) -> _HistAccess:
         return self._flags.history
 
+    def runConfig(self, config: Config | str | PathLike[AnyStr], **kwargs) -> SaQC:
+        """
+        Run a config on the SaQC object.
+
+        Parameters
+        ----------
+        config :
+            A path to a config file or a Config object.
+        kwargs :
+            All kwargs are passed to the used Reader.
+
+        See Also
+        --------
+        saqc.parsing.CsvReader: csv reading backend
+        saqc.parsing.JsonReader: json reading backend
+        """
+        from saqc.parsing.reader import Config, CsvReader, JsonReader
+
+        if not isinstance(config, Config):
+            if not isinstance(config, (PathLike, str)):
+                raise TypeError(
+                    f"'config' must be of type Config or a path to and existing file."
+                )
+            ext = getFileExtension(config)
+            if ext == ".json":
+                klass = JsonReader
+            else:
+                klass = CsvReader
+            config = klass(config, **kwargs).read()
+
+        # now we should have a config, otherwise this will help debugging
+        assert isinstance(config, Config)
+
+        if not config.is_parsed:
+            config = config.parse()  # raise descriptive errors
+
+        qc = self
+        for i, entry in enumerate(config):
+            try:
+                qc = getattr(qc, entry.func_name)(**entry.kws)
+            except Exception as e:
+                raise RuntimeError(
+                    f"Execution of the config failed on entry {i+1}. "
+                    f"See exception above for the reason.\n{entry}"
+                ) from e
+        return qc
+
     def __getattr__(self, key):
         """
         All failing attribute accesses are redirected to __getattr__.
@@ -127,10 +180,10 @@ class SaQC(FunctionsMixin):
         from functools import partial
 
         if key not in FUNC_MAP:
-            raise AttributeError(f"SaQC has no attribute {repr(key)}")
+            raise AttributeError(f"SaQC has no attribute {key!r}")
         return partial(FUNC_MAP[key], self)
 
-    def copy(self, deep=True):
+    def copy(self, deep=True) -> SaQC:
         copyfunc = deepcopy if deep else shallowcopy
         new = self._construct()
         for attr in self._attributes:
@@ -242,7 +295,7 @@ class SaQC(FunctionsMixin):
                     )
         return flags
 
-    def _castToFlags(self, flags):
+    def _castToFlags(self, flags) -> Flags:
         if isinstance(flags, pd.DataFrame):
             for idx in [flags.index, flags.columns]:
                 if isinstance(idx, pd.MultiIndex):

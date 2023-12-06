@@ -7,3 +7,6 @@ from __future__ import annotations
 
 class ParsingError(RuntimeError):
     pass
+
+
+_SpecialKeyError = type("KeyError", (KeyError,), {"__str__": BaseException.__str__})

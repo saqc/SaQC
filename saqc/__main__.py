@@ -18,9 +18,9 @@ import numpy as np
 import pandas as pd
 import pyarrow as pa
 
-from saqc.core import DictOfSeries
+from saqc.core import DictOfSeries, SaQC
 from saqc.core.core import TRANSLATION_SCHEMES
-from saqc.parsing.reader import _ConfigReader
+from saqc.parsing.reader import CsvReader, JsonReader
 from saqc.version import __version__
 
 logger = logging.getLogger("SaQC")
@@ -129,25 +129,21 @@ def main(
     json_field: str | None,
 ):
     # data is always a list of data files
-
     _setupLogging(log_level)
     reader, writer = setupIO(nodata)
     data = [readData(reader, f) for f in data]
+    qc = SaQC(data=data, scheme=scheme)
 
     config = str(config)
-    cr = _ConfigReader(data=data, scheme=scheme)
-    if config.endswith("json"):
-        f = None
-        if json_field is not None:
-            f = lambda j: j[str(json_field)]
-        cr = cr.readJson(config, unpack=f)
+    if config.endswith(".json"):
+        cnf = JsonReader(config, root_key=json_field).read()
     else:
-        cr = cr.readCsv(config)
+        cnf = CsvReader(config).read()
 
-    saqc = cr.run()
+    qc = qc.runConfig(cnf)
 
-    data_result = saqc.data.to_pandas()
-    flags_result = saqc.flags
+    data_result = qc.data.to_pandas()
+    flags_result = qc.flags
     if isinstance(flags_result, DictOfSeries):
         flags_result = flags_result.to_pandas()
 

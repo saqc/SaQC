@@ -4,22 +4,44 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+import io
 from typing import Any, Collection, Iterable, Literal, TypeVar, get_origin
+from urllib.parse import urlparse
 
 import numpy as np
 import pandas as pd
 
 T = TypeVar("T")
 
+#
+# Module should not have no saqc dependencies
+#
 
 # ====================================================================
 # `isSomething`-Checks: must not raise Exceptions by checking the value (but
 # might rise Exceptions on wrong usage) and should return a boolean
 # value
 # ====================================================================
-#
-# Module should not have no saqc dependencies
-#
+
+
+def isUrl(s: str) -> bool:
+    try:
+        return bool(urlparse(s).scheme)
+    except (TypeError, ValueError):
+        return False
+
+
+def isQuoted(s: str) -> bool:
+    # isQuoted ∈ O(1) [linear]
+    return len(s) > 1 and s[0] in ["'", '"'] and s[0] == s[-1]
+
+
+def isOpenFileLike(obj) -> bool:
+    return (
+        isinstance(obj, io.IOBase) or hasattr(obj, "read") and hasattr(obj, "readlines")
+    )
+
+
 def isBoolLike(obj: Any, optional: bool = False) -> bool:
     """Return True if obj is a boolean or one of the integers 0 or 1.
     If optional is True, `None` also is considered a valid boolean.

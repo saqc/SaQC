@@ -140,11 +140,10 @@ def removeRollingRamps(
 
     >>> s = pd.Series(1, index=pd.date_range('2000-02-02', freq='1d', periods=4), dtype=int)
     >>> s
-    Out[6]:
-    2000-01-01    1
-    2000-01-02    1
-    2000-01-03    1
-    2000-01-04    1
+    2000-02-02    1
+    2000-02-03    1
+    2000-02-04    1
+    2000-02-05    1
     Freq: D, dtype: int64
 
     If we roll with a window of 2 days, the result should have NaNs where the window
