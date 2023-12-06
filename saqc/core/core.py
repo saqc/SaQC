@@ -10,7 +10,7 @@ from __future__ import annotations
 import warnings
 from copy import copy as shallowcopy
 from copy import deepcopy
-from typing import Any, Hashable, MutableMapping
+from typing import Any, Hashable, MutableMapping, Iterable
 
 import numpy as np
 import pandas as pd
@@ -117,6 +117,25 @@ class SaQC(FunctionsMixin):
     @property
     def _history(self) -> _HistAccess:
         return self._flags.history
+
+    @property
+    def columns(self):
+        return self._data.columns
+
+    def __getitem__(self, key: str | Iterable[str]) -> SaQC:
+        if isinstance(key, str):
+            key = [key]
+        keys = pd.Index(key)
+        # validation
+        not_found = keys.difference(self.columns).tolist()
+        if not_found:
+            raise KeyError(f"{not_found} not in index")
+
+        data = self._data[keys].copy()
+        flags = self._flags[keys].copy()
+        result = SaQC(data=data, flags=flags, scheme=self._scheme)
+        result.attrs = self.attrs
+        return result
 
     def __getattr__(self, key):
         """
