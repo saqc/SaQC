@@ -418,7 +418,6 @@ def test_concatDios_warning(data, expected):
 
 
 def test_atomicWrite():
-
     def writeAndFail(obj):
         obj._data["foo"] = pd.Series()
         raise ValueError("ups i forgot flags")
