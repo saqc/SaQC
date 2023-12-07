@@ -131,8 +131,7 @@ class ToolsMixin:
             raise ValueError(
                 f"width value of parameter screen size has to be 6 or higher. Got {screen_size[1]}"
             )
-        s
-        election_marker_kwargs = selection_marker_kwargs or {}
+        selection_marker_kwargs = selection_marker_kwargs or {}
         ax_kwargs = ax_kwargs or {}
         marker_kwargs = marker_kwargs or {}
         plot_kwargs = plot_kwargs or {}
