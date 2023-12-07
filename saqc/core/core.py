@@ -105,13 +105,13 @@ class SaQC(FunctionsMixin):
         self._attrs = dict(value)
 
     @property
-    def data(self) -> MutableMapping:
+    def data(self) -> MutableMapping[str, pd.Series]:
         data = self._data
         data.attrs = self._attrs.copy()
         return data
 
     @property
-    def flags(self) -> MutableMapping:
+    def flags(self) -> MutableMapping[str, pd.Series]:
         flags = self._scheme.toExternal(self._flags, attrs=self._attrs)
         flags.attrs = self._attrs.copy()
         return flags
@@ -154,9 +154,16 @@ class SaQC(FunctionsMixin):
         keys = self._get_keys(key)
         not_found = keys.difference(self.columns).tolist()
         if not_found:
-            raise KeyError(f"{not_found} not in index")
-        data = self._data[keys].copy()
-        flags = self._flags[keys].copy()
+            raise KeyError(f"{not_found} not in columns")
+        # data = self._data[key] should work, but fails with key=[]
+        # because of slice_dict issue #GH2 - empty list selection fails.
+        # As long as flags/history have no slicing support we stick to
+        # the loop.
+        data = DictOfSeries()
+        flags = Flags()
+        for k in keys:
+            data[k] = self._data[k].copy()
+            flags.history[k] = self._flags.history[k].copy()
         new = self._construct(_data=data, _flags=flags)
         return new._validate("a bug, pls report")
 
@@ -189,7 +196,7 @@ class SaQC(FunctionsMixin):
         keys = self._get_keys(key)
         not_found = keys.difference(self.columns).tolist()
         if not_found:
-            raise KeyError(f"{not_found} not in index")
+            raise KeyError(f"{not_found} not in columns")
         if not isinstance(value, SaQC):
             raise ValueError(f"value must be of type SaQC, not {type(value)!r}")
         if len(keys) != len(value):
@@ -197,11 +204,10 @@ class SaQC(FunctionsMixin):
                 f"Length mismatch, expected {len(keys)} elements, "
                 f"but new value has {len(value)} elements"
             )
-
         with self._atomicWrite():
-            for lkey, rkey in zip(keys, value.columns):
-                self._data[lkey] = value._data[rkey].copy()
-                self._flags.history[lkey] = value._flags.history[rkey].copy()
+            for k, c in zip(keys, value.columns):
+                self._data[k] = value._data[c].copy()
+                self._flags.history[k] = value._flags.history[c].copy()
 
     @contextlib.contextmanager
     def _atomicWrite(self):
