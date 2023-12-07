@@ -47,20 +47,20 @@ class ToolsMixin:
         """
         Rudimentary pop up GUI for adding or removing flags by selection of points directly in the data plot.
 
-        Left click and Drag the rectangle over the points you want mark:
+        * Left click and Drag the rectangle over the points you want mark.
 
-        Click `Add` Button (or associated key) to add the marked values to the Selection of values to flag/unflag
+        * Click `Add` Button (or associated key) to add the marked values to the Selection of values to flag/unflag
 
-        Click `Remove` Button (or associated key) to remove marked values from current Selection (if they are already selected)
+        * Click `Remove` Button (or associated key) to remove marked values from current Selection (if they are already selected)
 
-        Click `Undo` Button (or associated key) to undo the last Addition to the Selection (if one has already happened)
+        * Click `Undo` Button (or associated key) to undo the last Addition to the Selection (if one has already happened)
 
-        In the `Flagging Level` Text Box, type the level of the flags you want to assign. Type 'UNFLAGGED', if you want to
-        "remove" flags.
+        * In the `Flagging Level` Text Box, type the level of the flags you want to assign. Type 'UNFLAGGED', if you want to
+          "remove" flags.
 
-        In the `Flags Label` Text Box type in the label text for the flags to assign
+        * In the `Flags Label` Text Box type in the label text for the flags to assign
 
-        Click `Assign` Flags to assign Flags of specified Value and with specified Label to the Selection.
+        * Click `Assign` Flags to assign Flags of specified Value and with specified Label to the Selection.
 
         Note, that you can only assign one type of flags in one session. The whole selection will get assigned the
         flag level and flag value, specified as the `Assign` Button is clicked.
@@ -135,7 +135,7 @@ class ToolsMixin:
             field=[field],
             flags=flags,
             level=UNFLAGGED,
-            mode='oneplot',
+            mode="oneplot",
             max_gap=max_gap,
             history="valid",
             xscope=None,
