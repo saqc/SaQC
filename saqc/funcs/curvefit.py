@@ -14,7 +14,7 @@ import pandas as pd
 
 from saqc.core import DictOfSeries, Flags, register
 from saqc.lib.checking import (
-    extractLiteral,
+    #extractLiteral,
     validateChoice,
     validateMinPeriods,
     validateValueBounds,
