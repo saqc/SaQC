@@ -38,14 +38,75 @@ class ToolsMixin:
         self: "SaQC",
         field: str,
         max_gap: str | None = None,
-        mode: Literal["subplots", "oneplot"] | str = "oneplot",
-        xscope: slice | None = None,
         ax_kwargs: dict | None = None,
         marker_kwargs: dict | None = None,
         plot_kwargs: dict | None = None,
         dfilter: float = FILTER_NONE,
         **kwargs,
     ) -> "SaQC":
+        """
+        Rudimentary pop up GUI for adding or removing flags by selection of points directly in the data plot.
+
+        Left click and Drag the rectangle over the points you want mark:
+
+        Click `Add` Button (or associated key) to add the marked values to the Selection of values to flag/unflag
+
+        Click `Remove` Button (or associated key) to remove marked values from current Selection (if they are already selected)
+
+        Click `Undo` Button (or associated key) to undo the last Addition to the Selection (if one has already happened)
+
+        In the `Flagging Level` Text Box, type the level of the flags you want to assign. Type 'UNFLAGGED', if you want to
+        "remove" flags.
+
+        In the `Flags Label` Text Box type in the label text for the flags to assign
+
+        Click `Assign` Flags to assign Flags of specified Value and with specified Label to the Selection.
+
+        Note, that you can only assign one type of flags in one session. The whole selection will get assigned the
+        flag level and flag value, specified as the `Assign` Button is clicked.
+
+        Parameters
+        ----------
+        max_gap :
+            If ``None``, all data points will be connected, resulting in long linear
+            lines, in case of large data gaps. ``NaN`` values will be removed before
+            plotting. If an offset string is passed, only points that have a distance
+            below ``max_gap`` are connected via the plotting line.
+        ax_kwargs :
+            Axis keywords. Change axis specifics. Those are passed on to the
+            `matplotlib.axes.Axes.set <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.set.html>`_
+            method and can have the options listed there.
+            The following options are `saqc` specific:
+
+            * ``"xlabel"``: Either single string, that is to be attached to all x-axis´, or
+              a List of labels, matching the number of variables to plot in length, or a dictionary, directly
+              assigning labels to certain fields - defaults to ``None`` (no labels)
+            * ``"ylabel"``: Either single string, that is to be attached to all y-axis´, or
+              a List of labels, matching the number of variables to plot in length, or a dictionary, directly
+              assigning labels to certain fields - defaults to ``None`` (no labels)
+            * ``"title"``: Either a List of labels, matching the number of variables to plot in length, or a dictionary, directly
+              assigning labels to certain variables - defaults to ``None`` (every plot gets titled the plotted variables name)
+            * ``"fontsize"``: (float) Adjust labeling and titeling fontsize
+
+        marker_kwargs :
+            Keywords to modify flags marker appearance. The markers are set via the
+            `matplotlib.pyplot.scatter <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.scatter.html>`_
+            method and can have the options listed there.
+            The following options are `saqc` specific:
+
+            * ``"cycleskip"``: (int) start the cycle of shapes that are assigned any flag-type with a certain lag - defaults to ``0`` (no skip)
+
+        plot_kwargs :
+            Keywords to modify the plot appearance. The plotting is delegated to
+            `matplotlib.pyplot.plot <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.scatter.html>`_, all options listed there are available. Additionally the following saqc specific configurations are possible:
+
+            * ``"alpha"``: Either a scalar float in *[0,1]*, that determines all plots' transparencies, or
+              a list of floats, matching the number of variables to plot.
+
+            * ``"linewidth"``: Either single float in *[0,1]*, that determines the thickness of all plotted,
+              or a list of floats, matching the number of variables to plot.
+
+        """
         data, flags = self._data.copy(), self._flags.copy()
         flag = kwargs.get("flag", BAD)
         label = kwargs.get("label", "")
@@ -74,10 +135,10 @@ class ToolsMixin:
             field=[field],
             flags=flags,
             level=UNFLAGGED,
-            mode=mode,
+            mode='oneplot',
             max_gap=max_gap,
             history="valid",
-            xscope=xscope,
+            xscope=None,
             ax=gui_axes["plot"],
             ax_kwargs=ax_kwargs,
             scatter_kwargs=marker_kwargs,
