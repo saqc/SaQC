@@ -179,8 +179,8 @@ class ToolsMixin:
         selector.disconnect()
 
         if selector.confirmed:
-            kwargs.update({"label": selector.labelValueBox.text})
-            flag_val = selector.flagValueBox.text
+            kwargs.update({"label": selector.label})
+            flag_val = selector.flag
             flag = float(flag_val)
             if flag > 255.0:
                 raise ValueError(
