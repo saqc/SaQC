@@ -11,6 +11,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `flagGeneric`: target broadcasting
 - `SaQC`: automatic tranlation of incoming flags
 - Option to change the flagging scheme after initialization
+- `flagByClick`: spawns Pop-Up GUI to assign flags 
 ### Changed
 ### Removed
 ### Fixed
@@ -22,10 +23,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
 ### Added
 - WMO standard mean aggregations
 - Function selection via strings for most function-expecting parameters
-<<<<<<< HEAD
-- WMO standard aggregations `trueDailyMean` and `climatologicalMean`
-=======
->>>>>>> develop
 - `SaQC.plot`:
   - enable multivariate plots
   - keyword `plot_kwargs` to pass matplotlib related arguments

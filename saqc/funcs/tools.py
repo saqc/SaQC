@@ -75,7 +75,7 @@ class ToolsMixin:
             plotting. If an offset string is passed, only points that have a distance
             below ``max_gap`` are connected via the plotting line.
         screen_size :
-            Size (hight,width) of the window showing the data plot, given in 'mosaic' units.
+            Size (hight, width) of the window showing the data plot, given in 'mosaic' units.
             The control panel always is 2 units broad (so, setting the width to 4 will make the plot window appear as double as wide as the control panel)
             The control panel has a minimum hight of 6 units and will be stretched to mach hight, if needed.
         selection_marker_kwargs :
