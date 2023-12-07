@@ -33,7 +33,16 @@ from scipy import fft
 from scipy.cluster.hierarchy import fcluster, linkage
 
 from saqc import FILTER_ALL, UNFLAGGED
+from saqc.lib.checking import _isLiteral
 from saqc.lib.types import CompT
+
+
+def extractLiteral(lit: type(Literal)) -> List:
+    """Return a list of values from a typing.Literal[...] at runtime."""
+    if not _isLiteral(lit):
+        raise TypeError("'lit' must be a typing.Literal")
+    return list(get_args(lit))
+
 
 T = TypeVar("T")
 # fmt: off
