@@ -417,23 +417,165 @@ def test_concatDios_warning(data, expected):
     assert result.data == expected
 
 
+def test_atomicWrite():
+
+    def writeAndFail(obj):
+        obj._data["foo"] = pd.Series()
+        raise ValueError("ups i forgot flags")
+
+    orig = SaQC(pd.DataFrame([1, 2, 3], columns=["a"]))
+
+    # test that atomic write is needed
+    qc = orig.copy()
+    try:
+        writeAndFail(qc)
+    except ValueError:
+        pass
+    assert not qc.columns.equals(orig.columns)  # data changed
+    assert qc.data.keys() != qc.flags.keys()  # invariant broken
+
+    # use qc._atomicWrite
+    qc = orig.copy()
+    try:
+        with qc._atomicWrite():
+            writeAndFail(qc)
+    except ValueError:
+        pass
+    assert qc.columns.equals(orig.columns)  # data ist still unchanged
+    assert qc.data.keys() == qc.flags.keys()  # invariant holds
+
+
 @pytest.mark.parametrize(
     "columns,key,expected",
     [
         (["a", "b", "c"], ["a", "c"], pd.Index(["a", "c"])),
         (["a", "b", "c"], "a", pd.Index(["a"])),
         (["a", "b", "c", "d", "e"], slice("b", "d"), pd.Index(["b", "c", "d"])),
+        (["a", "b", "c"], slice(None), pd.Index(["a", "b", "c"])),
+        # empty selection
+        (["a", "b", "c"], [], pd.Index([])),
+        (["a", "b", "c"], slice("b", "a"), pd.Index([])),
     ],
 )
 def test__getitem__(columns, key, expected):
     data = [pd.Series(range(3))] * len(columns)
-    data = SaQC(dict(zip(columns, data)))
-    result = data[key]
+    qc = SaQC(dict(zip(columns, data)))
+    result = qc[key]
     assert isinstance(result, SaQC)
     assert result.columns.equals(expected)
 
 
-def test__getitem__duplicate_key():
-    data = SaQC(dict(zip(["a", "b", "c"], [pd.Series(range(3))] * 3)))
+def test__getitem__duplicateKey():
+    qc = SaQC(dict(zip(["a", "b", "c"], [pd.Series(range(3))] * 3)))
     with pytest.raises(NotImplementedError):
-        data[["a", "a"]]  # noqa
+        qc[["a", "a"]]  # noqa
+
+
+def test__setitem__duplicateKey():
+    qc = SaQC(dict(zip(["a", "b", "c"], [pd.Series(range(3))] * 3)))
+    with pytest.raises(NotImplementedError):
+        qc[["a", "a"]] = SaQC(pd.DataFrame(dict(a=[1, 1], b=[2, 2])))
+
+
+U = UNFLAGGED
+B = BAD
+pdDf = pd.DataFrame
+
+
+@pytest.mark.parametrize(
+    "data,key,value,expected",
+    [
+        (
+            # series - data: yes, flags: no
+            SaQC(pdDf(dict(a=[1, 1], b=[2, 2]))),
+            "c",
+            pd.Series([8, 8]),
+            SaQC(
+                pdDf(dict(a=[1, 2], b=[2, 2], c=[8, 8])),
+                pdDf(dict(a=[U, U], b=[U, U], c=[U, U])),
+            ),
+        ),
+        (
+            # single column SaQC obj - data: yes, flags: yes
+            SaQC(pdDf(dict(a=[1, 1], b=[2, 2]))),
+            "c",
+            SaQC(pdDf(dict(new=[8, 8])), pdDf(dict(new=[B, B]))),
+            SaQC(
+                pdDf(dict(a=[1, 2], b=[2, 2], c=[8, 8])),
+                pdDf(dict(a=[U, U], b=[U, U], c=[B, B])),
+            ),
+        ),
+    ],
+)
+def test__setitem__insert(data, key, value, expected):
+    data[key] = value
+    assert data.data[key].equals(expected.data[key])
+    assert data.flags[key].equals(expected.flags[key])
+
+
+@pytest.mark.parametrize(
+    "data,key,value,expected",
+    [
+        (
+            # empty key
+            SaQC(pdDf(dict(a=[1, 2], b=[1, 2]))),
+            [],
+            SaQC(),
+            SaQC(pdDf(dict(a=[1, 2], b=[8, 8])), pdDf(dict(a=[U, U], b=[U, U]))),
+        ),
+        (
+            # single key
+            SaQC(pdDf(dict(a=[1, 2], b=[1, 2]))),
+            "b",
+            SaQC(pdDf(dict(new=[8, 8])), pdDf(dict(new=[B, B]))),
+            SaQC(pdDf(dict(a=[1, 2], b=[8, 8])), pdDf(dict(a=[U, U], b=[B, B]))),
+        ),
+        (
+            # multi key
+            SaQC(pdDf(dict(a=[1, 2], b=[1, 2]))),
+            ["a", "b"],
+            SaQC(
+                pdDf(dict(new1=[8, 8], new2=[9, 9])),
+                pdDf(dict(new1=[B, B], new2=[B, B])),
+            ),
+            SaQC(pdDf(dict(a=[8, 8], b=[9, 9])), pdDf(dict(a=[B, B], b=[B, B]))),
+        ),
+    ],
+)
+def test__setitem__update(data, key, value, expected):
+    data[key] = value
+    assert data.columns.equals(expected.columns)
+
+    # slice to list magic
+    if isinstance(key, slice):
+        key = pd.Series(index=list("abcdef"))[key].index.tolist()
+
+    for k in [key] if isinstance(key, str) else key:
+        assert data.data[k].equals(expected.data[k])
+        assert data.flags[k].equals(expected.flags[k])
+
+
+@pytest.mark.parametrize(
+    "data,key,value,expected",
+    [
+        (
+            SaQC(pdDf(dict(a=[1, 2]))),
+            ["a", "b"],
+            SaQC(
+                pdDf(dict(new1=[8, 8], new2=[9, 9])),
+                pdDf(dict(new1=[B, B], new2=[B, B])),
+            ),
+            SaQC(
+                pdDf(dict(a=[1, 2])),
+                pdDf(dict(a=[U, U])),
+            ),
+        )
+    ],
+)
+def test__setitem__update_does_not_insert(data, key, value, expected):
+    """See also: test_atomicWrite"""
+    with pytest.raises(KeyError):
+        data[key] = value
+    for k in data.columns:
+        assert data.data[k].equals(expected.data[k])
+        assert data.flags[k].equals(expected.flags[k])
