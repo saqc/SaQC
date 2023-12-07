@@ -38,6 +38,8 @@ class ToolsMixin:
         self: "SaQC",
         field: str,
         max_gap: str | None = None,
+        screen_size: tuple[int] = (8, 8),
+        selection_marker_kwargs: dict | None = None,
         ax_kwargs: dict | None = None,
         marker_kwargs: dict | None = None,
         plot_kwargs: dict | None = None,
@@ -72,6 +74,16 @@ class ToolsMixin:
             lines, in case of large data gaps. ``NaN`` values will be removed before
             plotting. If an offset string is passed, only points that have a distance
             below ``max_gap`` are connected via the plotting line.
+        screen_size :
+            Size (hight,width) of the window showing the data plot, given in 'mosaic' units.
+            The control panel always is 2 units broad (so, setting the width to 4 will make the plot window appear as double as wide as the control panel)
+            The control panel has a minimum hight of 6 units and will be stretched to mach hight, if needed.
+        selection_marker_kwargs :
+            Marker appearence keywords to modify selection marker appearance. The markers are set via the
+            `matplotlib.pyplot.scatter <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.scatter.html>`_
+            method and can have the options listed there.
+            The default (None) results in saqc.lib.flaGUI.SELECTION_MARKER_DEFAULT dictionary being used.
+            This default Dictionary will be updated with the dictionary passed to the keyword. (not overridden)
         ax_kwargs :
             Axis keywords. Change axis specifics. Those are passed on to the
             `matplotlib.axes.Axes.set <https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.set.html>`_
@@ -108,27 +120,35 @@ class ToolsMixin:
 
         """
         data, flags = self._data.copy(), self._flags.copy()
+
         flag = kwargs.get("flag", BAD)
         label = kwargs.get("label", "")
+
         if dfilter < np.inf:
             for f in field:
                 data[f].loc[flags[f] >= dfilter] = np.nan
-
+        if screen_size[1] < 6:
+            raise ValueError(
+                f"width value of parameter screen size has to be 6 or higher. Got {screen_size[1]}"
+            )
+        s
+        election_marker_kwargs = selection_marker_kwargs or {}
         ax_kwargs = ax_kwargs or {}
         marker_kwargs = marker_kwargs or {}
         plot_kwargs = plot_kwargs or {}
         mpl.use(_MPL_DEFAULT_BACKEND)
 
-        GUI_mosaic = [
-            ["plot", "plot", "plot", "plot", "plot", "flag_button", "flag_button"],
-            ["plot", "plot", "plot", "plot", "plot", "undo_button", "undo_button"],
-            ["plot", "plot", "plot", "plot", "plot", "remove_button", "remove_button"],
-            ["plot", "plot", "plot", "plot", "plot", ".", "flag_box"],
-            ["plot", "plot", "plot", "plot", "plot", ".", "label_box"],
-            ["plot", "plot", "plot", "plot", "plot", "assign_button", "assign_button"],
-        ]
+        gui_layout = np.empty((screen_size[0], screen_size[1] + 2), dtype="object")
+        gui_layout[:, : screen_size[1]] = "plot"
+        gui_layout[:, -2:] = "."
+        gui_layout[0, -2:] = np.array(["flag_button", "flag_button"])
+        gui_layout[1, -2:] = np.array(["undo_button", "undo_button"])
+        gui_layout[2, -2:] = np.array(["remove_button", "remove_button"])
+        gui_layout[3, -2:] = np.array([".", "flag_box"])
+        gui_layout[4, -2:] = np.array([".", "label_box"])
+        gui_layout[-1, -2:] = np.array(["assign_button", "assign_button"])
 
-        gui_fig, gui_axes = plt.subplot_mosaic(GUI_mosaic)
+        gui_fig, gui_axes = plt.subplot_mosaic(gui_layout)
 
         makeFig(
             data=data,
@@ -144,14 +164,21 @@ class ToolsMixin:
             scatter_kwargs=marker_kwargs,
             plot_kwargs=plot_kwargs,
         )
+
         d = data[field].dropna()
         slc_overlay = gui_axes["plot"].scatter(d.index, d.values)
         gui_axes["plot"].set_xlim(auto=True)
         selector = FlaGUI(
-            gui_axes, slc_overlay, index=d.index, flag_val=flag, label_val=label
+            gui_axes,
+            slc_overlay,
+            index=d.index,
+            flag_val=flag,
+            label_val=label,
+            selection_marker_kwargs=selection_marker_kwargs,
         )
         plt.show()
         selector.disconnect()
+
         if selector.confirmed:
             kwargs.update({"label": selector.labelValueBox.text})
             flag_val = selector.flagValueBox.text

@@ -13,83 +13,69 @@ from matplotlib.widgets import Button, RectangleSelector, TextBox
 ADD_SHORTCUT = "a"
 UNDO_SHORTCUT = "z"
 REMOVE_SHORTCUT = "r"
+ASSIGN_SHORTCUT = "enter"
+SELECTION_MARKER_DEFAULT = {
+    "marker": "X",
+    "c": "red",
+    "s": 100,
+    "alpha": 1,
+    "zorder": 100,
+}
 
 
 class FlaGUI:
-    """
-    Select indices from a matplotlib collection using `PolygonSelector`.
-
-    Selected indices are saved in the `ind` attribute. This tool fades out the
-    points that are not part of the selection (i.e., reduces their alpha
-    values). If your collection has alpha < 1, this tool will permanently
-    alter the alpha values.
-
-    Note that this tool selects collection objects based on their *origins*
-    (i.e., `offsets`).
-
-    Parameters
-    ----------
-    gui_axes : `~matplotlib.axes.Axes`
-        Axes to interact with.
-    collection : `matplotlib.collections.Collection` subclass
-        Collection you want to select from.
-    alpha_other : 0 <= float <= 1
-        To highlight a selection, this tool sets all selected points to an
-        alpha value of 1 and non-selected points to *alpha_other*.
-    """
-
     def __init__(
-        self, gui_axes, collection, index, alpha_other=0, flag_val=255.0, label_val=""
+        self,
+        gui_axes,
+        collection,
+        index,
+        flag_val=255.0,
+        label_val="",
+        selection_marker_kwargs=SELECTION_MARKER_DEFAULT,
     ):
         self.canvas = gui_axes["plot"].figure.canvas
         self.canvas.mpl_connect("key_press_event", self.keyPressEvents)
         self.collection = collection
-        self.alpha_other = alpha_other
         self.marker_handles = {}
         self.xys = collection.get_offsets()
-        self.Npts = len(self.xys)
         self.index = index
-
-        # Ensure that we have separate colors for each object
-        self.fc = collection.get_facecolors()
-        if len(self.fc) == 0:
-            raise ValueError("Collection must have a face color")
-        elif len(self.fc) == 1:
-            self.fc = np.tile(self.fc, (self.Npts, 1))
-
-        self.fc[:, -1] = self.alpha_other
+        self.label = None
+        self.flag = None
+        self.fc = np.tile(collection.get_facecolors(), (len(self.xys), 1))
+        self.fc[:, -1] = 0
         self.collection.set_facecolors(self.fc)
         self.rect = RectangleSelector(
             gui_axes["plot"], self.onselect, use_data_coordinates=True
         )
         self.marked = np.zeros(len(index)).astype(bool)
         self.selection = np.zeros(len(index)).astype(int)
-        self.ax = gui_axes
+        self.axes = gui_axes
         self.confirmed = False
-
-        # Flagging Button Definition:
-        self.flagButton = Button(self.ax["flag_button"], f"Add ({ADD_SHORTCUT})")
-        self.flagButton.on_clicked(self.flagButtonCB)
         self.select_count = 0
+        self.s_marker_kwargs = {**SELECTION_MARKER_DEFAULT, **selection_marker_kwargs}
 
-        self.undoButton = Button(self.ax["undo_button"], f"Back ({UNDO_SHORTCUT})")
+        # Buttons and Text Boxe:
+        self.flagButton = Button(self.axes["flag_button"], f"Add ({ADD_SHORTCUT})")
+        self.flagButton.on_clicked(self.flagButtonCB)
+
+        self.undoButton = Button(self.axes["undo_button"], f"Back ({UNDO_SHORTCUT})")
         self.undoButton.on_clicked(self.undoButtonCB)
 
         self.removeButton = Button(
-            self.ax["remove_button"], f"Remove ({REMOVE_SHORTCUT})"
+            self.axes["remove_button"], f"Remove ({REMOVE_SHORTCUT})"
         )
         self.removeButton.on_clicked(self.removeButtonCB)
 
         self.assignAndClose = Button(
-            self.ax["assign_button"], f"Assign \n (ends session)"
+            self.axes["assign_button"], f"Assign ({ASSIGN_SHORTCUT})\n (ends session)"
         )
         self.assignAndClose.on_clicked(self.assignAndCloseCB)
 
         self.flagValueBox = TextBox(
-            self.ax["flag_box"], "Flagging Level", initial=flag_val
+            self.axes["flag_box"], "Flagging Level", initial=flag_val
         )
         self.labelValueBox = TextBox(
-            self.ax["label_box"], "Flags Label", initial=label_val
+            self.axes["label_box"], "Flags Label", initial=label_val
         )
         self.canvas.draw_idle()
 
@@ -116,7 +102,6 @@ class FlaGUI:
         self.rect.disconnect_events()
 
     def flagButtonCB(self, val):
-        # transfer marks to selection and draw the "selected" marker to the selected positions
         add_mask = self.marked & (self.selection == 0)
         if not add_mask.any():
             return
@@ -154,10 +139,14 @@ class FlaGUI:
     def assignAndCloseCB(self, vals):
         self.confirmed = True
         if self.labelValueBox.text == "":
-            self.labelValueBox.text = None
+            self.label = None
+        else:
+            self.label = self.labelValueBox.text
         if self.flagValueBox.text == "UNFLAGGED":
-            self.flagValueBox.text = -np.inf
-        close(self.ax["plot"].figure)
+            self.flag = -np.inf
+        else:
+            self.flag = self.flagValueBox.text
+        close(self.axes["plot"].figure)
 
     def keyPressEvents(self, event):
         if event.key == ADD_SHORTCUT:
@@ -166,6 +155,8 @@ class FlaGUI:
             self.undoButtonCB(event.key)
         if event.key == REMOVE_SHORTCUT:
             self.removeButtonCB(event.key)
+        if event.key == ASSIGN_SHORTCUT:
+            self.assignAndCloseCB(event.key)
 
     def drawSelection(self, s_index=None):
         if s_index is None:
@@ -173,12 +164,12 @@ class FlaGUI:
         else:
             draw_mask = self.selection == s_index
         dates = self.index[draw_mask]
-        xl = self.ax["plot"].get_xlim()
-        handle = self.ax["plot"].scatter(
-            x=dates, y=np.array(self.xys[draw_mask][:, 1]), marker="X", c="red", s=100
+        xl = self.axes["plot"].get_xlim()
+        handle = self.axes["plot"].scatter(
+            x=dates, y=np.array(self.xys[draw_mask][:, 1]), **self.s_marker_kwargs
         )
         if s_index is None:
             self.marker_handles.update({self.select_count: handle})
         else:
             self.marker_handles.update({s_index: handle})
-        self.ax["plot"].set_xlim(xl)
+        self.axes["plot"].set_xlim(xl)
