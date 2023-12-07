@@ -14,16 +14,16 @@ from typing import TYPE_CHECKING, Optional
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from typing_extensions import Literal
 
-from saqc import FILTER_NONE, UNFLAGGED, BAD
+from saqc import BAD, FILTER_NONE, UNFLAGGED
 from saqc.core import processing, register
 from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
+from saqc.lib.flaGUI import FlaGUI
 from saqc.lib.plotting import makeFig
 from saqc.lib.tools import periodicMask, toSequence
-from saqc.lib.flaGUI import FlaGUI
-import pandas as pd
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -33,27 +33,22 @@ _MPL_DEFAULT_BACKEND = mpl.get_backend()
 
 
 class ToolsMixin:
-    @register(
-        mask=[],
-        demask=[],
-        squeeze=[]
-    )
-    def flagByClick(self: "SaQC",
-                    field: str,
-                    max_gap: str | None = None,
-                    mode: Literal["subplots", "oneplot"] | str = "oneplot",
-                    xscope: slice | None = None,
-                    ax_kwargs: dict | None = None,
-                    marker_kwargs: dict | None = None,
-                    plot_kwargs: dict | None = None,
-                    dfilter: float = FILTER_NONE,
-                    **kwargs,
-                    ) -> "SaQC":
-
-
+    @register(mask=[], demask=[], squeeze=[])
+    def flagByClick(
+        self: "SaQC",
+        field: str,
+        max_gap: str | None = None,
+        mode: Literal["subplots", "oneplot"] | str = "oneplot",
+        xscope: slice | None = None,
+        ax_kwargs: dict | None = None,
+        marker_kwargs: dict | None = None,
+        plot_kwargs: dict | None = None,
+        dfilter: float = FILTER_NONE,
+        **kwargs,
+    ) -> "SaQC":
         data, flags = self._data.copy(), self._flags.copy()
-        flag = kwargs.get('flag', BAD)
-        label = kwargs.get('label', '')
+        flag = kwargs.get("flag", BAD)
+        label = kwargs.get("label", "")
         if dfilter < np.inf:
             for f in field:
                 data[f].loc[flags[f] >= dfilter] = np.nan
@@ -63,13 +58,15 @@ class ToolsMixin:
         plot_kwargs = plot_kwargs or {}
         mpl.use(_MPL_DEFAULT_BACKEND)
 
+        GUI_mosaic = [
+            ["plot", "plot", "plot", "plot", "plot", "flag_button", "flag_button"],
+            ["plot", "plot", "plot", "plot", "plot", "undo_button", "undo_button"],
+            ["plot", "plot", "plot", "plot", "plot", "remove_button", "remove_button"],
+            ["plot", "plot", "plot", "plot", "plot", ".", "flag_box"],
+            ["plot", "plot", "plot", "plot", "plot", ".", "label_box"],
+            ["plot", "plot", "plot", "plot", "plot", "assign_button", "assign_button"],
+        ]
 
-        GUI_mosaic = [['plot', 'plot','plot', 'flag_button', 'flag_button'],
-                      ['plot', 'plot', 'plot','undo_button', 'undo_button'],
-                      ['plot', 'plot', 'plot','remove_button' ,'remove_button'],
-                      ['plot', 'plot', 'plot', '.', 'flag_box'],
-                      ['plot', 'plot', 'plot', '.', 'label_box'],
-                      ['plot', 'plot', 'plot','assign_button' ,'assign_button']]
         gui_fig, gui_axes = plt.subplot_mosaic(GUI_mosaic)
 
         makeFig(
@@ -79,27 +76,31 @@ class ToolsMixin:
             level=UNFLAGGED,
             mode=mode,
             max_gap=max_gap,
-            history='valid',
+            history="valid",
             xscope=xscope,
-            ax=gui_axes['plot'],
+            ax=gui_axes["plot"],
             ax_kwargs=ax_kwargs,
             scatter_kwargs=marker_kwargs,
             plot_kwargs=plot_kwargs,
         )
         d = data[field].dropna()
-        slc_overlay = gui_axes['plot'].scatter(d.index, d.values)
-        gui_axes['plot'].set_xlim(auto=True)
-        selector = FlaGUI(gui_axes, slc_overlay, index=d.index, flag_val=flag, label_val=label)
+        slc_overlay = gui_axes["plot"].scatter(d.index, d.values)
+        gui_axes["plot"].set_xlim(auto=True)
+        selector = FlaGUI(
+            gui_axes, slc_overlay, index=d.index, flag_val=flag, label_val=label
+        )
         plt.show()
         selector.disconnect()
         if selector.confirmed:
-            kwargs.update({'label': selector.labelValueBox.text})
+            kwargs.update({"label": selector.labelValueBox.text})
             flag_val = selector.flagValueBox.text
             flag = float(flag_val)
             if flag > 255.0:
-                raise ValueError(f'Numerical value to set as a flag exceeds Limit (255.0). Got {flag}')
+                raise ValueError(
+                    f"Numerical value to set as a flag exceeds Limit (255.0). Got {flag}"
+                )
 
-            to_flag = selector.index[selector.selection>0]
+            to_flag = selector.index[selector.selection > 0]
 
             new_col = pd.Series(np.nan, index=self._flags[field].index)
             new_col.loc[to_flag] = flag

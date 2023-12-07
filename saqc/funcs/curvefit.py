@@ -13,8 +13,7 @@ import numpy as np
 import pandas as pd
 
 from saqc.core import DictOfSeries, Flags, register
-from saqc.lib.checking import (
-    #extractLiteral,
+from saqc.lib.checking import (  # extractLiteral,
     validateChoice,
     validateMinPeriods,
     validateValueBounds,
