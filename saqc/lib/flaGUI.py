@@ -45,7 +45,7 @@ class FlaGUI:
         self.fc[:, -1] = 0
         self.collection.set_facecolors(self.fc)
         self.rect = RectangleSelector(
-            gui_axes["plot"], self.onselect, use_data_coordinates=True
+            gui_axes["plot"], self.onselect, use_data_coordinates=True, useblit=True,
         )
         self.marked = np.zeros(len(index)).astype(bool)
         self.selection = np.zeros(len(index)).astype(int)
