@@ -77,7 +77,7 @@ class SaQC(FunctionsMixin):
         For internal usage only! Setting values through `injectables` has
         the potential to mess up certain invariants of the constructed object.
         """
-        out = SaQC(data=DictOfSeries(), flags=Flags(), scheme=self._scheme)
+        out = self.__class__(data=DictOfSeries(), flags=Flags(), scheme=self._scheme)
         out.attrs = self._attrs
         for k, v in attributes.items():
             if k not in self._attributes:

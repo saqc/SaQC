@@ -43,6 +43,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `SaQC.assignChangePointCluster` and `SaQC.flagChangePoints`: A tuple passed `min_period`
    was only recognised if `window` was also a tuple.
 - `SaQC.propagateFlags` was overwriting existing flags
+- `SaQC._construct` : was not working for inherit classes (used hardcoded `SaQC` to construct a new instance).
 ### Deprecated
 - `SaQC.andGroup` and `SaQC.orGroup`: option to pass dictionaries to `group`.
 - `SaQC.plot`:
