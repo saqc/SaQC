@@ -48,7 +48,7 @@ class FlaGUI:
             gui_axes["plot"],
             self.onselect,
             use_data_coordinates=True,
-            useblit=True,
+            useblit=True
         )
         self.marked = np.zeros(len(index)).astype(bool)
         self.selection = np.zeros(len(index)).astype(int)
