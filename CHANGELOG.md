@@ -12,9 +12,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `SaQC`: automatic translation of incoming flags
 - Option to change the flagging scheme after initialization
 - `SaQC`: support for selection, slicing and setting of items by use of subscription on SaQC objects (e.g. `qc[key]` and `qc[key] = value`).
-   Selection works with single keys, collections of keys and string slices (e.g. `qc["a":"f"]`). Values to set are SaQC instances (e.g.`qc[["a", "b"]] = qc[["c", "a"]]`).
-- `SaQC`: support for inserting *new* data series in an existing SaQC object by use of subscription with a *new* key and a series (`qc["new_key"] = pd.Series`)
-- `SaQC`: support for inserting *new* data **and** flags in an existing SaQC object by use of subscription with a *new* key and a SaQC object (`qc["new_key"] = qc["a"]`)
+   Selection works with single keys, collections of keys and string slices (e.g. `qc["a":"f"]`).  Values can be SaQC objects, pd.Series, 
+   Iterable of Series and dict-like with series values.
 ### Changed
 ### Removed
 ### Fixed

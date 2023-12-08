@@ -498,39 +498,40 @@ pdDf = pd.DataFrame
 
 
 @pytest.mark.parametrize(
-    "data,key,value,expected",
+    "value",
     [
-        (
-            # series - data: yes, flags: no
-            SaQC(pdDf(dict(a=[1, 1], b=[2, 2]))),
-            "c",
-            pd.Series([8, 8]),
-            SaQC(
-                pdDf(dict(a=[1, 2], b=[2, 2], c=[8, 8])),
-                pdDf(dict(a=[U, U], b=[U, U], c=[U, U])),
-            ),
-        ),
-        (
-            # single column SaQC obj - data: yes, flags: yes
-            SaQC(pdDf(dict(a=[1, 1], b=[2, 2]))),
-            "c",
-            SaQC(pdDf(dict(new=[8, 8])), pdDf(dict(new=[B, B]))),
-            SaQC(
-                pdDf(dict(a=[1, 2], b=[2, 2], c=[8, 8])),
-                pdDf(dict(a=[U, U], b=[U, U], c=[B, B])),
-            ),
-        ),
+        SaQC(pd.DataFrame(dict(a=[1, 2, 3]))),
+        pd.Series([1, 2, 3]),
+        pd.DataFrame(dict(a=[1, 2, 3])),
+        DictOfSeries(dict(a=pd.Series([1, 2, 3]))),
+        dict(a=pd.Series([1, 2, 3])),
+        [pd.Series([1, 2, 3])],
+        (s for s in [pd.Series([1, 2, 3])]),
     ],
 )
-def test__setitem__insert(data, key, value, expected):
-    data[key] = value
-    assert data.data[key].equals(expected.data[key])
-    assert data.flags[key].equals(expected.flags[key])
+def test__setitem__value_types(value):
+    qc = SaQC()
+    qc["x"] = value
+    assert qc.data["x"].equals(pd.Series([1, 2, 3]))
 
 
 @pytest.mark.parametrize(
     "data,key,value,expected",
     [
+        (
+            # insert a single series (data only)
+            SaQC(pdDf(dict(a=[1, 1]))),
+            "c",
+            pd.Series([8, 8]),
+            SaQC(pdDf(dict(a=[1, 2], c=[8, 8])), pdDf(dict(a=[U, U], c=[U, U]))),
+        ),
+        (
+            # insert data and flags by using SaQC obj
+            SaQC(pdDf(dict(a=[1, 1]))),
+            "c",
+            SaQC(pdDf(dict(new=[8, 8])), pdDf(dict(new=[B, B]))),
+            SaQC(pdDf(dict(a=[1, 2], c=[8, 8])), pdDf(dict(a=[U, U], c=[B, B]))),
+        ),
         (
             # empty key
             SaQC(pdDf(dict(a=[1, 2], b=[1, 2]))),
@@ -539,14 +540,14 @@ def test__setitem__insert(data, key, value, expected):
             SaQC(pdDf(dict(a=[1, 2], b=[8, 8])), pdDf(dict(a=[U, U], b=[U, U]))),
         ),
         (
-            # single key
+            # overwrite single key
             SaQC(pdDf(dict(a=[1, 2], b=[1, 2]))),
             "b",
             SaQC(pdDf(dict(new=[8, 8])), pdDf(dict(new=[B, B]))),
             SaQC(pdDf(dict(a=[1, 2], b=[8, 8])), pdDf(dict(a=[U, U], b=[B, B]))),
         ),
         (
-            # multi key
+            # overwrite multi key
             SaQC(pdDf(dict(a=[1, 2], b=[1, 2]))),
             ["a", "b"],
             SaQC(
@@ -555,9 +556,22 @@ def test__setitem__insert(data, key, value, expected):
             ),
             SaQC(pdDf(dict(a=[8, 8], b=[9, 9])), pdDf(dict(a=[B, B], b=[B, B]))),
         ),
+        (
+            # overwrite and insert
+            SaQC(pdDf(dict(a=[1, 2]))),
+            ["a", "b"],
+            SaQC(
+                pdDf(dict(new1=[8, 8], new2=[9, 9])),
+                pdDf(dict(new1=[B, B], new2=[B, B])),
+            ),
+            SaQC(
+                pdDf(dict(a=[8, 8], b=[9, 9])),
+                pdDf(dict(a=[B, B], b=[B, B])),
+            ),
+        ),
     ],
 )
-def test__setitem__update(data, key, value, expected):
+def test__setitem__(data, key, value, expected):
     data[key] = value
     assert data.columns.equals(expected.columns)
 
@@ -566,31 +580,5 @@ def test__setitem__update(data, key, value, expected):
         key = pd.Series(index=list("abcdef"))[key].index.tolist()
 
     for k in [key] if isinstance(key, str) else key:
-        assert data.data[k].equals(expected.data[k])
-        assert data.flags[k].equals(expected.flags[k])
-
-
-@pytest.mark.parametrize(
-    "data,key,value,expected",
-    [
-        (
-            SaQC(pdDf(dict(a=[1, 2]))),
-            ["a", "b"],
-            SaQC(
-                pdDf(dict(new1=[8, 8], new2=[9, 9])),
-                pdDf(dict(new1=[B, B], new2=[B, B])),
-            ),
-            SaQC(
-                pdDf(dict(a=[1, 2])),
-                pdDf(dict(a=[U, U])),
-            ),
-        )
-    ],
-)
-def test__setitem__update_does_not_insert(data, key, value, expected):
-    """See also: test_atomicWrite"""
-    with pytest.raises(KeyError):
-        data[key] = value
-    for k in data.columns:
         assert data.data[k].equals(expected.data[k])
         assert data.flags[k].equals(expected.flags[k])

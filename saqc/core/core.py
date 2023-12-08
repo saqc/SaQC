@@ -157,7 +157,7 @@ class SaQC(FunctionsMixin):
     def _get_keys(self, key: str | Iterable[str] | slice):
         if isinstance(key, str):
             key = [key]
-        if isinstance(key, slice):
+        elif isinstance(key, slice):
             sss = self.columns.slice_locs(key.start, key.stop, key.step)
             key = self.columns[slice(*sss)]
         keys = pd.Index(key)
@@ -191,47 +191,48 @@ class SaQC(FunctionsMixin):
         new = self._construct(_data=data, _flags=flags)
         return new._validate("a bug, pls report")
 
-    # fmt: off
-    @overload
-    def __setitem__(self, key: str, value: pd.Series): ...
-    @overload
-    def __setitem__(self, key: str | slice | Iterable[str], value: SaQC): ...
-    # fmt: on
-    def __setitem__(self, key: str | slice | Iterable[str], value: SaQC | pd.Series):
-        # insert
-        if isinstance(key, str) and key not in self.columns:
-            if isinstance(value, SaQC) and len(value) == 1:
-                k = value.columns[0]
-                with self._atomicWrite():
-                    self._data[key] = value._data[k].copy()
-                    self._flags.history[key] = value._flags.history[k].copy()
-            elif isinstance(value, pd.Series):
-                with self._atomicWrite():
-                    self._data[key] = value.copy()
-                    self._flags.history[key] = History(value.index)
-            else:
-                raise TypeError(
-                    "A new 'value' must be a pd.Series or "
-                    "a SaQC object with just one variable."
-                )
-            return
-
-        # update
+    def __setitem__(
+        self,
+        key: str | slice | Iterable[str],
+        value: SaQC
+        | pd.Series
+        | pd.DataFrame
+        | DictOfSeries
+        | dict[Any, pd.Series]
+        | Iterable[pd.Series],
+    ):
         keys = self._get_keys(key)
-        not_found = keys.difference(self.columns).tolist()
-        if not_found:
-            raise KeyError(f"{not_found} not in columns")
-        if not isinstance(value, SaQC):
-            raise ValueError(f"value must be of type SaQC, not {type(value)!r}")
+        if isinstance(value, SaQC):
+            pass
+        elif isinstance(value, pd.Series):
+            value = [value]
+        elif isinstance(value, (pd.DataFrame, DictOfSeries)):
+            value = [value[k] for k in value.keys()]
+        else:
+            if isinstance(value, dict):
+                value = value.values()
+            value = list(value)
+            for s in value:
+                if not isinstance(s, pd.Series):
+                    raise TypeError(
+                        f"all items of value must be of type "
+                        f"pd.Series, but got {type(s)}"
+                    )
+
         if len(keys) != len(value):
             raise ValueError(
                 f"Length mismatch, expected {len(keys)} elements, "
-                f"but new value has {len(value)} elements"
+                f"but value has {len(value)} elements"
             )
         with self._atomicWrite():
-            for k, c in zip(keys, value.columns):
-                self._data[k] = value._data[c].copy()
-                self._flags.history[k] = value._flags.history[c].copy()
+            if isinstance(value, SaQC):
+                for k, c in zip(keys, value.columns):
+                    self._data[k] = value._data[c].copy()
+                    self._flags.history[k] = value._flags.history[c].copy()
+            else:
+                for i, k in enumerate(keys):
+                    self._data[k] = value[i]
+                    self._flags.history[k] = History(value[i].index)
 
     @contextlib.contextmanager
     def _atomicWrite(self):
