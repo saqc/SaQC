@@ -176,8 +176,7 @@ class SaQC(FunctionsMixin):
 
     def __getitem__(self, key: str | slice | Iterable[str]) -> SaQC:
         keys = self._get_keys(key)
-        not_found = keys.difference(self.columns).tolist()
-        if not_found:
+        if not_found := keys.difference(self.columns).tolist():
             raise KeyError(f"{not_found} not in columns")
         # data = self._data[key] should work, but fails with key=[]
         # because of slice_dict issue #GH2 - empty list selection fails.
