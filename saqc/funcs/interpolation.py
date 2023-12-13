@@ -102,11 +102,11 @@ class InterpolationMixin:
     )
     def interpolateByRolling(
         self: "SaQC",
-        field: str,
         window: str | int,
         func: Callable[[pd.Series], float] | str = "median",
         center: bool = True,
         min_periods: int = 0,
+        field: str | None = None,
         flag: float = UNFLAGGED,
         **kwargs,
     ) -> "SaQC":
@@ -181,11 +181,11 @@ class InterpolationMixin:
     )
     def interpolate(
         self: "SaQC",
-        field: str,
         method: INTERPOLATION_METHODS = "time",
         order: int = 2,
         limit: int | str | None = None,
         extrapolate: Literal["forward", "backward", "both"] | None = None,
+        field: str | None = None,
         flag: float = UNFLAGGED,
         **kwargs,
     ) -> "SaQC":
@@ -355,12 +355,12 @@ class InterpolationMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def align(
         self: "SaQC",
-        field: str,
         freq: str,
         method: INTERPOLATION_METHODS = "time",
         order: int = 2,
         extrapolate: Literal["forward", "backward", "both"] | None = None,
         overwrite: bool = False,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -465,12 +465,12 @@ class InterpolationMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def interpolateIndex(
         self: "SaQC",
-        field: str,
         freq: str,
         method: INTERPOLATION_METHODS,
         order: int = 2,
         limit: int | None = 2,
         extrapolate: Literal["forward", "backward", "both"] = None,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -552,11 +552,11 @@ class InterpolationMixin:
     )
     def interpolateInvalid(
         self: "SaQC",
-        field: str,
         method: INTERPOLATION_METHODS,
         order: int = 2,
         limit: int | None = None,
         extrapolate: Literal["forward", "backward", "both"] | None = None,
+        field: str | None = None,
         flag: float = UNFLAGGED,
         **kwargs,
     ) -> "SaQC":

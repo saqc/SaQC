@@ -93,11 +93,11 @@ class PatternMixin:
     @flagging()
     def flagPatternByDTW(
         self: "SaQC",
-        field: str,
         reference: str,
         max_distance: float = 0.0,
         normalize: bool = True,
         plot: bool = False,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":

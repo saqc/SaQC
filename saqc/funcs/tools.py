@@ -40,9 +40,9 @@ class ToolsMixin:
     )
     def copyField(
         self: "SaQC",
-        field: str,
         target: str,
         overwrite: bool = False,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -62,7 +62,7 @@ class ToolsMixin:
         return self
 
     @processing()
-    def dropField(self: "SaQC", field: str, **kwargs) -> "SaQC":
+    def dropField(self: "SaQC", field: str | None = None, **kwargs) -> "SaQC":
         """
         Drops field from the data and flags.
         """
@@ -71,7 +71,9 @@ class ToolsMixin:
         return self
 
     @processing()
-    def renameField(self: "SaQC", field: str, new_name: str, **kwargs) -> "SaQC":
+    def renameField(
+        self: "SaQC", new_name: str, field: str | None = None, **kwargs
+    ) -> "SaQC":
         """
         Rename field in data and flags.
 
@@ -89,12 +91,12 @@ class ToolsMixin:
     @register(mask=[], demask=[], squeeze=["field"])
     def selectTime(
         self: "SaQC",
-        field: str,
         mode: Literal["periodic", "selection_field"],
         selection_field: str | None = None,
         start: str | None = None,
         end: str | None = None,
         closed: bool = True,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -206,7 +208,6 @@ class ToolsMixin:
     )
     def plot(
         self: "SaQC",
-        field: str | list[str],
         path: str | None = None,
         max_gap: str | None = None,
         mode: Literal["subplots", "oneplot"] | str = "oneplot",
@@ -218,6 +219,7 @@ class ToolsMixin:
         marker_kwargs: dict | None = None,
         plot_kwargs: dict | None = None,
         dfilter: float = FILTER_NONE,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

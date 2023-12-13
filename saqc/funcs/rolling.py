@@ -29,11 +29,11 @@ class RollingMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def rolling(
         self: "SaQC",
-        field: str,
         window: str | int,
         func: Callable[[pd.Series], np.ndarray] | str = "mean",
         min_periods: int = 0,
         center: bool = True,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -75,11 +75,11 @@ class RollingMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def roll(
         self: "SaQC",
-        field: str,
         window: Union[str, int],
         func: Callable[[pd.Series], np.ndarray] = np.mean,
         min_periods: int = 0,
         center: bool = True,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """

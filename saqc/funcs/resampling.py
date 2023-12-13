@@ -114,8 +114,8 @@ class ResamplingMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def linear(
         self: "SaQC",
-        field: str,
         freq: str,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -156,9 +156,9 @@ class ResamplingMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def shift(
         self: "SaQC",
-        field: str,
         freq: str,
         method: Literal["fshift", "bshift", "nshift"] = "nshift",
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -192,12 +192,12 @@ class ResamplingMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def resample(
         self: "SaQC",
-        field: str,
         freq: str,
         func: Callable[[pd.Series], pd.Series] | str = np.mean,
         method: Literal["fagg", "bagg", "nagg"] = "bagg",
         maxna: int | None = None,
         maxna_group: int | None = None,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -303,7 +303,6 @@ class ResamplingMixin:
     )
     def concatFlags(
         self: "SaQC",
-        field: str,
         target: str | None = None,
         method: Literal[
             "inverse_fagg",
@@ -320,6 +319,7 @@ class ResamplingMixin:
         drop: bool = False,
         squeeze: bool = False,
         overwrite: bool = False,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """

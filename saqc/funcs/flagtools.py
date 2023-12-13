@@ -27,14 +27,16 @@ if TYPE_CHECKING:
 
 class FlagtoolsMixin:
     @flagging()
-    def flagDummy(self: "SaQC", field: str, **kwargs) -> "SaQC":
+    def flagDummy(self: "SaQC", field: str | None = None, **kwargs) -> "SaQC":
         """
         Function does nothing but returning data and flags.
         """
         return self
 
     @register(mask=[], demask=[], squeeze=["field"])
-    def forceFlags(self: "SaQC", field: str, flag: float = BAD, **kwargs) -> "SaQC":
+    def forceFlags(
+        self: "SaQC", field: str | None = None, flag: float = BAD, **kwargs
+    ) -> "SaQC":
         """
         Set whole column to a flag value.
 
@@ -47,7 +49,7 @@ class FlagtoolsMixin:
         return self
 
     @register(mask=[], demask=[], squeeze=["field"])
-    def clearFlags(self: "SaQC", field: str, **kwargs) -> "SaQC":
+    def clearFlags(self: "SaQC", field: str | None = None, **kwargs) -> "SaQC":
         """
         Set whole column to UNFLAGGED.
 
@@ -72,7 +74,9 @@ class FlagtoolsMixin:
         return self.forceFlags(field, flag=UNFLAGGED, **kwargs)
 
     @register(mask=[], demask=[], squeeze=["field"])
-    def flagUnflagged(self: "SaQC", field: str, flag: float = BAD, **kwargs) -> "SaQC":
+    def flagUnflagged(
+        self: "SaQC", field: str | None = None, flag: float = BAD, **kwargs
+    ) -> "SaQC":
         """
         Function sets a flag at all unflagged positions.
 
@@ -93,13 +97,13 @@ class FlagtoolsMixin:
     @register(mask=["field"], demask=["field"], squeeze=["field"])
     def flagManual(
         self: "SaQC",
-        field: str,
         mdata: str | pd.Series | np.ndarray | list | pd.DataFrame | DictOfSeries,
         method: Literal[
             "left-open", "right-open", "closed", "plain", "ontime"
         ] = "left-open",
         mformat: Literal["start-end", "mflag"] = "start-end",
         mflag: Any = 1,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -293,10 +297,10 @@ class FlagtoolsMixin:
     )
     def transferFlags(
         self: "SaQC",
-        field: str,
         target: str | None = None,
         squeeze: bool = False,
         overwrite: bool = False,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -386,9 +390,9 @@ class FlagtoolsMixin:
     @flagging()
     def propagateFlags(
         self: "SaQC",
-        field: str,
         window: str | int,
         method: Literal["ffill", "bfill"] = "ffill",
+        field: str | None = None,
         flag: float = BAD,
         dfilter: float = FILTER_ALL,
         **kwargs,
@@ -508,8 +512,8 @@ class FlagtoolsMixin:
     )
     def andGroup(
         self: "SaQC",
-        field: str | list[str | list[str]],
         group: Sequence["SaQC"] | None = None,
+        field: str | list[str | list[str]] | None = None,
         target: str | list[str | list[str]] | None = None,
         flag: float = BAD,
         **kwargs,
@@ -543,8 +547,8 @@ class FlagtoolsMixin:
     )
     def orGroup(
         self: "SaQC",
-        field: str | list[str | list[str]],
         group: Sequence["SaQC"] | None = None,
+        field: str | list[str | list[str]] | None = None,
         target: str | list[str | list[str]] | None = None,
         flag: float = BAD,
         **kwargs,

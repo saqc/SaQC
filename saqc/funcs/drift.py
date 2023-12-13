@@ -60,7 +60,6 @@ class DriftMixin:
     )
     def flagDriftFromNorm(
         self: "SaQC",
-        field: Sequence[str],
         window: str,  # TODO: this should be named 'freq'
         spread: float,
         frac: float = 0.5,
@@ -68,6 +67,7 @@ class DriftMixin:
             [np.ndarray | pd.Series, np.ndarray | pd.Series], np.ndarray
         ] = cityblock,
         method: LinkageString = "single",
+        field: Sequence[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -180,13 +180,13 @@ class DriftMixin:
     )
     def flagDriftFromReference(
         self: "SaQC",
-        field: Sequence[str],
         reference: str,
         freq: str,
         thresh: float,
         metric: Callable[
             [np.ndarray | pd.Series, np.ndarray | pd.Series], np.ndarray
         ] = cityblock,
+        field: Sequence[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -245,10 +245,10 @@ class DriftMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def correctDrift(
         self: "SaQC",
-        field: str,
         maintenance_field: str,
         model: Callable[..., float] | Literal["linear", "exponential"],
         cal_range: int = 5,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -375,11 +375,11 @@ class DriftMixin:
     @register(mask=["field", "cluster_field"], demask=["cluster_field"], squeeze=[])
     def correctRegimeAnomaly(
         self: "SaQC",
-        field: str,
         cluster_field: str,
         model: CurveFitter,
         tolerance: Optional[str] = None,
         epoch: bool = False,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -493,12 +493,12 @@ class DriftMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def correctOffset(
         self: "SaQC",
-        field: str,
         max_jump: float,
         spread: float,
         window: str,
         min_periods: int,
         tolerance: str | None = None,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -557,7 +557,6 @@ class DriftMixin:
     @flagging()
     def flagRegimeAnomaly(
         self: "SaQC",
-        field: str,
         cluster_field: str,
         spread: float,
         method: LinkageString = "single",
@@ -565,6 +564,7 @@ class DriftMixin:
             [np.ndarray | pd.Series, np.ndarray | pd.Series], float
         ] = lambda x, y: np.abs(np.nanmean(x) - np.nanmean(y)),
         frac: float = 0.5,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -629,7 +629,6 @@ class DriftMixin:
     @register(mask=["field", "cluster_field"], demask=["cluster_field"], squeeze=[])
     def assignRegimeAnomaly(
         self: "SaQC",
-        field: str,
         cluster_field: str,
         spread: float,
         method: LinkageString = "single",
@@ -637,6 +636,7 @@ class DriftMixin:
             np.nanmean(x) - np.nanmean(y)
         ),
         frac: float = 0.5,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """

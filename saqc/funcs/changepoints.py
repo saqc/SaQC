@@ -31,13 +31,13 @@ class ChangepointsMixin:
     @flagging()
     def flagChangePoints(
         self: "SaQC",
-        field: str,
         stat_func: Callable[[np.ndarray, np.ndarray], float],
         thresh_func: Callable[[np.ndarray, np.ndarray], float],
         window: str | Tuple[str, str],
         min_periods: int | Tuple[int, int],
         reduce_window: str | None = None,
         reduce_func: Callable[[np.ndarray, np.ndarray], int] = lambda x, _: x.argmax(),
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -114,7 +114,6 @@ class ChangepointsMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def assignChangePointCluster(
         self: "SaQC",
-        field: str,
         stat_func: Callable[[np.ndarray, np.ndarray], float],
         thresh_func: Callable[[np.ndarray, np.ndarray], float],
         window: str | Tuple[str, str],
@@ -124,6 +123,7 @@ class ChangepointsMixin:
             [np.ndarray, np.ndarray], float
         ] = lambda x, _: x.argmax(),
         model_by_resids: bool = False,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """

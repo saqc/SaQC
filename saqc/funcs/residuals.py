@@ -24,10 +24,10 @@ class ResidualsMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def calculatePolynomialResiduals(
         self: "SaQC",
-        field: str,
         window: str | int,
         order: int,
         min_periods: int = 0,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -88,11 +88,11 @@ class ResidualsMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def calculateRollingResiduals(
         self: "SaQC",
-        field: str,
         window: str | int,
         func: Callable[[pd.Series], np.ndarray] | str = "mean",
         min_periods: int = 0,
         center: bool = True,
+        field: str | None = None,
         **kwargs,
     ) -> "SaQC":
         """

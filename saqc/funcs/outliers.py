@@ -63,11 +63,11 @@ class OutliersMixin:
     )
     def flagLOF(
         self: "SaQC",
-        field: Sequence[str],
         n: int = 20,
         thresh: Literal["auto"] | float = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: int = 1,
+        field: Sequence[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -172,13 +172,13 @@ class OutliersMixin:
     @flagging()
     def flagUniLOF(
         self: "SaQC",
-        field: str,
         n: int = 20,
         thresh: Literal["auto"] | float = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: int = 1,
         density: Literal["auto"] | float = "auto",
         fill_na: bool = True,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -375,9 +375,9 @@ class OutliersMixin:
     @flagging()
     def flagRange(
         self: "SaQC",
-        field: str,
         min: float = -np.inf,
         max: float = np.inf,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -401,11 +401,11 @@ class OutliersMixin:
     @flagging()
     def flagByStray(
         self: "SaQC",
-        field: str,
         window: int | str | None = None,
         min_periods: int = 11,
         iter_start: float = 0.5,
         alpha: float = 0.05,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -509,7 +509,6 @@ class OutliersMixin:
     )
     def flagMVScores(
         self: "SaQC",
-        field: Sequence[str],
         trafo: Callable[[pd.Series], pd.Series] = lambda x: x,
         alpha: float = 0.05,
         n: int = 10,
@@ -521,6 +520,7 @@ class OutliersMixin:
         drop_flagged: bool = False,  # TODO: still a case ?
         thresh: float = 3.5,
         min_periods_r: int = 1,
+        field: Sequence[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -729,7 +729,6 @@ class OutliersMixin:
     @flagging()
     def flagRaise(
         self: "SaQC",
-        field: str,
         thresh: float,
         raise_window: str,
         freq: str,
@@ -737,6 +736,7 @@ class OutliersMixin:
         raise_factor: float = 2.0,
         slope: float | None = None,
         weight: float = 0.8,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -891,12 +891,12 @@ class OutliersMixin:
     @flagging()
     def flagMAD(
         self: "SaQC",
-        field: str,
         window: str | int | None = None,
         z: float = 3.5,
         min_residuals: int | None = None,
         min_periods: int | None = None,
         center: bool = False,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -952,11 +952,11 @@ class OutliersMixin:
     @flagging()
     def flagOffset(
         self: "SaQC",
-        field: str,
         tolerance: float,
         window: int | str,
         thresh: float | None = None,
         thresh_relative: float | None = None,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -1154,11 +1154,11 @@ class OutliersMixin:
     @flagging()
     def flagByGrubbs(
         self: "SaQC",
-        field: str,
         window: str | int,
         alpha: float = 0.05,
         min_periods: int = 8,
         pedantic: bool = False,
+        field: str | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -1270,9 +1270,9 @@ class OutliersMixin:
     )
     def flagCrossStatistics(
         self: "SaQC",
-        field: Sequence[str],
         thresh: float,
         method: Literal["modZscore", "Zscore"] = "modZscore",
+        field: Sequence[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -1348,7 +1348,6 @@ class OutliersMixin:
     )
     def flagZScore(
         self: "SaQC",
-        field: Sequence[str],
         method: Literal["standard", "modified"] = "standard",
         window: str | int | None = None,
         thresh: float = 3,
@@ -1356,6 +1355,7 @@ class OutliersMixin:
         min_periods: int | None = None,
         center: bool = True,
         axis: int = 0,
+        field: Sequence[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
