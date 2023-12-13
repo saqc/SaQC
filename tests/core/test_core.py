@@ -18,6 +18,8 @@ from saqc.lib.types import OptionalNone
 from tests.common import initData
 
 OPTIONAL = [False, True]
+U = UNFLAGGED
+B = BAD
 
 
 @pytest.fixture
@@ -492,11 +494,6 @@ def test__setitem__duplicateKey():
         qc[["a", "a"]] = SaQC(pd.DataFrame(dict(a=[1, 1], b=[2, 2])))
 
 
-U = UNFLAGGED
-B = BAD
-pdDf = pd.DataFrame
-
-
 @pytest.mark.parametrize(
     "value",
     [
@@ -520,53 +517,68 @@ def test__setitem__value_types(value):
     [
         (
             # insert a single series (data only)
-            SaQC(pdDf(dict(a=[1, 1]))),
+            SaQC(pd.DataFrame(dict(a=[1, 1]))),
             "c",
             pd.Series([8, 8]),
-            SaQC(pdDf(dict(a=[1, 2], c=[8, 8])), pdDf(dict(a=[U, U], c=[U, U]))),
+            SaQC(
+                pd.DataFrame(dict(a=[1, 2], c=[8, 8])),
+                pd.DataFrame(dict(a=[U, U], c=[U, U])),
+            ),
         ),
         (
             # insert data and flags by using SaQC obj
-            SaQC(pdDf(dict(a=[1, 1]))),
+            SaQC(pd.DataFrame(dict(a=[1, 1]))),
             "c",
-            SaQC(pdDf(dict(new=[8, 8])), pdDf(dict(new=[B, B]))),
-            SaQC(pdDf(dict(a=[1, 2], c=[8, 8])), pdDf(dict(a=[U, U], c=[B, B]))),
+            SaQC(pd.DataFrame(dict(new=[8, 8])), pd.DataFrame(dict(new=[B, B]))),
+            SaQC(
+                pd.DataFrame(dict(a=[1, 2], c=[8, 8])),
+                pd.DataFrame(dict(a=[U, U], c=[B, B])),
+            ),
         ),
         (
             # empty key
-            SaQC(pdDf(dict(a=[1, 2], b=[1, 2]))),
+            SaQC(pd.DataFrame(dict(a=[1, 2], b=[1, 2]))),
             [],
             SaQC(),
-            SaQC(pdDf(dict(a=[1, 2], b=[8, 8])), pdDf(dict(a=[U, U], b=[U, U]))),
+            SaQC(
+                pd.DataFrame(dict(a=[1, 2], b=[8, 8])),
+                pd.DataFrame(dict(a=[U, U], b=[U, U])),
+            ),
         ),
         (
             # overwrite single key
-            SaQC(pdDf(dict(a=[1, 2], b=[1, 2]))),
+            SaQC(pd.DataFrame(dict(a=[1, 2], b=[1, 2]))),
             "b",
-            SaQC(pdDf(dict(new=[8, 8])), pdDf(dict(new=[B, B]))),
-            SaQC(pdDf(dict(a=[1, 2], b=[8, 8])), pdDf(dict(a=[U, U], b=[B, B]))),
+            SaQC(pd.DataFrame(dict(new=[8, 8])), pd.DataFrame(dict(new=[B, B]))),
+            SaQC(
+                pd.DataFrame(dict(a=[1, 2], b=[8, 8])),
+                pd.DataFrame(dict(a=[U, U], b=[B, B])),
+            ),
         ),
         (
             # overwrite multi key
-            SaQC(pdDf(dict(a=[1, 2], b=[1, 2]))),
+            SaQC(pd.DataFrame(dict(a=[1, 2], b=[1, 2]))),
             ["a", "b"],
             SaQC(
-                pdDf(dict(new1=[8, 8], new2=[9, 9])),
-                pdDf(dict(new1=[B, B], new2=[B, B])),
+                pd.DataFrame(dict(new1=[8, 8], new2=[9, 9])),
+                pd.DataFrame(dict(new1=[B, B], new2=[B, B])),
             ),
-            SaQC(pdDf(dict(a=[8, 8], b=[9, 9])), pdDf(dict(a=[B, B], b=[B, B]))),
+            SaQC(
+                pd.DataFrame(dict(a=[8, 8], b=[9, 9])),
+                pd.DataFrame(dict(a=[B, B], b=[B, B])),
+            ),
         ),
         (
             # overwrite and insert
-            SaQC(pdDf(dict(a=[1, 2]))),
+            SaQC(pd.DataFrame(dict(a=[1, 2]))),
             ["a", "b"],
             SaQC(
-                pdDf(dict(new1=[8, 8], new2=[9, 9])),
-                pdDf(dict(new1=[B, B], new2=[B, B])),
+                pd.DataFrame(dict(new1=[8, 8], new2=[9, 9])),
+                pd.DataFrame(dict(new1=[B, B], new2=[B, B])),
             ),
             SaQC(
-                pdDf(dict(a=[8, 8], b=[9, 9])),
-                pdDf(dict(a=[B, B], b=[B, B])),
+                pd.DataFrame(dict(a=[8, 8], b=[9, 9])),
+                pd.DataFrame(dict(a=[B, B], b=[B, B])),
             ),
         ),
     ],
