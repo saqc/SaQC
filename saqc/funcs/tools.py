@@ -21,8 +21,8 @@ from saqc import BAD, FILTER_NONE, UNFLAGGED
 from saqc.core import processing, register
 from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
-from saqc.lib.selectionGUI import selectionGUI
 from saqc.lib.plotting import makeFig
+from saqc.lib.selectionGUI import selectionGUI
 from saqc.lib.tools import periodicMask, toSequence
 
 if TYPE_CHECKING:
