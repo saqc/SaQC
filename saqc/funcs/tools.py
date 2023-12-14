@@ -21,7 +21,7 @@ from saqc import BAD, FILTER_NONE, UNFLAGGED
 from saqc.core import processing, register
 from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
-from saqc.lib.flaGUI import FlaGUI
+from saqc.lib.selectionGUI import selectionGUI
 from saqc.lib.plotting import makeFig
 from saqc.lib.tools import periodicMask, toSequence
 
@@ -122,7 +122,6 @@ class ToolsMixin:
         data, flags = self._data.copy(), self._flags.copy()
 
         flag = kwargs.get("flag", BAD)
-        label = kwargs.get("label", "")
 
         if dfilter < np.inf:
             for f in field:
@@ -137,15 +136,10 @@ class ToolsMixin:
         plot_kwargs = plot_kwargs or {}
         mpl.use(_MPL_DEFAULT_BACKEND)
 
-        gui_layout = np.empty((screen_size[0], screen_size[1] + 2), dtype="object")
-        gui_layout[:, : screen_size[1]] = "plot"
-        gui_layout[:, -2:] = "."
-        gui_layout[0, -2:] = np.array(["flag_button", "flag_button"])
-        gui_layout[1, -2:] = np.array(["undo_button", "undo_button"])
-        gui_layout[2, -2:] = np.array(["remove_button", "remove_button"])
-        gui_layout[3, -2:] = np.array([".", "flag_box"])
-        gui_layout[4, -2:] = np.array([".", "label_box"])
-        gui_layout[-1, -2:] = np.array(["assign_button", "assign_button"])
+        gui_layout = np.empty((10,10), dtype="object")
+        gui_layout[:-1,:] = "plot"
+        gui_layout[-1, :] = "."
+        gui_layout[-1, -1] = "assign_button"
 
         gui_fig, gui_axes = plt.subplot_mosaic(gui_layout)
 
@@ -164,30 +158,16 @@ class ToolsMixin:
             plot_kwargs=plot_kwargs,
         )
 
-        d = data[field].dropna()
-        slc_overlay = gui_axes["plot"].scatter(d.index, d.values)
-        gui_axes["plot"].set_xlim(auto=True)
-        selector = FlaGUI(
+        selector = selectionGUI(
             gui_axes,
-            slc_overlay,
-            index=d.index,
-            flag_val=flag,
-            label_val=label,
+            data=data[field].dropna(),
             selection_marker_kwargs=selection_marker_kwargs,
         )
         plt.show()
         selector.disconnect()
 
         if selector.confirmed:
-            kwargs.update({"label": selector.label})
-            flag_val = selector.flag
-            flag = float(flag_val)
-            if flag > 255.0:
-                raise ValueError(
-                    f"Numerical value to set as a flag exceeds Limit (255.0). Got {flag}"
-                )
-
-            to_flag = selector.index[selector.selection > 0]
+            to_flag = selector.index[selector.marked]
 
             new_col = pd.Series(np.nan, index=self._flags[field].index)
             new_col.loc[to_flag] = flag
