@@ -22,7 +22,7 @@ from saqc.core import processing, register
 from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.plotting import makeFig
-from saqc.lib.selectionGUI import SelectionGUI
+from saqc.lib.selectionGUI import SelectionOverlay
 from saqc.lib.tools import periodicMask, toSequence
 
 if TYPE_CHECKING:
@@ -131,7 +131,7 @@ class ToolsMixin:
             plot_kwargs=plot_kwargs,
         )
         ov_mask = flags[field] < dfilter
-        selector = SelectionGUI(
+        selector = SelectionOverlay(
             fig.axes[0],
             data=data[field][ov_mask].dropna(),
             selection_marker_kwargs=selection_marker_kwargs,

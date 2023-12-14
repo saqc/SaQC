@@ -29,7 +29,7 @@ class AssignFlagsTool(ToolBase):
         self.cb()
 
 
-class SelectionGUI:
+class SelectionOverlay:
     def __init__(
         self,
         ax,
