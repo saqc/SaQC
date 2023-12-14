@@ -11,7 +11,6 @@ import numpy as np
 from matplotlib.backend_tools import ToolBase
 from matplotlib.widgets import Button, RectangleSelector, TextBox
 
-
 ASSIGN_SHORTCUT = "enter"
 LEFT_MOUSE_BUTTON = 1
 RIGHT_MOUSE_BUTTON = 3
