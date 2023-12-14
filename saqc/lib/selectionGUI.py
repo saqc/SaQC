@@ -11,7 +11,6 @@ import numpy as np
 from matplotlib.backend_tools import ToolBase
 from matplotlib.widgets import Button, RectangleSelector, TextBox
 
-plt.rcParams["toolbar"] = "toolmanager"
 
 ASSIGN_SHORTCUT = "enter"
 LEFT_MOUSE_BUTTON = 1
@@ -69,6 +68,7 @@ class selectionGUI:
         self.canvas.manager.toolmanager.add_tool(
             "Assign Flags", assignFlagsTool, cb=self.assignAndCloseCB
         )
+        plt.rcParams["toolbar"] = "toolmanager"
         self.canvas.manager.toolbar.add_tool("Assign Flags", "Flags")
         self.canvas.manager.toolmanager.remove_tool("subplots")
         self.canvas.manager.toolmanager.remove_tool("help")
