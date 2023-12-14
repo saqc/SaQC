@@ -7,93 +7,60 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-from matplotlib.pyplot import close
+import matplotlib.pyplot as plt
 from matplotlib.widgets import Button, RectangleSelector, TextBox
+from matplotlib.backend_tools import ToolBase
+plt.rcParams['toolbar'] = 'toolmanager'
 
 ASSIGN_SHORTCUT = "enter"
 LEFT_MOUSE_BUTTON = 1
 RIGHT_MOUSE_BUTTON = 3
 SELECTION_MARKER_DEFAULT = {
-    'zorder':100,
+    'zorder':10,
     'c':'red',
+    's':50,
+    'marker':'x'
 }
 
-class selectionTool:
-    def __init__(
-        self,
-        gui_axes,
-        data,
-        selection_marker_kwargs=SELECTION_MARKER_DEFAULT,
-    ):
-        self.axes = gui_axes
-        self.collection = self.axes["plot"].scatter(data.index, data.values, **selection_marker_kwargs)
-        self.axes['plot'].set_xlim(auto=True)
-        self.xys = self.collection.get_offsets()
+class assignFlagsTool(ToolBase):
+    default_keymap = 'enter'  # keyboard shortcut
+    description = 'Assign Flags to selection'
+    def __init__(self, *args, cb,**kwargs):
+        super().__init__(*args, **kwargs)
+        self.cb = cb
+    def trigger(self, *args, **kwargs):
+        self.cb()
 
-        self.canvas = self.axes['plot'].figure.canvas
-        self.canvas.mpl_connect("key_press_event", self.keyPressEvents)
-
-        #self.label = None
-        #self.flag = None
-        self.fc = np.tile(self.collection.get_facecolors(), (len(self.xys), 1))
-        self.fc[:, -1] = 0
-        self.collection.set_facecolors(self.fc)
-
-        self.lc_rect = RectangleSelector(
-            gui_axes["plot"],
-            self.onLeftSelect,
-            button=[1],
-            use_data_coordinates=True,
-            useblit=True
-        )
-        self.rc_rect = RectangleSelector(
-            gui_axes["plot"],
-            self.onRightSelect,
-            button=[3],
-            use_data_coordinates=True,
-            useblit=True
-        )
-        self.marked = np.zeros(data.shape[0]).astype(bool)
-        self.confirmed = False
-        self.index = data.index
-        # Buttons and Text Boxes:
-
-        self.assignAndClose = Button(
-            self.axes["assign_button"], f"Assign"
-        )
-        self.assignAndClose.on_clicked(self.assignAndCloseCB)
-        self.canvas.draw_idle()
 
 class selectionGUI:
     def __init__(
         self,
-        gui_axes,
+        ax,
         data,
+        ov_mask,
         selection_marker_kwargs=SELECTION_MARKER_DEFAULT,
     ):
-        self.axes = gui_axes
-        self.collection = self.axes["plot"].scatter(data.index, data.values, **selection_marker_kwargs)
-        self.axes['plot'].set_xlim(auto=True)
+        self.ax = ax
+        self.collection = self.ax.scatter(data.index, data.values, **{**SELECTION_MARKER_DEFAULT,**selection_marker_kwargs})
+        self.ax.set_xlim(auto=True)
         self.xys = self.collection.get_offsets()
 
-        self.canvas = self.axes['plot'].figure.canvas
+        self.canvas = self.ax.figure.canvas
         self.canvas.mpl_connect("key_press_event", self.keyPressEvents)
 
-        #self.label = None
-        #self.flag = None
         self.fc = np.tile(self.collection.get_facecolors(), (len(self.xys), 1))
         self.fc[:, -1] = 0
         self.collection.set_facecolors(self.fc)
 
         self.lc_rect = RectangleSelector(
-            gui_axes["plot"],
+            ax,
             self.onLeftSelect,
             button=[1],
             use_data_coordinates=True,
             useblit=True
         )
         self.rc_rect = RectangleSelector(
-            gui_axes["plot"],
+            ax,
             self.onRightSelect,
             button=[3],
             use_data_coordinates=True,
@@ -104,10 +71,11 @@ class selectionGUI:
         self.index = data.index
         # Buttons and Text Boxes:
 
-        self.assignAndClose = Button(
-            self.axes["assign_button"], f"Assign"
-        )
-        self.assignAndClose.on_clicked(self.assignAndCloseCB)
+        self.canvas.manager.toolmanager.add_tool('Assign Flags', assignFlagsTool, cb=self.assignAndCloseCB)
+        self.canvas.manager.toolbar.add_tool('Assign Flags', 'Flags')
+        self.canvas.manager.toolmanager.remove_tool('subplots')
+        self.canvas.manager.toolmanager.remove_tool('help')
+
         self.canvas.draw_idle()
 
     def onLeftSelect(self, eclick, erelease, _select_to=True):
@@ -137,9 +105,9 @@ class selectionGUI:
         self.lc_rect.disconnect_events()
         self.rc_rect.disconnect_events()
 
-    def assignAndCloseCB(self, vals):
+    def assignAndCloseCB(self, vals=None):
         self.confirmed = True
-        close(self.axes["plot"].figure)
+        plt.close(self.ax.figure)
 
     def keyPressEvents(self, event):
         if event.key == ASSIGN_SHORTCUT:

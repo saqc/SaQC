@@ -38,34 +38,23 @@ class ToolsMixin:
         self: "SaQC",
         field: str,
         max_gap: str | None = None,
-        screen_size: tuple[int] = (8, 8),
         selection_marker_kwargs: dict | None = None,
         ax_kwargs: dict | None = None,
         marker_kwargs: dict | None = None,
         plot_kwargs: dict | None = None,
-        dfilter: float = FILTER_NONE,
+        dfilter: float = BAD,
         **kwargs,
     ) -> "SaQC":
         """
         Rudimentary pop up GUI for adding or removing flags by selection of points directly in the data plot.
 
-        * Left click and Drag the rectangle over the points you want mark.
+        * Left click and Drag the rectangle over the points you want to add to selection.
 
-        * Click `Add` Button (or associated key) to add the marked values to the Selection of values to flag/unflag
+        * Right clack and drag the rectangle over the points you want to remove from selection
 
-        * Click `Remove` Button (or associated key) to remove marked values from current Selection (if they are already selected)
+        * press 'enter' or click `Assign Flags` to assign flags to the selected points
 
-        * Click `Undo` Button (or associated key) to undo the last Addition to the Selection (if one has already happened)
-
-        * In the `Flagging Level` Text Box, type the level of the flags you want to assign. Type 'UNFLAGGED', if you want to
-          "remove" flags.
-
-        * In the `Flags Label` Text Box type in the label text for the flags to assign
-
-        * Click `Assign` Flags to assign Flags of specified Value and with specified Label to the Selection.
-
-        Note, that you can only assign one type of flags in one session. The whole selection will get assigned the
-        flag level and flag value, specified as the `Assign` Button is clicked.
+        Note, that you can only mark already flagged values, if `dfilter` is set accordingly.
 
         Parameters
         ----------
@@ -74,10 +63,6 @@ class ToolsMixin:
             lines, in case of large data gaps. ``NaN`` values will be removed before
             plotting. If an offset string is passed, only points that have a distance
             below ``max_gap`` are connected via the plotting line.
-        screen_size :
-            Size (hight, width) of the window showing the data plot, given in 'mosaic' units.
-            The control panel always is 2 units broad (so, setting the width to 4 will make the plot window appear as double as wide as the control panel)
-            The control panel has a minimum hight of 6 units and will be stretched to mach hight, if needed.
         selection_marker_kwargs :
             Marker appearence keywords to modify selection marker appearance. The markers are set via the
             `matplotlib.pyplot.scatter <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.scatter.html>`_
@@ -123,27 +108,13 @@ class ToolsMixin:
 
         flag = kwargs.get("flag", BAD)
 
-        if dfilter < np.inf:
-            for f in field:
-                data[f].loc[flags[f] >= dfilter] = np.nan
-        if screen_size[1] < 6:
-            raise ValueError(
-                f"width value of parameter screen size has to be 6 or higher. Got {screen_size[1]}"
-            )
         selection_marker_kwargs = selection_marker_kwargs or {}
         ax_kwargs = ax_kwargs or {}
         marker_kwargs = marker_kwargs or {}
         plot_kwargs = plot_kwargs or {}
         mpl.use(_MPL_DEFAULT_BACKEND)
 
-        gui_layout = np.empty((10,10), dtype="object")
-        gui_layout[:-1,:] = "plot"
-        gui_layout[-1, :] = "."
-        gui_layout[-1, -1] = "assign_button"
-
-        gui_fig, gui_axes = plt.subplot_mosaic(gui_layout)
-
-        makeFig(
+        fig = makeFig(
             data=data,
             field=[field],
             flags=flags,
@@ -152,15 +123,15 @@ class ToolsMixin:
             max_gap=max_gap,
             history="valid",
             xscope=None,
-            ax=gui_axes["plot"],
             ax_kwargs=ax_kwargs,
             scatter_kwargs=marker_kwargs,
             plot_kwargs=plot_kwargs,
         )
-
+        ov_mask = flags[field] < dfilter
         selector = selectionGUI(
-            gui_axes,
-            data=data[field].dropna(),
+            fig.axes[0],
+            data=data[field][ov_mask].dropna(),
+            ov_mask=ov_mask,
             selection_marker_kwargs=selection_marker_kwargs,
         )
         plt.show()
