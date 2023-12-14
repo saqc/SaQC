@@ -115,6 +115,7 @@ class ToolsMixin:
         ax_kwargs = ax_kwargs or {}
         marker_kwargs = marker_kwargs or {}
         plot_kwargs = plot_kwargs or {}
+        plt.rcParams["toolbar"] = "toolmanager"
         mpl.use(_MPL_DEFAULT_BACKEND)
 
         fig = makeFig(
@@ -138,7 +139,7 @@ class ToolsMixin:
         )
         plt.show()
         selector.disconnect()
-
+        plt.rcParams["toolbar"] = "toolbar2"
         if selector.confirmed:
             to_flag = selector.index[selector.marked]
 

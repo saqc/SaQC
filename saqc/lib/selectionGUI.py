@@ -46,7 +46,7 @@ class SelectionOverlay:
         self.xys = self.collection.get_offsets()
 
         self.canvas = self.ax.figure.canvas
-        self.canvas.mpl_connect("key_press_event", self.keyPressEvents)
+        # self.canvas.mpl_connect("key_press_event", self.keyPressEvents)
 
         self.fc = np.tile(self.collection.get_facecolors(), (len(self.xys), 1))
         self.fc[:, -1] = 0
@@ -66,9 +66,8 @@ class SelectionOverlay:
         self.canvas.manager.toolmanager.add_tool(
             "Assign Flags", AssignFlagsTool, cb=self.assignAndCloseCB
         )
-        plt.rcParams["toolbar"] = "toolmanager"
+
         self.canvas.manager.toolbar.add_tool("Assign Flags", "Flags")
-        self.canvas.manager.toolmanager.remove_tool("subplots")
         self.canvas.manager.toolmanager.remove_tool("help")
 
         self.canvas.draw_idle()
@@ -100,7 +99,7 @@ class SelectionOverlay:
         self.lc_rect.disconnect_events()
         self.rc_rect.disconnect_events()
 
-    def assignAndCloseCB(self, vals=None):
+    def assignAndCloseCB(self):  # , vals=None):
         self.confirmed = True
         plt.close(self.ax.figure)
 
