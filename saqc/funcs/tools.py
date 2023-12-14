@@ -22,7 +22,7 @@ from saqc.core import processing, register
 from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.plotting import makeFig
-from saqc.lib.selectionGUI import selectionGUI
+from saqc.lib.selectionGUI import SelectionGUI
 from saqc.lib.tools import periodicMask, toSequence
 
 if TYPE_CHECKING:
@@ -55,6 +55,9 @@ class ToolsMixin:
         * press 'enter' or click `Assign Flags` to assign flags to the selected points
 
         Note, that you can only mark already flagged values, if `dfilter` is set accordingly.
+
+        Note, that you can use the tool to "unflag" already flagged values, when setting `dfilter` above the flag to
+        "unset", and setting `flag` to a flagging level associated with the `UNDLFAGGED` level.
 
         Parameters
         ----------
@@ -128,10 +131,9 @@ class ToolsMixin:
             plot_kwargs=plot_kwargs,
         )
         ov_mask = flags[field] < dfilter
-        selector = selectionGUI(
+        selector = SelectionGUI(
             fig.axes[0],
             data=data[field][ov_mask].dropna(),
-            ov_mask=ov_mask,
             selection_marker_kwargs=selection_marker_kwargs,
         )
         plt.show()

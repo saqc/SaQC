@@ -17,7 +17,7 @@ RIGHT_MOUSE_BUTTON = 3
 SELECTION_MARKER_DEFAULT = {"zorder": 10, "c": "red", "s": 50, "marker": "x"}
 
 
-class assignFlagsTool(ToolBase):
+class AssignFlagsTool(ToolBase):
     default_keymap = "enter"  # keyboard shortcut
     description = "Assign Flags to selection"
 
@@ -29,12 +29,11 @@ class assignFlagsTool(ToolBase):
         self.cb()
 
 
-class selectionGUI:
+class SelectionGUI:
     def __init__(
         self,
         ax,
         data,
-        ov_mask,
         selection_marker_kwargs=SELECTION_MARKER_DEFAULT,
     ):
         self.ax = ax
@@ -65,7 +64,7 @@ class selectionGUI:
         # Buttons and Text Boxes:
 
         self.canvas.manager.toolmanager.add_tool(
-            "Assign Flags", assignFlagsTool, cb=self.assignAndCloseCB
+            "Assign Flags", AssignFlagsTool, cb=self.assignAndCloseCB
         )
         plt.rcParams["toolbar"] = "toolmanager"
         self.canvas.manager.toolbar.add_tool("Assign Flags", "Flags")
