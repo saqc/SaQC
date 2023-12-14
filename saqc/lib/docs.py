@@ -6,7 +6,13 @@ from __future__ import annotations
 
 from typing import Any, TypedDict
 
-from docstring_parser import DocstringParam, DocstringReturns, compose, parse, DocstringDeprecated
+from docstring_parser import (
+    DocstringDeprecated,
+    DocstringParam,
+    DocstringReturns,
+    compose,
+    parse,
+)
 
 
 class ParamDict(TypedDict):
