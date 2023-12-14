@@ -7,6 +7,7 @@
 
 """The System for automated Quality Control package."""
 
+from saqc.options import options
 from saqc.constants import BAD, DOUBTFUL, FILTER_ALL, FILTER_NONE, GOOD, UNFLAGGED
 from saqc.exceptions import ParsingError
 from saqc.core import Flags, DictOfSeries, SaQC
