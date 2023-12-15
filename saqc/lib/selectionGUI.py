@@ -9,7 +9,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backend_tools import ToolBase
-from matplotlib.widgets import Button, RectangleSelector, TextBox
+from matplotlib.widgets import RectangleSelector
 
 ASSIGN_SHORTCUT = "enter"
 LEFT_MOUSE_BUTTON = 1
