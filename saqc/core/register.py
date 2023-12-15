@@ -351,12 +351,12 @@ def register(
             if legacy_call_style and args and "field" not in kwargs:
                 if options["legacy_call_style_warning"]:
                     warnings.warn(
-                        "From saqc version 3.0 onwards, 'field' becomes a "
-                        "keyword argument and can no longer be passed as "
-                        "the first positional argument.\n"
+                        "Passing 'field' as first positional argument is deprecated. "
+                        "From saqc version 3.0 onwards, 'field' must be a keyword "
+                        "argument. "
                         "To silence this warning, pass 'field' as a keyword argument "
-                        "or set saqc.option['legacy_call_style_warning'] to False.",
-                        category=DeprecationWarning,
+                        "or set saqc.options['legacy_call_style_warning'] to False.",
+                        category=FutureWarning,
                         stacklevel=2,
                     )
                 if "field" in paramnames:
