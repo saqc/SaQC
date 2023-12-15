@@ -16,13 +16,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from typing_extensions import Literal
+import tkinter as tk
 
 from saqc import BAD, FILTER_NONE, UNFLAGGED
 from saqc.core import processing, register
 from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.plotting import makeFig
-from saqc.lib.selectionGUI import SelectionOverlay
+from saqc.lib.selectionGUI import SelectionOverlay, MplScroller
 from saqc.lib.tools import periodicMask, toSequence
 
 if TYPE_CHECKING:
@@ -134,13 +135,34 @@ class ToolsMixin:
         overlay_data = []
         for f in field:
             overlay_data += [(data[f][flags[f] < dfilter]).dropna()]
+        scrollbar=True
+        if not scrollbar:
+            plt.show()
+        else:
+            window = plt.get_current_fig_manager().window
+            px = 1 / plt.rcParams['figure.dpi']
+            f_size = [ws * px * .9 for ws in window.wm_maxsize()]
+            f_size[1] = f_size[1] * len(field) * .5
+            fig.set_size_inches(f_size[0], f_size[1])
+            root = tk.Tk()
+            example = MplScroller(root,fig=fig)
+            example.pack(side="top", fill="both", expand=True)
+
+
 
         selector = SelectionOverlay(
             fig.axes,
             data=overlay_data,
             selection_marker_kwargs=selection_marker_kwargs,
         )
-        plt.show()
+        scrollbar = True
+        if not scrollbar:
+            plt.show()
+        else:
+
+            root.mainloop()
+
+
         selector.disconnect()
         plt.rcParams["toolbar"] = "toolbar2"
         if selector.confirmed:

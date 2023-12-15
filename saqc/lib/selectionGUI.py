@@ -8,14 +8,45 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+import tkinter as tk
 from matplotlib.backend_tools import ToolBase
 from matplotlib.widgets import RectangleSelector
+from matplotlib.backends.backend_tkagg import (
+    FigureCanvasTkAgg, NavigationToolbar2Tk)
 
 ASSIGN_SHORTCUT = "enter"
 LEFT_MOUSE_BUTTON = 1
 RIGHT_MOUSE_BUTTON = 3
 SELECTION_MARKER_DEFAULT = {"zorder": 10, "c": "red", "s": 50, "marker": "x"}
 
+class MplScroller(tk.Frame):
+    def __init__(self, parent, fig):
+
+        tk.Frame.__init__(self, parent)
+        self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff")
+        self.frame = tk.Frame(self.canvas, background="#ffffff")
+        self.vsb = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(yscrollcommand=self.vsb.set)
+
+
+        self.vsb.pack(side="right", fill="y")
+        self.canvas.pack(side="left", fill="both", expand=True)
+        self.canvas.create_window((4,4), window=self.frame, anchor="nw",
+                                  tags="self.frame")
+
+        self.frame.bind("<Configure>", self.onFrameConfigure)
+        self.fig = fig
+        self.populate()
+
+    def populate(self):
+        canvas = FigureCanvasTkAgg(self.fig, master=self.frame)  # A tk.DrawingArea.
+        toolbar = NavigationToolbar2Tk(canvas, self.canvas)
+        toolbar.update()
+        canvas.get_tk_widget().pack()#side=tk.TOP, fill=tk.BOTH, expand=1)
+        canvas.draw()
+
+    def onFrameConfigure(self, event):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
 class AssignFlagsTool(ToolBase):
     default_keymap = "enter"  # keyboard shortcut
@@ -85,12 +116,12 @@ class SelectionOverlay:
         self.index = [data[k].index for k in range(self.N)]
 
         # add assignment button to the toolbar
-        self.canvas.manager.toolmanager.add_tool(
-            "Assign Flags", AssignFlagsTool, callback=self.assignAndCloseCB
-        )
+        #self.canvas.manager.toolmanager.add_tool(
+        #    "Assign Flags", AssignFlagsTool, callback=self.assignAndCloseCB
+        #)
 
-        self.canvas.manager.toolbar.add_tool("Assign Flags", "Flags")
-        self.canvas.manager.toolmanager.remove_tool("help")
+        #self.canvas.manager.toolbar.add_tool("Assign Flags", "Flags")
+        #self.canvas.manager.toolmanager.remove_tool("help")
 
         self.canvas.draw_idle()
 
