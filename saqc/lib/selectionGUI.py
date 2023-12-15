@@ -19,14 +19,14 @@ SELECTION_MARKER_DEFAULT = {"zorder": 10, "c": "red", "s": 50, "marker": "x"}
 
 class AssignFlagsTool(ToolBase):
     default_keymap = "enter"  # keyboard shortcut
-    description = "Assign Flags to selection"
+    description = "Assign flags to selection."
 
-    def __init__(self, *args, cb, **kwargs):
+    def __init__(self, *args, callback, **kwargs):
         super().__init__(*args, **kwargs)
-        self.cb = cb
+        self.callback = callback
 
     def trigger(self, *args, **kwargs):
-        self.cb()
+        self.callback()
 
 
 class SelectionOverlay:
@@ -36,35 +36,57 @@ class SelectionOverlay:
         data,
         selection_marker_kwargs=SELECTION_MARKER_DEFAULT,
     ):
+        self.N = len(data)
         self.ax = ax
-        self.collection = self.ax.scatter(
-            data.index,
-            data.values,
-            **{**SELECTION_MARKER_DEFAULT, **selection_marker_kwargs}
-        )
-        self.ax.set_xlim(auto=True)
-        self.xys = self.collection.get_offsets()
+        self.collection = [
+            self.ax[k].scatter(
+                data[k].index,
+                data[k].values,
+                **{**SELECTION_MARKER_DEFAULT, **selection_marker_kwargs}
+            )
+            for k in range(self.N)
+        ]
 
-        self.canvas = self.ax.figure.canvas
-        # self.canvas.mpl_connect("key_press_event", self.keyPressEvents)
+        self.xys = [self.collection[k].get_offsets() for k in range(self.N)]
+        self.fc = [
+            np.tile(self.collection[k].get_facecolors(), (len(self.xys[k]), 1))
+            for k in range(self.N)
+        ]
 
-        self.fc = np.tile(self.collection.get_facecolors(), (len(self.xys), 1))
-        self.fc[:, -1] = 0
-        self.collection.set_facecolors(self.fc)
+        for k in range(self.N):
+            self.ax[k].set_xlim(auto=True)
+            self.fc[k][:, -1] = 0
+            self.collection[k].set_facecolors(self.fc[k])
 
-        self.lc_rect = RectangleSelector(
-            ax, self.onLeftSelect, button=[1], use_data_coordinates=True, useblit=True
-        )
-        self.rc_rect = RectangleSelector(
-            ax, self.onRightSelect, button=[3], use_data_coordinates=True, useblit=True
-        )
-        self.marked = np.zeros(data.shape[0]).astype(bool)
+        self.canvas = self.ax[0].figure.canvas
+
+        self.lc_rect = [
+            RectangleSelector(
+                ax[k],
+                self.onLeftSelectFunc(k),
+                button=[1],
+                use_data_coordinates=True,
+                useblit=True,
+            )
+            for k in range(self.N)
+        ]
+        self.rc_rect = [
+            RectangleSelector(
+                ax[k],
+                self.onRightSelectFunc(k),
+                button=[3],
+                use_data_coordinates=True,
+                useblit=True,
+            )
+            for k in range(self.N)
+        ]
+        self.marked = [np.zeros(data[k].shape[0]).astype(bool) for k in range(self.N)]
         self.confirmed = False
-        self.index = data.index
-        # Buttons and Text Boxes:
+        self.index = [data[k].index for k in range(self.N)]
 
+        # add assignment button to the toolbar
         self.canvas.manager.toolmanager.add_tool(
-            "Assign Flags", AssignFlagsTool, cb=self.assignAndCloseCB
+            "Assign Flags", AssignFlagsTool, callback=self.assignAndCloseCB
         )
 
         self.canvas.manager.toolbar.add_tool("Assign Flags", "Flags")
@@ -72,7 +94,13 @@ class SelectionOverlay:
 
         self.canvas.draw_idle()
 
-    def onLeftSelect(self, eclick, erelease, _select_to=True):
+    def onLeftSelectFunc(self, ax_num):
+        return lambda x, y, z=ax_num: self.onLeftSelect(x, y, z)
+
+    def onRightSelectFunc(self, ax_num):
+        return lambda x, y, z=ax_num: self.onRightSelect(x, y, z)
+
+    def onLeftSelect(self, eclick, erelease, ax_num=0, _select_to=True):
         upper_left = (
             min(eclick.xdata, erelease.xdata),
             max(eclick.ydata, erelease.ydata),
@@ -82,27 +110,28 @@ class SelectionOverlay:
             max(eclick.xdata, erelease.xdata),
             min(eclick.ydata, erelease.ydata),
         )
-        x_cut = (self.xys[:, 0] > upper_left[0]) & (self.xys[:, 0] < bottom_right[0])
-        y_cut = (self.xys[:, 1] > bottom_right[1]) & (self.xys[:, 1] < upper_left[1])
+        x_cut = (self.xys[ax_num][:, 0] > upper_left[0]) & (
+            self.xys[ax_num][:, 0] < bottom_right[0]
+        )
+        y_cut = (self.xys[ax_num][:, 1] > bottom_right[1]) & (
+            self.xys[ax_num][:, 1] < upper_left[1]
+        )
         # self.marked[:] = False
-        self.marked[x_cut & y_cut] = _select_to
+        self.marked[ax_num][x_cut & y_cut] = _select_to
 
-        self.fc[:, -1] = 0
-        self.fc[self.marked, -1] = 1
-        self.collection.set_facecolors(self.fc)
+        self.fc[ax_num][:, -1] = 0
+        self.fc[ax_num][self.marked[ax_num], -1] = 1
+        self.collection[ax_num].set_facecolors(self.fc[ax_num])
         self.canvas.draw_idle()
 
-    def onRightSelect(self, eclick, erelease):
-        self.onLeftSelect(eclick, erelease, _select_to=False)
+    def onRightSelect(self, eclick, erelease, ax_num=0):
+        self.onLeftSelect(eclick, erelease, ax_num=ax_num, _select_to=False)
 
     def disconnect(self):
-        self.lc_rect.disconnect_events()
-        self.rc_rect.disconnect_events()
+        for k in range(self.N):
+            self.lc_rect[k].disconnect_events()
+            self.rc_rect[k].disconnect_events()
 
     def assignAndCloseCB(self):  # , vals=None):
         self.confirmed = True
-        plt.close(self.ax.figure)
-
-    def keyPressEvents(self, event):
-        if event.key == ASSIGN_SHORTCUT:
-            self.assignAndCloseCB(event.key)
+        plt.close(self.ax[0].figure)

@@ -33,10 +33,10 @@ _MPL_DEFAULT_BACKEND = mpl.get_backend()
 
 
 class ToolsMixin:
-    @register(mask=[], demask=[], squeeze=[])
+    @register(mask=[], demask=[], squeeze=[], multivariate=True)
     def flagByClick(
         self: "SaQC",
-        field: str,
+        field: str | list[str],
         max_gap: str | None = None,
         selection_marker_kwargs: dict | None = None,
         ax_kwargs: dict | None = None,
@@ -120,10 +120,10 @@ class ToolsMixin:
 
         fig = makeFig(
             data=data,
-            field=[field],
+            field=field,
             flags=flags,
             level=UNFLAGGED,
-            mode="oneplot",
+            mode="subplots",
             max_gap=max_gap,
             history="valid",
             xscope=None,
@@ -131,23 +131,27 @@ class ToolsMixin:
             scatter_kwargs=marker_kwargs,
             plot_kwargs=plot_kwargs,
         )
-        ov_mask = flags[field] < dfilter
+        overlay_data = []
+        for f in field:
+            overlay_data += [(data[f][flags[f] < dfilter]).dropna()]
+
         selector = SelectionOverlay(
-            fig.axes[0],
-            data=data[field][ov_mask].dropna(),
+            fig.axes,
+            data=overlay_data,
             selection_marker_kwargs=selection_marker_kwargs,
         )
         plt.show()
         selector.disconnect()
         plt.rcParams["toolbar"] = "toolbar2"
         if selector.confirmed:
-            to_flag = selector.index[selector.marked]
+            for k in range(selector.N):
+                to_flag = selector.index[k][selector.marked[k]]
 
-            new_col = pd.Series(np.nan, index=self._flags[field].index)
-            new_col.loc[to_flag] = flag
-            self._flags.history[field].append(
-                new_col, {"func": "flagByClick", "args": (), "kwargs": kwargs}
-            )
+                new_col = pd.Series(np.nan, index=self._flags[field[k]].index)
+                new_col.loc[to_flag] = flag
+                self._flags.history[field[k]].append(
+                    new_col, {"func": "flagByClick", "args": (), "kwargs": kwargs}
+                )
         return self
 
     @register(
