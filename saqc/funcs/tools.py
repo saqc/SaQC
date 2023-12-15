@@ -128,7 +128,7 @@ class ToolsMixin:
             max_gap=max_gap,
             history="valid",
             xscope=None,
-            ax_kwargs=ax_kwargs,
+            ax_kwargs={**{'ncols':1},**ax_kwargs},
             scatter_kwargs=marker_kwargs,
             plot_kwargs=plot_kwargs,
         )
