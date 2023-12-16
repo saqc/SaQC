@@ -39,6 +39,7 @@ class ToolsMixin:
         self: "SaQC",
         field: str | list[str],
         max_gap: str | None = None,
+        scrollable: int = 3,
         selection_marker_kwargs: dict | None = None,
         ax_kwargs: dict | None = None,
         marker_kwargs: dict | None = None,
@@ -112,11 +113,16 @@ class ToolsMixin:
 
         flag = kwargs.get("flag", BAD)
 
+        scrollbar=False
+        if len(field) >= scrollable:
+            scrollbar=True
+
         selection_marker_kwargs = selection_marker_kwargs or {}
         ax_kwargs = ax_kwargs or {}
         marker_kwargs = marker_kwargs or {}
         plot_kwargs = plot_kwargs or {}
-        plt.rcParams["toolbar"] = "toolmanager"
+        if not scrollbar:
+            plt.rcParams["toolbar"] = "toolmanager"
         mpl.use(_MPL_DEFAULT_BACKEND)
 
         fig = makeFig(
@@ -135,36 +141,35 @@ class ToolsMixin:
         overlay_data = []
         for f in field:
             overlay_data += [(data[f][flags[f] < dfilter]).dropna()]
-        scrollbar=True
-        if not scrollbar:
-            plt.show()
-        else:
-            window = plt.get_current_fig_manager().window
-            px = 1 / plt.rcParams['figure.dpi']
-            f_size = [ws * px * .9 for ws in window.wm_maxsize()]
-            f_size[1] = f_size[1] * len(field) * .5
-            fig.set_size_inches(f_size[0], f_size[1])
-            root = tk.Tk()
-            example = MplScroller(root,fig=fig)
-            example.pack(side="top", fill="both", expand=True)
 
+
+        if scrollbar:
+            root = tk.Tk()
+            scroller = MplScroller(root, fig=fig)
+            root.protocol("WM_DELETE_WINDOW", scroller.quitFunc())
+            scroller.pack(side="top", fill="both", expand=True)
+
+        else:
+            scroller = None
 
 
         selector = SelectionOverlay(
             fig.axes,
             data=overlay_data,
             selection_marker_kwargs=selection_marker_kwargs,
+            parent=scroller
         )
-        scrollbar = True
         if not scrollbar:
             plt.show()
+            plt.rcParams["toolbar"] = "toolbar2"
         else:
 
+            root.attributes('-fullscreen', True)
             root.mainloop()
-
+            #root.attributes.('-fullscreen', True)
 
         selector.disconnect()
-        plt.rcParams["toolbar"] = "toolbar2"
+        #plt.rcParams["toolbar"] = "toolbar2"
         if selector.confirmed:
             for k in range(selector.N):
                 to_flag = selector.index[k][selector.marked[k]]
