@@ -48,7 +48,7 @@ class ToolsMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        Rudimentary pop up GUI for adding or removing flags by selection of points directly in the data plot.
+        Pop up GUI for adding or removing flags by selection of points in the data plot.
 
         * Left click and Drag the rectangle over the points you want to add to selection.
 
@@ -58,8 +58,12 @@ class ToolsMixin:
 
         Note, that you can only mark already flagged values, if `dfilter` is set accordingly.
 
-        Note, that you can use the tool to "unflag" already flagged values, when setting `dfilter` above the flag to
-        "unset", and setting `flag` to a flagging level associated with the `UNDLFAGGED` level.
+        Note, that you can use `flagByClick` to unflag already flagged values, when setting `dfilter` above the flag to
+        "unset", and setting `flag` to a flagging level associated with your "unflagged" level.
+
+        Note, that parallel working/flagging in subplots is possible, but will trigger usage of tkInter-faces
+        when more than `scrollable` variables are to be displayed. This enables scrolling and browsing through
+        the different variables, but may cause problems, when your OS cant handle TK.
 
         Parameters
         ----------
@@ -163,10 +167,8 @@ class ToolsMixin:
         else:
             root.attributes("-fullscreen", True)
             root.mainloop()
-            # root.attributes.('-fullscreen', True)
 
         selector.disconnect()
-        # plt.rcParams["toolbar"] = "toolbar2"
         if selector.confirmed:
             for k in range(selector.N):
                 to_flag = selector.index[k][selector.marked[k]]
