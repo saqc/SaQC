@@ -6,13 +6,13 @@
 
 # -*- coding: utf-8 -*-
 
+import tkinter as tk
+
 import matplotlib.pyplot as plt
 import numpy as np
-import tkinter as tk
 from matplotlib.backend_tools import ToolBase
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.widgets import RectangleSelector
-from matplotlib.backends.backend_tkagg import (
-    FigureCanvasTkAgg, NavigationToolbar2Tk)
 
 ASSIGN_SHORTCUT = "enter"
 LEFT_MOUSE_BUTTON = 1
@@ -23,26 +23,29 @@ FIGS_PER_SCREEN = 2
 # or hight in inches (if given overrides number of figs per screen):
 FIG_HIGHT_INCH = None
 
+
 class MplScroller(tk.Frame):
     def __init__(self, parent, fig):
-
         tk.Frame.__init__(self, parent)
         # frame - canvas - window combo that enables scrolling:
         self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff")
         # binding linux-known mousewheel shortcuts for mousewheel scrolling:
-        self.canvas.bind_all("<Button-4>", lambda x:self.mouseWheeler(-1))
-        self.canvas.bind_all("<Button-5>", lambda x:self.mouseWheeler(1))
+        self.canvas.bind_all("<Button-4>", lambda x: self.mouseWheeler(-1))
+        self.canvas.bind_all("<Button-5>", lambda x: self.mouseWheeler(1))
         # windows-known mousewheel shortcuts for mousewheel scrolling:
         # ....
 
         self.frame = tk.Frame(self.canvas, background="#ffffff")
-        self.vert_scrollbar = tk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.vert_scrollbar = tk.Scrollbar(
+            self, orient="vertical", command=self.canvas.yview
+        )
         self.canvas.configure(yscrollcommand=self.vert_scrollbar.set)
 
         self.vert_scrollbar.pack(side="right", fill="y")
         self.canvas.pack(side="left", fill="both", expand=True)
-        self.canvas.create_window((4,4), window=self.frame, anchor="nw",
-                                  tags="self.frame")
+        self.canvas.create_window(
+            (4, 4), window=self.frame, anchor="nw", tags="self.frame"
+        )
 
         self.frame.bind("<Configure>", self.scrollAreaCallBack)
 
@@ -56,10 +59,14 @@ class MplScroller(tk.Frame):
         self.scrollContentGenerator()
 
     def mouseWheeler(self, direction):
-       self.canvas.yview_scroll(direction, 'units')
+        self.canvas.yview_scroll(direction, "units")
 
     def assignationGenerator(self, selector):
-        tk.Button(self.canvas, text="Assign Flags", command=lambda s=selector:self.quitFunc(s)).pack()
+        tk.Button(
+            self.canvas,
+            text="Assign Flags",
+            command=lambda s=selector: self.quitFunc(s),
+        ).pack()
 
     def quitFunc(self, selector=None):
         if selector:
@@ -80,10 +87,10 @@ class MplScroller(tk.Frame):
     def figureSizer(self):
         window = plt.get_current_fig_manager().window
         f_size = list(window.wm_maxsize())
-        px = 1 / plt.rcParams['figure.dpi']
+        px = 1 / plt.rcParams["figure.dpi"]
         f_size = [ws * px for ws in f_size]
         if not FIG_HIGHT_INCH:
-            f_size[1] = f_size[1] * len(self.fig.axes) * FIGS_PER_SCREEN ** -1
+            f_size[1] = f_size[1] * len(self.fig.axes) * FIGS_PER_SCREEN**-1
         else:
             f_size[1] = FIG_HIGHT_INCH * len(self.fig.axes)
         self.fig.set_size_inches(f_size[0], f_size[1])
@@ -92,11 +99,11 @@ class MplScroller(tk.Frame):
         window = plt.get_current_fig_manager().window
         screen_hight = window.wm_maxsize()[1]
         fig_hight = self.fig.get_size_inches()
-        ratio = fig_hight[1]/screen_hight
+        ratio = fig_hight[1] / screen_hight
         to_shift = ratio
         for k in range(len(self.fig.axes)):
             print(self.fig.axes[k].get_position().bounds[1])
-            b=self.fig.axes[k].get_position().bounds
+            b = self.fig.axes[k].get_position().bounds
             self.fig.axes[k].set_position((b[0], b[1] + to_shift, b[2], b[3]))
 
 
@@ -113,11 +120,7 @@ class AssignFlagsTool(ToolBase):
 
 class SelectionOverlay:
     def __init__(
-        self,
-        ax,
-        data,
-        selection_marker_kwargs=SELECTION_MARKER_DEFAULT,
-        parent=None
+        self, ax, data, selection_marker_kwargs=SELECTION_MARKER_DEFAULT, parent=None
     ):
         self.parent = parent
         self.N = len(data)
@@ -169,7 +172,7 @@ class SelectionOverlay:
         self.index = [data[k].index for k in range(self.N)]
 
         if not parent:
-        # add assignment button to the toolbar
+            # add assignment button to the toolbar
             self.canvas.manager.toolmanager.add_tool(
                 "Assign Flags", AssignFlagsTool, callback=self.assignAndCloseCB
             )
@@ -218,7 +221,7 @@ class SelectionOverlay:
             self.lc_rect[k].disconnect_events()
             self.rc_rect[k].disconnect_events()
 
-    def assignAndCloseCB(self,val=None):
+    def assignAndCloseCB(self, val=None):
         self.confirmed = True
         plt.close(self.ax[0].figure)
 
@@ -228,6 +231,3 @@ class SelectionOverlay:
                 self.assignAndCloseCB()
             else:
                 self.parent.quitFunc(self)
-
-
-

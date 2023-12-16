@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import pickle
+import tkinter as tk
 import warnings
 from typing import TYPE_CHECKING, Optional
 
@@ -16,14 +17,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from typing_extensions import Literal
-import tkinter as tk
 
 from saqc import BAD, FILTER_NONE, UNFLAGGED
 from saqc.core import processing, register
 from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.plotting import makeFig
-from saqc.lib.selectionGUI import SelectionOverlay, MplScroller
+from saqc.lib.selectionGUI import MplScroller, SelectionOverlay
 from saqc.lib.tools import periodicMask, toSequence
 
 if TYPE_CHECKING:
@@ -113,9 +113,9 @@ class ToolsMixin:
 
         flag = kwargs.get("flag", BAD)
 
-        scrollbar=False
+        scrollbar = False
         if len(field) >= scrollable:
-            scrollbar=True
+            scrollbar = True
 
         selection_marker_kwargs = selection_marker_kwargs or {}
         ax_kwargs = ax_kwargs or {}
@@ -134,14 +134,13 @@ class ToolsMixin:
             max_gap=max_gap,
             history="valid",
             xscope=None,
-            ax_kwargs={**{'ncols':1},**ax_kwargs},
+            ax_kwargs={**{"ncols": 1}, **ax_kwargs},
             scatter_kwargs=marker_kwargs,
             plot_kwargs=plot_kwargs,
         )
         overlay_data = []
         for f in field:
             overlay_data += [(data[f][flags[f] < dfilter]).dropna()]
-
 
         if scrollbar:
             root = tk.Tk()
@@ -152,24 +151,22 @@ class ToolsMixin:
         else:
             scroller = None
 
-
         selector = SelectionOverlay(
             fig.axes,
             data=overlay_data,
             selection_marker_kwargs=selection_marker_kwargs,
-            parent=scroller
+            parent=scroller,
         )
         if not scrollbar:
             plt.show()
             plt.rcParams["toolbar"] = "toolbar2"
         else:
-
-            root.attributes('-fullscreen', True)
+            root.attributes("-fullscreen", True)
             root.mainloop()
-            #root.attributes.('-fullscreen', True)
+            # root.attributes.('-fullscreen', True)
 
         selector.disconnect()
-        #plt.rcParams["toolbar"] = "toolbar2"
+        # plt.rcParams["toolbar"] = "toolbar2"
         if selector.confirmed:
             for k in range(selector.N):
                 to_flag = selector.index[k][selector.marked[k]]
