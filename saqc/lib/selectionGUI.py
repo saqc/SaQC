@@ -13,6 +13,8 @@ import numpy as np
 from matplotlib.backend_tools import ToolBase
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.widgets import RectangleSelector
+from matplotlib.dates import date2num
+import matplotlib as mpl
 
 ASSIGN_SHORTCUT = "enter"
 LEFT_MOUSE_BUTTON = 1
@@ -29,11 +31,8 @@ class MplScroller(tk.Frame):
         tk.Frame.__init__(self, parent)
         # frame - canvas - window combo that enables scrolling:
         self.canvas = tk.Canvas(self, borderwidth=0, background="#ffffff")
-        # binding linux-known mousewheel shortcuts for mousewheel scrolling:
         self.canvas.bind_all("<Button-4>", lambda x: self.mouseWheeler(-1))
         self.canvas.bind_all("<Button-5>", lambda x: self.mouseWheeler(1))
-        # windows-known mousewheel shortcuts for mousewheel scrolling:
-        # ....
 
         self.frame = tk.Frame(self.canvas, background="#ffffff")
         self.vert_scrollbar = tk.Scrollbar(
@@ -53,6 +52,7 @@ class MplScroller(tk.Frame):
         self.parent = parent
         self.fig = fig
         tk.Button(self.canvas, text="Discard (and quit)", command=self.quitFunc).pack()
+
         # adjusting content to the scrollable view
         self.figureSizer()
         self.figureShifter()
@@ -102,7 +102,6 @@ class MplScroller(tk.Frame):
         ratio = fig_hight[1] / screen_hight
         to_shift = ratio
         for k in range(len(self.fig.axes)):
-            print(self.fig.axes[k].get_position().bounds[1])
             b = self.fig.axes[k].get_position().bounds
             self.fig.axes[k].set_position((b[0], b[1] + to_shift, b[2], b[3]))
 
@@ -125,28 +124,13 @@ class SelectionOverlay:
         self.parent = parent
         self.N = len(data)
         self.ax = ax
-        self.collection = [
-            self.ax[k].scatter(
-                data[k].index,
-                data[k].values,
-                **{**SELECTION_MARKER_DEFAULT, **selection_marker_kwargs}
-            )
-            for k in range(self.N)
-        ]
-
-        self.xys = [self.collection[k].get_offsets() for k in range(self.N)]
-        self.fc = [
-            np.tile(self.collection[k].get_facecolors(), (len(self.xys[k]), 1))
-            for k in range(self.N)
-        ]
+        self.marker_handles = self.N*[None]
 
         for k in range(self.N):
             self.ax[k].set_xlim(auto=True)
-            self.fc[k][:, -1] = 0
-            self.collection[k].set_facecolors(self.fc[k])
 
         self.canvas = self.ax[0].figure.canvas
-
+        self.selection_marker_kwargs={**SELECTION_MARKER_DEFAULT, **selection_marker_kwargs}
         self.lc_rect = [
             RectangleSelector(
                 ax[k],
@@ -170,7 +154,8 @@ class SelectionOverlay:
         self.marked = [np.zeros(data[k].shape[0]).astype(bool) for k in range(self.N)]
         self.confirmed = False
         self.index = [data[k].index for k in range(self.N)]
-
+        self.data = [data[k].values for k in range(self.N)]
+        self.numidx = [date2num(self.index[k]) for k in range(self.N)]
         if not parent:
             # add assignment button to the toolbar
             self.canvas.manager.toolmanager.add_tool(
@@ -200,18 +185,19 @@ class SelectionOverlay:
             max(eclick.xdata, erelease.xdata),
             min(eclick.ydata, erelease.ydata),
         )
-        x_cut = (self.xys[ax_num][:, 0] > upper_left[0]) & (
-            self.xys[ax_num][:, 0] < bottom_right[0]
+        x_cut = (self.numidx[ax_num] > upper_left[0]) & (
+            self.numidx[ax_num] < bottom_right[0]
         )
-        y_cut = (self.xys[ax_num][:, 1] > bottom_right[1]) & (
-            self.xys[ax_num][:, 1] < upper_left[1]
+        y_cut = (self.data[ax_num] > bottom_right[1]) & (
+            self.data[ax_num] < upper_left[1]
         )
         self.marked[ax_num][x_cut & y_cut] = _select_to
-
-        self.fc[ax_num][:, -1] = 0
-        self.fc[ax_num][self.marked[ax_num], -1] = 1
-        self.collection[ax_num].set_facecolors(self.fc[ax_num])
+        if self.marker_handles[ax_num]:
+            self.marker_handles[ax_num].remove()
+        xl = self.ax[ax_num].get_xlim()
+        self.marker_handles[ax_num] = self.ax[ax_num].scatter(self.index[ax_num][self.marked[ax_num]], self.data[ax_num][self.marked[ax_num]], **self.selection_marker_kwargs)
         self.canvas.draw_idle()
+        self.ax[ax_num].set_xlim(xl)
 
     def onRightSelect(self, eclick, erelease, ax_num=0):
         self.onLeftSelect(eclick, erelease, ax_num=ax_num, _select_to=False)
