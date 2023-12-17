@@ -145,6 +145,7 @@ class ToolsMixin:
         overlay_data = []
         for f in field:
             overlay_data += [(data[f][flags[f] < dfilter]).dropna()]
+            #overlay_data += [pd.Series([], index=pd.DatetimeIndex([]))]
 
         if scrollbar:
             root = tk.Tk()
