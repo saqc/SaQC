@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backend_tools import ToolBase
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-from matplotlib.widgets import RectangleSelector
+from matplotlib.widgets import RectangleSelector, SpanSelector
 from matplotlib.dates import date2num
 import matplotlib as mpl
 
@@ -131,31 +131,16 @@ class SelectionOverlay:
 
         self.canvas = self.ax[0].figure.canvas
         self.selection_marker_kwargs={**SELECTION_MARKER_DEFAULT, **selection_marker_kwargs}
-        self.lc_rect = [
-            RectangleSelector(
-                ax[k],
-                self.onLeftSelectFunc(k),
-                button=[1],
-                use_data_coordinates=True,
-                useblit=True,
-            )
-            for k in range(self.N)
-        ]
-        self.rc_rect = [
-            RectangleSelector(
-                ax[k],
-                self.onRightSelectFunc(k),
-                button=[3],
-                use_data_coordinates=True,
-                useblit=True,
-            )
-            for k in range(self.N)
-        ]
+        self.rc_rect = None
+        self.lc_rect = None
+        self.spawn_selector(type='rect')
+        self.current_slc='rect'
         self.marked = [np.zeros(data[k].shape[0]).astype(bool) for k in range(self.N)]
         self.confirmed = False
         self.index = [data[k].index for k in range(self.N)]
         self.data = [data[k].values for k in range(self.N)]
         self.numidx = [date2num(self.index[k]) for k in range(self.N)]
+
         if not parent:
             # add assignment button to the toolbar
             self.canvas.manager.toolmanager.add_tool(
@@ -176,22 +161,29 @@ class SelectionOverlay:
         return lambda x, y, z=ax_num: self.onRightSelect(x, y, z)
 
     def onLeftSelect(self, eclick, erelease, ax_num=0, _select_to=True):
-        upper_left = (
-            min(eclick.xdata, erelease.xdata),
-            max(eclick.ydata, erelease.ydata),
-        )
+        if not isinstance(eclick,np.float64):
+            upper_left = (
+                min(eclick.xdata, erelease.xdata),
+                max(eclick.ydata, erelease.ydata),
+            )
 
-        bottom_right = (
-            max(eclick.xdata, erelease.xdata),
-            min(eclick.ydata, erelease.ydata),
-        )
-        x_cut = (self.numidx[ax_num] > upper_left[0]) & (
-            self.numidx[ax_num] < bottom_right[0]
-        )
-        y_cut = (self.data[ax_num] > bottom_right[1]) & (
-            self.data[ax_num] < upper_left[1]
-        )
-        self.marked[ax_num][x_cut & y_cut] = _select_to
+            bottom_right = (
+                max(eclick.xdata, erelease.xdata),
+                min(eclick.ydata, erelease.ydata),
+            )
+            x_cut = (self.numidx[ax_num] > upper_left[0]) & (
+                self.numidx[ax_num] < bottom_right[0]
+            )
+            y_cut = (self.data[ax_num] > bottom_right[1]) & (
+                self.data[ax_num] < upper_left[1]
+            )
+            self.marked[ax_num][x_cut & y_cut] = _select_to
+        else:
+            x_cut = (self.numidx[ax_num] > eclick) & (
+                self.numidx[ax_num] < erelease
+            )
+            self.marked[ax_num][x_cut] = _select_to
+
         if self.marker_handles[ax_num]:
             self.marker_handles[ax_num].remove()
         xl = self.ax[ax_num].get_xlim()
@@ -207,6 +199,54 @@ class SelectionOverlay:
             self.lc_rect[k].disconnect_events()
             self.rc_rect[k].disconnect_events()
 
+    def spawn_selector(self, type='rect'):
+        if self.rc_rect:
+            for k in range(self.N):
+                self.rc_rect[k].disconnect_events()
+                self.lc_rect[k].disconnect_events()
+        if type=='rect':
+            self.lc_rect = [
+                RectangleSelector(
+                    self.ax[k],
+                    self.onLeftSelectFunc(k),
+                    button=[1],
+                    use_data_coordinates=True,
+                    useblit=True,
+                )
+                for k in range(self.N)
+            ]
+            self.rc_rect = [
+                RectangleSelector(
+                    self.ax[k],
+                    self.onRightSelectFunc(k),
+                    button=[3],
+                    use_data_coordinates=True,
+                    useblit=True,
+                )
+                for k in range(self.N)
+            ]
+        elif type=='span':
+            self.lc_rect = [
+                SpanSelector(
+                    self.ax[k],
+                    self.onLeftSelectFunc(k),
+                    'horizontal',
+                    button=[1],
+                    useblit=True,
+                )
+                for k in range(self.N)
+            ]
+            self.rc_rect = [
+                SpanSelector(
+                    self.ax[k],
+                    self.onRightSelectFunc(k),
+                    'horizontal',
+                    button=[3],
+                    useblit=True,
+                )
+                for k in range(self.N)
+            ]
+
     def assignAndCloseCB(self, val=None):
         self.confirmed = True
         plt.close(self.ax[0].figure)
@@ -217,3 +257,10 @@ class SelectionOverlay:
                 self.assignAndCloseCB()
             else:
                 self.parent.quitFunc(self)
+        elif event.key == 'shift':
+            if self.current_slc=='rect':
+                self.spawn_selector('span')
+                self.current_slc='span'
+            elif self.current_slc=='span':
+                self.spawn_selector('rect')
+                self.current_slc='rect'
