@@ -15,7 +15,6 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.dates import date2num
 from matplotlib.widgets import MultiCursor, RectangleSelector, SpanSelector
 
-
 ASSIGN_SHORTCUT = "enter"
 DISCARD_SHORTCUT = "escape"
 LEFT_MOUSE_BUTTON = 1
@@ -25,8 +24,11 @@ SELECTION_MARKER_DEFAULT = {"zorder": 10, "c": "red", "s": 50, "marker": "x"}
 FIGS_PER_SCREEN = 2
 # or hight in inches (if given overrides number of figs per screen):
 FIG_HIGHT_INCH = None
-BFONT = ('Times','16')
+BFONT = ("Times", "16")
+VARFONT = ("Times", "12")
 CP_WIDTH = 15
+SELECTOR_DICT = {"rect": "Rectangular", "span": "Span"}
+
 
 class MplScroller(tk.Frame):
     def __init__(self, parent, fig):
@@ -57,9 +59,8 @@ class MplScroller(tk.Frame):
         self.parent = parent
         self.fig = fig
 
-
-        self.control_panel=tk.Frame(self.canvas, borderwidth=0)
-        self.control_panel.pack(side=tk.LEFT, anchor='n')
+        self.control_panel = tk.Frame(self.canvas, borderwidth=0)
+        self.control_panel.pack(side=tk.LEFT, anchor="n")
         # adding buttons
         self.quit_button = tk.Button(
             self.control_panel,
@@ -68,19 +69,22 @@ class MplScroller(tk.Frame):
             relief=tk.RAISED,
             bg="red",
             width=CP_WIDTH,
-            font=BFONT
+            font=BFONT,
         )
-        #self.quit_button.pack(anchor="w", side=tk.BOTTOM)
-        self.quit_button.grid(column=0, row=10)
+        # self.quit_button.pack(anchor="w", side=tk.BOTTOM)
+        self.quit_button.grid(column=0, row=100, pady=10)
         # selector info display
         self.current_slc_entry = tk.StringVar(self.control_panel)
-        #tk.Label(self.canvas, textvariable=self.current_slc_entry, width=20).pack(
+        # tk.Label(self.canvas, textvariable=self.current_slc_entry, width=20).pack(
         #    anchor="w", side=tk.BOTTOM
-        #)
+        # )
 
-        tk.Label(self.control_panel, textvariable=self.current_slc_entry, width=CP_WIDTH, font=BFONT).grid(
-            column=0,row=1
-        )
+        tk.Label(
+            self.control_panel,
+            textvariable=self.current_slc_entry,
+            width=CP_WIDTH,
+            font=BFONT,
+        ).grid(column=0, row=1, pady=10)
 
         # binding overview
 
@@ -95,8 +99,10 @@ class MplScroller(tk.Frame):
                     variable=v[1],
                     width=CP_WIDTH,
                     anchor="w",
-                    font=BFONT
-                ).grid(column=0, row=2+v[0])#.pack(anchor="w", side=tk.BOTTOM)
+                    font=VARFONT,
+                ).grid(
+                    column=0, row=2 + v[0]
+                )  # .pack(anchor="w", side=tk.BOTTOM)
 
         # adjusting content to the scrollable view
         self.figureSizer()
@@ -113,8 +119,10 @@ class MplScroller(tk.Frame):
             command=lambda s=selector: self.assignAndQuitFunc(s),
             bg="green",
             width=CP_WIDTH,
-            font=BFONT
-        ).grid(column=0, row=0)#.pack(side=tk.BOTTOM, anchor="w")
+            font=BFONT,
+        ).grid(
+            column=0, row=0
+        )  # .pack(side=tk.BOTTOM, anchor="w")
 
     def assignAndQuitFunc(self, selector=None):
         if selector:
@@ -318,7 +326,7 @@ class SelectionOverlay:
                 for k in range(self.N)
             ]
         if self.parent:
-            self.parent.current_slc_entry.set(self.current_slc)
+            self.parent.current_slc_entry.set(SELECTOR_DICT[self.current_slc])
 
     def assignAndCloseCB(self, val=None):
         self.confirmed = True
