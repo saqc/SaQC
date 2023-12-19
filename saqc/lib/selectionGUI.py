@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backend_tools import ToolBase
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
-from matplotlib.widgets import RectangleSelector, SpanSelector
+from matplotlib.widgets import RectangleSelector, SpanSelector, MultiCursor
 from matplotlib.dates import date2num
 import matplotlib as mpl
 
@@ -25,6 +25,56 @@ FIGS_PER_SCREEN = 2
 # or hight in inches (if given overrides number of figs per screen):
 FIG_HIGHT_INCH = None
 
+BLIT_MARKERS = False
+
+
+class BlitManager:
+    def __init__(self, canvas):
+        self.canvas = canvas
+        self._artists = len(self.canvas.figure.axes)*[None]
+        self._bg = None
+        self.cid = canvas.mpl_connect("draw_event", self.on_draw)
+
+    def on_draw(self, event):
+        """Callback to register with 'draw_event'."""
+        print('on_draw triggered')
+        print(event)
+        if event is not None:
+            if event.canvas != self.canvas:
+                raise RuntimeError
+        self._bg = self.canvas.copy_from_bbox(self.canvas.figure.bbox)
+        self._draw_animated()
+
+    def _draw_animated(self):
+        """Draw all of the animated artists."""
+        fig = self.canvas.figure
+        for a in self._artists:
+            if a is not None:
+                fig.draw_artist(a)
+
+    def add_artist(self, art, loc):
+        """Add a new Artist object to the Blit Manager"""
+        if art.figure != self.canvas.figure:
+            raise RuntimeError
+        art.set_animated(True)
+        if self._artists[loc] is not None:
+            self._artists[loc].remove()
+        self._artists[loc] = art
+
+    def update(self):
+        """Update the screen with animated artists."""
+
+        if self._bg is None:
+            self.on_draw(None)
+        else:
+            # restore the background
+            self.canvas.restore_region(self._bg)
+            # draw all of the animated artists
+            self._draw_animated()
+            # update the GUI state
+            self.canvas.blit(self.canvas.figure.bbox)
+        # let the GUI event loop process anything it has to do
+        self.canvas.flush_events()
 
 class MplScroller(tk.Frame):
     def __init__(self, parent, fig):
@@ -47,6 +97,9 @@ class MplScroller(tk.Frame):
         )
 
         self.frame.bind("<Configure>", self.scrollAreaCallBack)
+
+        # background
+        self._bg = None
 
         # keeping references
         self.parent = parent
@@ -125,11 +178,11 @@ class SelectionOverlay:
         self.N = len(data)
         self.ax = ax
         self.marker_handles = self.N*[None]
-
         for k in range(self.N):
             self.ax[k].set_xlim(auto=True)
 
         self.canvas = self.ax[0].figure.canvas
+        self.blit_manager = BlitManager(self.canvas)
         self.selection_marker_kwargs={**SELECTION_MARKER_DEFAULT, **selection_marker_kwargs}
         self.rc_rect = None
         self.lc_rect = None
@@ -140,7 +193,6 @@ class SelectionOverlay:
         self.index = [data[k].index for k in range(self.N)]
         self.data = [data[k].values for k in range(self.N)]
         self.numidx = [date2num(self.index[k]) for k in range(self.N)]
-
         if not parent:
             # add assignment button to the toolbar
             self.canvas.manager.toolmanager.add_tool(
@@ -150,7 +202,8 @@ class SelectionOverlay:
             self.canvas.manager.toolmanager.remove_tool("help")
         else:
             parent.assignationGenerator(self)
-            self.canvas.mpl_connect("key_press_event", self.keyPressEvents)
+        self.canvas.mpl_connect("key_press_event", self.keyPressEvents)
+        self.canvas.mpl_connect("button_press_event", self.buttonPressEvent)
 
         self.canvas.draw_idle()
 
@@ -184,12 +237,20 @@ class SelectionOverlay:
             )
             self.marked[ax_num][x_cut] = _select_to
 
-        if self.marker_handles[ax_num]:
-            self.marker_handles[ax_num].remove()
+
         xl = self.ax[ax_num].get_xlim()
-        self.marker_handles[ax_num] = self.ax[ax_num].scatter(self.index[ax_num][self.marked[ax_num]], self.data[ax_num][self.marked[ax_num]], **self.selection_marker_kwargs)
-        self.canvas.draw_idle()
+        marker_artist = self.ax[ax_num].scatter(self.index[ax_num][self.marked[ax_num]], self.data[ax_num][self.marked[ax_num]], **self.selection_marker_kwargs)
+        if BLIT_MARKERS:
+            self.blit_manager.add_artist(marker_artist, ax_num)
+            self.blit_manager.update()
+        else:
+            if self.marker_handles[ax_num] is not None:
+                self.marker_handles[ax_num].remove()
+            self.marker_handles[ax_num] = marker_artist
+            self.canvas.draw_idle()
+
         self.ax[ax_num].set_xlim(xl)
+
 
     def onRightSelect(self, eclick, erelease, ax_num=0):
         self.onLeftSelect(eclick, erelease, ax_num=ax_num, _select_to=False)
@@ -226,13 +287,14 @@ class SelectionOverlay:
                 for k in range(self.N)
             ]
         elif type=='span':
+
             self.lc_rect = [
                 SpanSelector(
                     self.ax[k],
                     self.onLeftSelectFunc(k),
                     'horizontal',
                     button=[1],
-                    useblit=True,
+                    useblit=True
                 )
                 for k in range(self.N)
             ]
@@ -246,6 +308,7 @@ class SelectionOverlay:
                 )
                 for k in range(self.N)
             ]
+
 
     def assignAndCloseCB(self, val=None):
         self.confirmed = True
@@ -264,3 +327,8 @@ class SelectionOverlay:
             elif self.current_slc=='span':
                 self.spawn_selector('rect')
                 self.current_slc='rect'
+        print(event.key)
+
+    def buttonPressEvent(self, event):
+        print(event)
+
