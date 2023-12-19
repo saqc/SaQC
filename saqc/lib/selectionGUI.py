@@ -15,6 +15,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolb
 from matplotlib.dates import date2num
 from matplotlib.widgets import MultiCursor, RectangleSelector, SpanSelector
 
+
 ASSIGN_SHORTCUT = "enter"
 DISCARD_SHORTCUT = "escape"
 LEFT_MOUSE_BUTTON = 1
@@ -24,7 +25,8 @@ SELECTION_MARKER_DEFAULT = {"zorder": 10, "c": "red", "s": 50, "marker": "x"}
 FIGS_PER_SCREEN = 2
 # or hight in inches (if given overrides number of figs per screen):
 FIG_HIGHT_INCH = None
-
+BFONT = ('Times','16')
+CP_WIDTH = 15
 
 class MplScroller(tk.Frame):
     def __init__(self, parent, fig):
@@ -55,37 +57,46 @@ class MplScroller(tk.Frame):
         self.parent = parent
         self.fig = fig
 
+
+        self.control_panel=tk.Frame(self.canvas, borderwidth=0)
+        self.control_panel.pack(side=tk.LEFT, anchor='n')
         # adding buttons
         self.quit_button = tk.Button(
-            self.canvas,
+            self.control_panel,
             text="Discard and Quit.",
             command=self.assignAndQuitFunc,
             relief=tk.RAISED,
             bg="red",
-            width=20,
+            width=CP_WIDTH,
+            font=BFONT
         )
-        self.quit_button.pack(anchor="w", side=tk.BOTTOM)
-
+        #self.quit_button.pack(anchor="w", side=tk.BOTTOM)
+        self.quit_button.grid(column=0, row=10)
         # selector info display
-        self.current_slc_entry = tk.StringVar(self.canvas)
-        tk.Label(self.canvas, textvariable=self.current_slc_entry, width=20).pack(
-            anchor="w", side=tk.BOTTOM
+        self.current_slc_entry = tk.StringVar(self.control_panel)
+        #tk.Label(self.canvas, textvariable=self.current_slc_entry, width=20).pack(
+        #    anchor="w", side=tk.BOTTOM
+        #)
+
+        tk.Label(self.control_panel, textvariable=self.current_slc_entry, width=CP_WIDTH, font=BFONT).grid(
+            column=0,row=1
         )
 
         # binding overview
 
         self.binding_status = [
-            tk.IntVar(self.canvas) for k in range(len(self.fig.axes))
+            tk.IntVar(self.control_panel) for k in range(len(self.fig.axes))
         ]
         if len(self.binding_status) > 1:
             for v in enumerate(self.binding_status):
                 tk.Checkbutton(
-                    self.canvas,
+                    self.control_panel,
                     text=self.fig.axes[v[0]].get_title(),
                     variable=v[1],
-                    width=20,
+                    width=CP_WIDTH,
                     anchor="w",
-                ).pack(anchor="w", side=tk.BOTTOM)
+                    font=BFONT
+                ).grid(column=0, row=2+v[0])#.pack(anchor="w", side=tk.BOTTOM)
 
         # adjusting content to the scrollable view
         self.figureSizer()
@@ -97,12 +108,13 @@ class MplScroller(tk.Frame):
 
     def assignationGenerator(self, selector):
         tk.Button(
-            self.canvas,
+            self.control_panel,
             text="Assign Flags",
             command=lambda s=selector: self.assignAndQuitFunc(s),
             bg="green",
-            width=20,
-        ).pack(side=tk.BOTTOM, anchor="w")
+            width=CP_WIDTH,
+            font=BFONT
+        ).grid(column=0, row=0)#.pack(side=tk.BOTTOM, anchor="w")
 
     def assignAndQuitFunc(self, selector=None):
         if selector:
