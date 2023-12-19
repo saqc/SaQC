@@ -39,7 +39,7 @@ class ToolsMixin:
         self: "SaQC",
         field: str | list[str],
         max_gap: str | None = None,
-        scrollable: int = 3,
+        scrollable: int | None = None,
         selection_marker_kwargs: dict | None = None,
         ax_kwargs: dict | None = None,
         marker_kwargs: dict | None = None,
@@ -116,9 +116,8 @@ class ToolsMixin:
         data, flags = self._data.copy(), self._flags.copy()
 
         flag = kwargs.get("flag", BAD)
-
         scrollbar = False
-        if len(field) >= scrollable:
+        if (not scrollable) or (len(field) >= scrollable):
             scrollbar = True
 
         selection_marker_kwargs = selection_marker_kwargs or {}
@@ -145,12 +144,12 @@ class ToolsMixin:
         overlay_data = []
         for f in field:
             overlay_data += [(data[f][flags[f] < dfilter]).dropna()]
-            #overlay_data += [pd.Series([], index=pd.DatetimeIndex([]))]
+            # overlay_data += [pd.Series([], index=pd.DatetimeIndex([]))]
 
         if scrollbar:
             root = tk.Tk()
             scroller = MplScroller(root, fig=fig)
-            root.protocol("WM_DELETE_WINDOW", scroller.quitFunc())
+            root.protocol("WM_DELETE_WINDOW", scroller.assignAndQuitFunc())
             scroller.pack(side="top", fill="both", expand=True)
 
         else:
@@ -168,6 +167,7 @@ class ToolsMixin:
         else:
             root.attributes("-fullscreen", True)
             root.mainloop()
+            root.destroy()
 
         selector.disconnect()
         if selector.confirmed:
