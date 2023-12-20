@@ -39,7 +39,7 @@ class ToolsMixin:
         self: "SaQC",
         field: str | list[str],
         max_gap: str | None = None,
-        scrollable: int | None = None,
+        gui_mode: Literal["GUI", "overlay"] = None,
         selection_marker_kwargs: dict | None = None,
         ax_kwargs: dict | None = None,
         marker_kwargs: dict | None = None,
@@ -50,20 +50,24 @@ class ToolsMixin:
         """
         Pop up GUI for adding or removing flags by selection of points in the data plot.
 
-        * Left click and Drag the rectangle over the points you want to add to selection.
+        * Left click and Drag the selection area over the points you want to add to selection.
 
-        * Right clack and drag the rectangle over the points you want to remove from selection
+        * Right clack and drag the selection area over the points you want to remove from selection
 
-        * press 'enter' or click `Assign Flags` to assign flags to the selected points
+        * press 'shift' to switch between rectangle and span selector
+
+        * press 'enter' or click "Assign Flags" to assign flags to the selected points and end session
+
+        * press 'escape' or click "Discard" to end Session without assigneing flags to selection
+
+        * activate the sliders attached to each axes to bind the respective variable. When using the
+          span selector, points from all bound variables will be added synchronously.
+
 
         Note, that you can only mark already flagged values, if `dfilter` is set accordingly.
 
-        Note, that you can use `flagByClick` to unflag already flagged values, when setting `dfilter` above the flag to
+        Note, that you can use `flagByClick` to "unflag" already flagged values, when setting `dfilter` above the flag to
         "unset", and setting `flag` to a flagging level associated with your "unflagged" level.
-
-        Note, that parallel working/flagging in subplots is possible, but will trigger usage of tkInter-faces
-        when more than `scrollable` variables are to be displayed. This enables scrolling and browsing through
-        the different variables, but may cause problems, when your OS cant handle TK.
 
         Parameters
         ----------
@@ -72,6 +76,10 @@ class ToolsMixin:
             lines, in case of large data gaps. ``NaN`` values will be removed before
             plotting. If an offset string is passed, only points that have a distance
             below ``max_gap`` are connected via the plotting line.
+        gui_mode :
+            * ``"GUI"`` (default), spawns TK based pop-up GUI, enabling scrolling and binding for subplots
+            * ``"overlay"``, spawns matplotlib based pop-up GUI. May be less conflicting, but does not support
+              scrolling or binding.
         selection_marker_kwargs :
             Marker appearence keywords to modify selection marker appearance. The markers are set via the
             `matplotlib.pyplot.scatter <https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.scatter.html>`_
@@ -116,10 +124,7 @@ class ToolsMixin:
         data, flags = self._data.copy(), self._flags.copy()
 
         flag = kwargs.get("flag", BAD)
-        scrollbar = False
-        if (not scrollable) or (len(field) >= scrollable):
-            scrollbar = True
-
+        scrollbar = True if gui_mode == "GUI" else False
         selection_marker_kwargs = selection_marker_kwargs or {}
         ax_kwargs = ax_kwargs or {}
         marker_kwargs = marker_kwargs or {}
@@ -128,6 +133,7 @@ class ToolsMixin:
             plt.rcParams["toolbar"] = "toolmanager"
         mpl.use(_MPL_DEFAULT_BACKEND)
 
+        # make base figure, the gui will wrap
         fig = makeFig(
             data=data,
             field=field,
@@ -141,18 +147,18 @@ class ToolsMixin:
             scatter_kwargs=marker_kwargs,
             plot_kwargs=plot_kwargs,
         )
+
         overlay_data = []
         for f in field:
             overlay_data += [(data[f][flags[f] < dfilter]).dropna()]
-            # overlay_data += [pd.Series([], index=pd.DatetimeIndex([]))]
 
-        if scrollbar:
+        if scrollbar:  # spawn TK based GUI
             root = tk.Tk()
             scroller = MplScroller(root, fig=fig)
             root.protocol("WM_DELETE_WINDOW", scroller.assignAndQuitFunc())
             scroller.pack(side="top", fill="both", expand=True)
 
-        else:
+        else:  # only use figure window overlay
             scroller = None
 
         selector = SelectionOverlay(
@@ -161,15 +167,19 @@ class ToolsMixin:
             selection_marker_kwargs=selection_marker_kwargs,
             parent=scroller,
         )
-        if not scrollbar:
+
+        if not scrollbar:  # show figure if only overlay is used
             plt.show()
             plt.rcParams["toolbar"] = "toolbar2"
-        else:
+        else:  # spawn TK mainloop
             root.attributes("-fullscreen", True)
             root.mainloop()
             root.destroy()
 
+        # disconnect mouse events when GUI is closed
         selector.disconnect()
+
+        # assign flags only if Selection was confirmed by user
         if selector.confirmed:
             for k in range(selector.N):
                 to_flag = selector.index[k][selector.marked[k]]
