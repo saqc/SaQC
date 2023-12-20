@@ -13,7 +13,7 @@ import numpy as np
 from matplotlib.backend_tools import ToolBase
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 from matplotlib.dates import date2num
-from matplotlib.widgets import MultiCursor, RectangleSelector, SpanSelector
+from matplotlib.widgets import RectangleSelector, Slider, SpanSelector
 
 ASSIGN_SHORTCUT = "enter"
 DISCARD_SHORTCUT = "escape"
@@ -52,64 +52,44 @@ class MplScroller(tk.Frame):
 
         self.frame.bind("<Configure>", self.scrollAreaCallBack)
 
-        # background
-        self._bg = None
-
         # keeping references
         self.parent = parent
         self.fig = fig
 
-        self.control_panel = tk.Frame(self.canvas, bg='DarkGray')#, borderwidth=0)
+        self.control_panel = tk.Frame(self.canvas, bg="DarkGray")
         self.control_panel.pack(side=tk.LEFT, anchor="n")
         # adding buttons
         self.quit_button = tk.Button(
             self.control_panel,
             text="Discard and Quit.",
             command=self.assignAndQuitFunc,
-            #relief=tk.RAISED,
             bg="red",
             width=CP_WIDTH,
             relief="flat",
             overrelief="groove",
-            #borderwidth=1
-            #font=BFONT,
         )
-        self.quit_button.grid(column=3, row=0, pady=5.5, padx=2.25)#'4.4p')
+        self.quit_button.grid(column=3, row=0, pady=5.5, padx=2.25)
         # selector info display
         self.current_slc_entry = tk.StringVar(self.control_panel)
-        # tk.Label(self.canvas, textvariable=self.current_slc_entry, width=20).pack(
-        #    anchor="w", side=tk.BOTTOM
-        # )
 
         tk.Label(
             self.control_panel,
             textvariable=self.current_slc_entry,
             width=CP_WIDTH,
-            #font=BFONT,
+            # font=BFONT,
         ).grid(column=1, row=0, pady=5.5, padx=2.25)
 
         # binding overview
 
-        self.binding_status = [
-            tk.IntVar(self.control_panel) for k in range(len(self.fig.axes))
-        ]
-        if len(self.binding_status) > 100:
-            for v in enumerate(self.binding_status):
-                tk.Checkbutton(
-                    self.control_panel,
-                    text=self.fig.axes[v[0]].get_title(),
-                    variable=v[1],
-                    width=CP_WIDTH,
-                    anchor="w",
-                    font=VARFONT,
-                ).grid(
-                    column=0, row=2 + v[0]
-                )  # .pack(anchor="w", side=tk.BOTTOM)
-
         # adjusting content to the scrollable view
         self.figureSizer()
         self.figureShifter()
+
         self.scrollContentGenerator()
+
+        self.binding_sliders = [None] * len(self.fig.axes)
+        self.binding_status = [False] * len(self.fig.axes)
+        self.makeSlider()
 
     def mouseWheeler(self, direction):
         self.canvas.yview_scroll(direction, "units")
@@ -121,17 +101,13 @@ class MplScroller(tk.Frame):
             command=lambda s=selector: self.assignAndQuitFunc(s),
             bg="green",
             width=CP_WIDTH,
-            #font=BFONT,
-        ).grid(
-            column=0, row=0, pady=5.5, padx=2.25
-        )
+        ).grid(column=0, row=0, pady=5.5, padx=2.25)
 
     def assignAndQuitFunc(self, selector=None):
         if selector:
             selector.confirmed = True
         plt.close(self.fig)
         self.quit()
-
 
     def scrollContentGenerator(self):
         canvas = FigureCanvasTkAgg(self.fig, master=self.frame)
@@ -165,6 +141,19 @@ class MplScroller(tk.Frame):
             b = self.fig.axes[k].get_position().bounds
             self.fig.axes[k].set_position((b[0], b[1] + to_shift, b[2], b[3]))
 
+    def makeSlider(self):
+        for ax in enumerate(self.fig.axes):
+            b0 = ax[1].get_position().get_points()
+            b0_ax = plt.axes([b0[0, 0], b0[1, 1], 0.015, 0.015])
+            self.binding_sliders[ax[0]] = Slider(b0_ax, "", 0, 1, valinit=0, valstep=1)
+            self.binding_sliders[ax[0]].valtext.set_visible(False)
+            self.binding_sliders[ax[0]].on_changed(
+                lambda val, ax_num=ax[0]: self.bindFunc(val, ax_num)
+            )
+
+    def bindFunc(self, val, ax_num):
+        self.binding_status[ax_num] = bool(val)
+
 
 class AssignFlagsTool(ToolBase):
     description = "Assign flags to selection."
@@ -197,7 +186,6 @@ class SelectionOverlay:
         self.lc_rect = None
         self.current_slc = "rect"
         self.spawn_selector(type=self.current_slc)
-
         self.marked = [np.zeros(data[k].shape[0]).astype(bool) for k in range(self.N)]
         self.confirmed = False
         self.index = [data[k].index for k in range(self.N)]
@@ -248,7 +236,7 @@ class SelectionOverlay:
 
         ax_num = np.array([ax_num])
         if (self.current_slc == "span") and (self.parent is not None):
-            stati = np.array([s.get() for s in self.parent.binding_status]).astype(bool)
+            stati = np.array(self.parent.binding_status)
             print(f"stati={stati}")
             if stati.any():
                 stati_w = np.where(stati)[0]
