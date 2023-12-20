@@ -142,9 +142,15 @@ class MplScroller(tk.Frame):
             self.fig.axes[k].set_position((b[0], b[1] + to_shift, b[2], b[3]))
 
     def makeSlider(self):
+        slider_width_inches, slider_hight_inches = 0.3, 0.2
+        fig_sz = self.fig.get_size_inches()
+        slider_width, slider_hight = (
+            slider_width_inches / fig_sz[0],
+            slider_hight_inches / fig_sz[1],
+        )
         for ax in enumerate(self.fig.axes):
             b0 = ax[1].get_position().get_points()
-            b0_ax = plt.axes([b0[0, 0], b0[1, 1], 0.015, 0.015])
+            b0_ax = plt.axes([b0[0, 0], b0[1, 1], slider_width, slider_hight])
             self.binding_sliders[ax[0]] = Slider(b0_ax, "", 0, 1, valinit=0, valstep=1)
             self.binding_sliders[ax[0]].valtext.set_visible(False)
             self.binding_sliders[ax[0]].on_changed(
