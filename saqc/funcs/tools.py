@@ -132,7 +132,11 @@ class ToolsMixin:
         plot_kwargs = plot_kwargs or {}
         if not scrollbar:
             plt.rcParams["toolbar"] = "toolmanager"
-        mpl.use(_MPL_DEFAULT_BACKEND)
+
+        if not _test_mode:
+            mpl.use(_MPL_DEFAULT_BACKEND)
+        elif _test_mode & (gui_mode == "overlay"):
+            mpl.use("Agg")
 
         # make base figure, the gui will wrap
         fig = makeFig(
@@ -169,7 +173,10 @@ class ToolsMixin:
             parent=scroller,
         )
         if _test_mode:
-            return selector
+            if scrollbar:
+                root.destroy()
+            selector.disconnect()
+            return self
 
         if not scrollbar:  # show figure if only overlay is used
             plt.show()

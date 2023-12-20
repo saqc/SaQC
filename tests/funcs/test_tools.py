@@ -41,10 +41,10 @@ def test_makeFig(tmp_path):
     )
 
 
-def test_flagByClick():
+def test_flagByClcik():
     data = pd.DataFrame(
         {f"d{k}": np.random.randint(0, 100, 100) for k in range(10)},
         index=pd.date_range("2000", freq="1d", periods=100),
     )
     qc = saqc.SaQC(data)
-    # qc = qc.flagByClick([f'd{k}' for k in range(10)])
+    qc = qc.flagByClick(data.columns, _test_mode=True)
