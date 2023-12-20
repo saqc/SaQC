@@ -59,20 +59,22 @@ class MplScroller(tk.Frame):
         self.parent = parent
         self.fig = fig
 
-        self.control_panel = tk.Frame(self.canvas, borderwidth=0)
+        self.control_panel = tk.Frame(self.canvas, bg='DarkGray')#, borderwidth=0)
         self.control_panel.pack(side=tk.LEFT, anchor="n")
         # adding buttons
         self.quit_button = tk.Button(
             self.control_panel,
             text="Discard and Quit.",
             command=self.assignAndQuitFunc,
-            relief=tk.RAISED,
+            #relief=tk.RAISED,
             bg="red",
             width=CP_WIDTH,
-            font=BFONT,
+            relief="flat",
+            overrelief="groove",
+            #borderwidth=1
+            #font=BFONT,
         )
-        # self.quit_button.pack(anchor="w", side=tk.BOTTOM)
-        self.quit_button.grid(column=0, row=100, pady=10)
+        self.quit_button.grid(column=3, row=0, pady=5.5, padx=2.25)#'4.4p')
         # selector info display
         self.current_slc_entry = tk.StringVar(self.control_panel)
         # tk.Label(self.canvas, textvariable=self.current_slc_entry, width=20).pack(
@@ -83,15 +85,15 @@ class MplScroller(tk.Frame):
             self.control_panel,
             textvariable=self.current_slc_entry,
             width=CP_WIDTH,
-            font=BFONT,
-        ).grid(column=0, row=1, pady=10)
+            #font=BFONT,
+        ).grid(column=1, row=0, pady=5.5, padx=2.25)
 
         # binding overview
 
         self.binding_status = [
             tk.IntVar(self.control_panel) for k in range(len(self.fig.axes))
         ]
-        if len(self.binding_status) > 1:
+        if len(self.binding_status) > 100:
             for v in enumerate(self.binding_status):
                 tk.Checkbutton(
                     self.control_panel,
@@ -119,17 +121,17 @@ class MplScroller(tk.Frame):
             command=lambda s=selector: self.assignAndQuitFunc(s),
             bg="green",
             width=CP_WIDTH,
-            font=BFONT,
+            #font=BFONT,
         ).grid(
-            column=0, row=0
-        )  # .pack(side=tk.BOTTOM, anchor="w")
+            column=0, row=0, pady=5.5, padx=2.25
+        )
 
     def assignAndQuitFunc(self, selector=None):
         if selector:
             selector.confirmed = True
         plt.close(self.fig)
         self.quit()
-        # self.destroy()
+
 
     def scrollContentGenerator(self):
         canvas = FigureCanvasTkAgg(self.fig, master=self.frame)
@@ -212,6 +214,7 @@ class SelectionOverlay:
             parent.assignationGenerator(self)
 
         self.canvas.mpl_connect("key_press_event", self.keyPressEvents)
+        self.canvas.mpl_connect("button_press_event", self.buttonPressEvents)
         self.canvas.draw_idle()
 
     def onLeftSelectFunc(self, ax_num):
@@ -355,3 +358,6 @@ class SelectionOverlay:
             elif self.current_slc == "span":
                 self.current_slc = "rect"
                 self.spawn_selector("rect")
+
+    def buttonPressEvents(self, event):
+        print(event)
