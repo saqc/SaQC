@@ -41,6 +41,7 @@ def test_makeFig(tmp_path):
     )
 
 
+@pytest.mark.filterwarnings("ignore::UserWarning")
 def test_flagByClcik():
     data = pd.DataFrame(
         {f"d{k}": np.random.randint(0, 100, 100) for k in range(10)},
