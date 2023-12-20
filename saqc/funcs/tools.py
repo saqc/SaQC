@@ -39,12 +39,13 @@ class ToolsMixin:
         self: "SaQC",
         field: str | list[str],
         max_gap: str | None = None,
-        gui_mode: Literal["GUI", "overlay"] = None,
+        gui_mode: Literal["GUI", "overlay"] = "GUI",
         selection_marker_kwargs: dict | None = None,
         ax_kwargs: dict | None = None,
         marker_kwargs: dict | None = None,
         plot_kwargs: dict | None = None,
         dfilter: float = BAD,
+        _test_mode=False,
         **kwargs,
     ) -> "SaQC":
         """
@@ -167,6 +168,8 @@ class ToolsMixin:
             selection_marker_kwargs=selection_marker_kwargs,
             parent=scroller,
         )
+        if _test_mode:
+            return selector
 
         if not scrollbar:  # show figure if only overlay is used
             plt.show()
