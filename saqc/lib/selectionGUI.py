@@ -8,6 +8,7 @@
 
 import tkinter as tk
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.backend_tools import ToolBase
@@ -198,14 +199,14 @@ class SelectionOverlay:
         self.index = [data[k].index for k in range(self.N)]
         self.data = [data[k].values for k in range(self.N)]
         self.numidx = [date2num(self.index[k]) for k in range(self.N)]
-        if not parent:
+        if (not parent) and (not (matplotlib.get_backend()=='agg')):
             # add assignment button to the toolbar
             self.canvas.manager.toolmanager.add_tool(
                 "Assign Flags", AssignFlagsTool, callback=self.assignAndCloseCB
             )
             self.canvas.manager.toolbar.add_tool("Assign Flags", "Flags")
             self.canvas.manager.toolmanager.remove_tool("help")
-        else:
+        elif parent:
             parent.assignationGenerator(self)
 
         self.canvas.mpl_connect("key_press_event", self.keyPressEvents)

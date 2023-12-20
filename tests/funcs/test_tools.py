@@ -47,4 +47,4 @@ def test_flagByClcik():
         index=pd.date_range("2000", freq="1d", periods=100),
     )
     qc = saqc.SaQC(data)
-    qc = qc.flagByClick(data.columns, _test_mode=True)
+    qc = qc.flagByClick(data.columns, gui_mode='overlay', _test_mode=True)
