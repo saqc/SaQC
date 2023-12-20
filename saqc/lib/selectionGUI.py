@@ -24,6 +24,7 @@ SELECTION_MARKER_DEFAULT = {"zorder": 10, "c": "red", "s": 50, "marker": "x"}
 FIGS_PER_SCREEN = 2
 # or hight in inches (if given overrides number of figs per screen):
 FIG_HIGHT_INCH = None
+SLIDER_WIDTH_INCH, SLIDER_HIGHT_INCH = 0.3, 0.2
 BFONT = ("Times", "16")
 VARFONT = ("Times", "12")
 CP_WIDTH = 15
@@ -145,8 +146,8 @@ class MplScroller(tk.Frame):
         slider_width_inches, slider_hight_inches = 0.3, 0.2
         fig_sz = self.fig.get_size_inches()
         slider_width, slider_hight = (
-            slider_width_inches / fig_sz[0],
-            slider_hight_inches / fig_sz[1],
+            SLIDER_WIDTH_INCH / fig_sz[0],
+            SLIDER_HIGHT_INCH / fig_sz[1],
         )
         for ax in enumerate(self.fig.axes):
             b0 = ax[1].get_position().get_points()
