@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import abc
-from typing import TypeVar
+from typing import TypeVar, Union
 
 import numpy as np
 import pandas as pd
@@ -25,8 +25,8 @@ __all__ = [
 T = TypeVar("T")
 ArrayLike = TypeVar("ArrayLike", np.ndarray, pd.Series, pd.DataFrame)
 
-ExternalFlag = str | float | int
-FieldType = str | list[str | list[str]]
+ExternalFlag = Union[str, float, int]
+FieldType = Union[str, list[Union[str, list[str]]]]
 
 
 # needed for deeper type hinting magic
