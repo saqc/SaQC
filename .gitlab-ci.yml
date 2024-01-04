@@ -52,7 +52,7 @@ isort:
   stage: compliance
   script:
     - pip install isort
-    - isort --check .
+    - isort --check saqc
 
 # Check compliance with the REUSE specification
 reuse:
