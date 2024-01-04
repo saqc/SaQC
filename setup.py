@@ -2,8 +2,9 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 import os
 
-import versioneer
 from setuptools import find_packages, setup
+
+import versioneer
 
 # read the version string from saqc without importing it. See the
 # link for a more detailed description of the problem and the solution

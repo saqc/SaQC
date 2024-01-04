@@ -12,6 +12,7 @@ import pandas as pd
 
 from saqc.constants import BAD, DOUBTFUL, GOOD, UNFLAGGED
 from saqc.core import Flags, History
+from saqc.core.frame import DictOfSeries
 from saqc.core.translation.basescheme import BackwardMap, ForwardMap, MappingScheme
 
 
@@ -43,7 +44,7 @@ class PositionalScheme(MappingScheme):
     def __init__(self):
         super().__init__(forward=self._FORWARD, backward=self._BACKWARD)
 
-    def toInternal(self, flags: pd.DataFrame) -> Flags:
+    def toInternal(self, flags: pd.DataFrame | DictOfSeries | pd.Series) -> Flags:
         """
         Translate from 'external flags' to 'internal flags'
 
@@ -56,6 +57,9 @@ class PositionalScheme(MappingScheme):
         -------
         Flags object
         """
+
+        if not isinstance(flags, pd.DataFrame):
+            raise ValueError(f"expected flags of type pd.DataFrame got {type(flags)}")
 
         data = {}
         for field, field_flags in flags.items():
@@ -74,7 +78,7 @@ class PositionalScheme(MappingScheme):
 
         return Flags(data)
 
-    def toExternal(self, flags: Flags, **kwargs) -> pd.DataFrame:
+    def toExternal(self, flags: Flags, attrs: dict | None = None) -> pd.DataFrame:
         """
         Translate from 'internal flags' to 'external flags'
 
@@ -98,4 +102,6 @@ class PositionalScheme(MappingScheme):
             tflags = init + (thist * bases).sum(axis=1)
             out[field] = tflags
 
-        return pd.DataFrame(out).fillna(-9999).astype(int)
+        out = pd.DataFrame(out).fillna(-9999).astype(int)
+        out.attrs = attrs or {}
+        return out

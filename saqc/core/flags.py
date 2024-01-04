@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import typing
 import warnings
-from typing import DefaultDict, Dict, Iterable, Mapping, Tuple, Type, Union, overload
+from typing import DefaultDict, Dict, Iterable, Tuple, Type, Union, overload
 
 import numpy as np
 import pandas as pd
@@ -206,7 +206,7 @@ class Flags:
             self._data = self._initFromRaw(raw_data, copy)
 
     @staticmethod
-    def _initFromRaw(data: Mapping, copy: bool) -> Dict[str, History]:
+    def _initFromRaw(data: DictLike, copy: bool) -> Dict[str, History]:
         """
         init from dict-like: keys are flag column, values become
         initial columns of history(s).
@@ -378,8 +378,8 @@ class Flags:
                 tmp[mask] = value
             except Exception:
                 raise ValueError(
-                    f"bad mask. cannot use mask of length {len(mask)} on "
-                    f"data of length {len(tmp)}"
+                    f"attempted to assign sequence of size {len(tmp)} "
+                    f"using indexer {mask}"
                 )
             else:
                 value = tmp
@@ -509,8 +509,8 @@ class Flags:
 
 
 def initFlagsLike(
-    reference: Union[pd.Series, DictLike, Flags],
-    name: str = None,
+    reference: pd.Series | DictLike | Flags,
+    name: str | None = None,
 ) -> Flags:
     """
     Create empty Flags, from a reference data structure.
