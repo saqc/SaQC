@@ -49,4 +49,4 @@ def test_flagByClcik():
     )
     qc = saqc.SaQC(data)
     qc = qc.flagByClick(data.columns, gui_mode="overlay", _test_mode=True)
-    qc = qc.flagByClick(data.columns, gui_mode="GUI", _test_mode=True)
+    qc = qc.flagByClick(data.columns, _test_mode=True)

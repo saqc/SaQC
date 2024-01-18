@@ -123,8 +123,12 @@ class MplScroller(tk.Frame):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
 
     def figureSizer(self):
-        window = plt.get_current_fig_manager().window
-        f_size = list(window.wm_maxsize())
+        manager = plt.get_current_fig_manager()
+        if hasattr(manager, 'window'):
+            window = plt.get_current_fig_manager().window
+            f_size = list(window.wm_maxsize())
+        else: # for testing mode
+            f_size = [1,1]
         px = 1 / plt.rcParams["figure.dpi"]
         f_size = [ws * px for ws in f_size]
         if not FIG_HIGHT_INCH:
@@ -134,8 +138,12 @@ class MplScroller(tk.Frame):
         self.fig.set_size_inches(f_size[0], f_size[1])
 
     def figureShifter(self):
-        window = plt.get_current_fig_manager().window
-        screen_hight = window.wm_maxsize()[1]
+        manager = plt.get_current_fig_manager()
+        if hasattr(manager, 'window'):
+            window = manager.window
+            screen_hight = window.wm_maxsize()[1]
+        else:
+            screen_hight = 10
         fig_hight = self.fig.get_size_inches()
         ratio = fig_hight[1] / screen_hight
         to_shift = ratio
