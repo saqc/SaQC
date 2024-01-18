@@ -58,8 +58,6 @@ jobs:
 
       - name: run SaQC test suite
         run: |
-          export DISPLAY=:99
-          Xvfb :99 &
           python -m saqc --config docs/resources/data/config.csv --data docs/resources/data/data.csv --outfile /tmp/test.csv
 
       # - name: run doc tests
