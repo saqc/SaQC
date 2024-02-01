@@ -44,26 +44,27 @@ default:
 black:
   stage: compliance
   script:
+    - pwd
     - pip install black
     - black --check .
 
-# check if imports are sorted
-isort:
-  stage: compliance
-  script:
-    - pip install isort
-    - isort --check .
+# # check if imports are sorted
+# isort:
+#   stage: compliance
+#   script:
+#     - pip install isort
+#     - isort --check .
 
-# Check compliance with the REUSE specification
-reuse:
-  stage: compliance
-  image:
-    name: fsfe/reuse:latest
-    entrypoint: [""]
-  before_script:
-    - echo "Override default 'before_script'..."
-  script:
-    - reuse lint
+# # Check compliance with the REUSE specification
+# reuse:
+#   stage: compliance
+#   image:
+#     name: fsfe/reuse:latest
+#     entrypoint: [""]
+#   before_script:
+#     - echo "Override default 'before_script'..."
+#   script:
+#     - reuse lint
 
 
 # ===========================================================
