@@ -10,14 +10,15 @@ from __future__ import annotations
 
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, ForwardRef, List, Optional, Sequence, Tuple
 
 import numpy as np
 import numpy.polynomial.polynomial as poly
 import pandas as pd
 from outliers import smirnov_grubbs  # noqa, on pypi as outlier-utils
+from pydantic import Field, ValidationError, validate_call
 from scipy.stats import median_abs_deviation
-from typing_extensions import Literal
+from typing_extensions import Annotated, Literal
 
 from saqc import BAD, UNFLAGGED
 from saqc.core import DictOfSeries, Flags, flagging, register
@@ -35,6 +36,9 @@ from saqc.lib.checking import (
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.rolling import windowRoller
 from saqc.lib.tools import getFreqDelta, isflagged, toSequence
+
+# from pydantic.functional_validators import AfterValidator
+
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -54,6 +58,8 @@ class OutliersMixin:
                 f"'density' must be 'auto' or a float or a function, not {density}"
             )
 
+    # @validate_call()
+    @validate_call()
     @register(
         mask=["field"],
         demask=["field"],
@@ -62,15 +68,15 @@ class OutliersMixin:
         handles_target=False,
     )
     def flagLOF(
-        self: "SaQC",
+        self,
         field: Sequence[str],
-        n: int = 20,
-        thresh: Literal["auto"] | float = 1.5,
+        n: Annotated[int, Field(ge=1)] = 20,
+        thresh: Literal["auto"] | Annotated[float, Field(ge=0)] = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
-        p: int = 1,
+        p: Annotated[int, Field(ge=1)] = 1,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ):
         """
         Flag values where the Local Outlier Factor (LOF) exceeds cutoff.
 
@@ -143,10 +149,6 @@ class OutliersMixin:
           the scores are cut off at a level, determined by :py:attr:`thresh`.
 
         """
-        self._validateLOF(algorithm, n, p, 1.0)
-        if thresh != "auto" and not isFloatLike(thresh):
-            raise ValueError(f"'thresh' must be 'auto' or a float, not {thresh}")
-
         fields = toSequence(field)
         field_ = str(uuid.uuid4())
         qc = self.assignLOF(
@@ -169,19 +171,20 @@ class OutliersMixin:
 
         return qc.dropField(field_)
 
+    @validate_call()
     @flagging()
     def flagUniLOF(
-        self: "SaQC",
+        self,
         field: str,
-        n: int = 20,
-        thresh: Literal["auto"] | float = 1.5,
+        n: Annotated[int, Field(ge=1)] = 20,
+        thresh: Literal["auto"] | Annotated[float, Field(ge=0)] = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
-        p: int = 1,
-        density: Literal["auto"] | float = "auto",
+        p: Annotated[int, Field(ge=1)] = 1,
+        density: Literal["auto"] | Annotated[float, Field(gt=0)] = "auto",
         fill_na: bool = True,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ):
         """
         Flag "univariate" Local Outlier Factor (LOF) exceeding cutoff.
 
@@ -346,10 +349,6 @@ class OutliersMixin:
            qc.plot('sac254_raw')
 
         """
-        self._validateLOF(algorithm, n, p, density)
-        if thresh != "auto" and not isFloatLike(thresh):
-            raise ValueError(f"'thresh' must be 'auto' or a float, not {thresh}")
-
         tmp_field = str(uuid.uuid4())
         qc = self.assignUniLOF(
             field=field,
@@ -372,15 +371,16 @@ class OutliersMixin:
         qc = qc.dropField(tmp_field)
         return qc
 
+    @validate_call()
     @flagging()
     def flagRange(
-        self: "SaQC",
+        self,
         field: str,
         min: float = -np.inf,
         max: float = np.inf,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ):
         """
         Function flags values exceeding the closed
         interval [:py:attr:`min`, :py:attr:`max`].

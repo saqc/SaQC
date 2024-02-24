@@ -95,6 +95,7 @@ extensions = [
     "sphinx_tabs.tabs",
     "sphinx_autodoc_typehints",
     "sphinx_design",
+    "sphinxcontrib.autodoc_pydantic",
 ]
 
 
