@@ -45,20 +45,6 @@ if TYPE_CHECKING:
 
 
 class OutliersMixin:
-    @staticmethod
-    def _validateLOF(algorithm, n, p, density):
-        """validate parameter for LOF and UniLOF"""
-        validateValueBounds(n, "n", left=0, strict_int=True)
-        validateValueBounds(p, "p", left=0, strict_int=True)
-        validateChoice(
-            algorithm, "algorithm", ["ball_tree", "kd_tree", "brute", "auto"]
-        )
-        if density != "auto" and not isFloatLike(density) and not isCallable(density):
-            raise ValueError(
-                f"'density' must be 'auto' or a float or a function, not {density}"
-            )
-
-    # @validate_call()
     @validate_call()
     @register(
         mask=["field"],
