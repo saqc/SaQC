@@ -393,7 +393,6 @@ class ScoresMixin:
 
         validateMinPeriods(min_periods)
 
-
         if isinstance(target, list):
             if len(target) > 1:
                 raise ValueError(
