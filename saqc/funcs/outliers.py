@@ -55,7 +55,7 @@ class OutliersMixin:
     )
     def flagLOF(
         self,
-        field: Sequence[str],
+        field: str | Sequence[str],
         n: Annotated[int, Field(ge=1)] = 20,
         thresh: Literal["auto"] | Annotated[float, Field(ge=0)] = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
