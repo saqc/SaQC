@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+
 import uuid
 import warnings
 from typing import TYPE_CHECKING, Callable, ForwardRef, List, Optional, Sequence, Tuple
@@ -23,6 +24,8 @@ from typing_extensions import Annotated, Literal
 from saqc import BAD, UNFLAGGED
 from saqc.core import DictOfSeries, Flags, flagging, register
 from saqc.lib.checking import (
+    constraint,
+    FreqStr,
     isCallable,
     isFloatLike,
     validateChoice,
@@ -32,16 +35,17 @@ from saqc.lib.checking import (
     validateMinPeriods,
     validateValueBounds,
     validateWindow,
+    #SaQC_like
 )
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.rolling import windowRoller
 from saqc.lib.tools import getFreqDelta, isflagged, toSequence
 
-# from pydantic.functional_validators import AfterValidator
-
 
 if TYPE_CHECKING:
     from saqc import SaQC
+else:
+    from saqc.lib.checking import SaQC
 
 
 class OutliersMixin:
@@ -54,15 +58,15 @@ class OutliersMixin:
         handles_target=False,
     )
     def flagLOF(
-        self,
+        self: SaQC,
         field: str | Sequence[str],
-        n: Annotated[int, Field(ge=1)] = 20,
-        thresh: Literal["auto"] | Annotated[float, Field(ge=0)] = 1.5,
+        n: constraint(int, ge=1) = 20,
+        thresh: Literal["auto"] | constraint(float, ge=1) = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
-        p: Annotated[int, Field(ge=1)] = 1,
+        p: constraint(int, ge=1) = 1,
         flag: float = BAD,
         **kwargs,
-    ):
+    ) -> SaQC:
         """
         Flag values where the Local Outlier Factor (LOF) exceeds cutoff.
 
@@ -162,10 +166,10 @@ class OutliersMixin:
     def flagUniLOF(
         self,
         field: str,
-        n: Annotated[int, Field(ge=1)] = 20,
-        thresh: Literal["auto"] | Annotated[float, Field(ge=0)] = 1.5,
+        n: constraint(int, ge=1) = 20,
+        thresh: Literal["auto"] | constraint(float, ge=1) = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
-        p: Annotated[int, Field(ge=1)] = 1,
+        p: constraint(int, ge=1) = 1,
         density: Literal["auto"] | Annotated[float, Field(gt=0)] = "auto",
         fill_na: bool = True,
         flag: float = BAD,
@@ -360,7 +364,7 @@ class OutliersMixin:
     @validate_call()
     @flagging()
     def flagRange(
-        self,
+        self: SaQC,
         field: str,
         min: float = -np.inf,
         max: float = np.inf,
@@ -388,10 +392,10 @@ class OutliersMixin:
     def flagByStray(
         self: "SaQC",
         field: str,
-        window: int | str | None = None,
-        min_periods: int = 11,
-        iter_start: float = 0.5,
-        alpha: float = 0.05,
+        window: FreqStr | constraint(int, ge=1) = None,
+        min_periods: constraint(int, ge=1) = 11,
+        iter_start: constraint(float, ge=0, le=1) = 0.5,
+        alpha: constraint(float, ge=0, le=1) = 0.05,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -438,11 +442,6 @@ class OutliersMixin:
 
         if window is None:
             window = len(scores)
-        if not isinstance(window, int):
-            validateFrequency(window, "window")
-
-        validateMinPeriods(min_periods)
-        validateValueBounds(iter_start, "iter_start", left=0, right=1, closed="both")
 
         if scores.empty:
             return self
@@ -497,8 +496,8 @@ class OutliersMixin:
         self: "SaQC",
         field: Sequence[str],
         trafo: Callable[[pd.Series], pd.Series] = lambda x: x,
-        alpha: float = 0.05,
-        n: int = 10,
+        alpha: constraint(float ,ge=0, le=1) = 0.05,
+        n: constraint(int, ge=1) = 10,
         func: Callable[[pd.Series], float] | str = "sum",
         iter_start: float = 0.5,
         window: int | str | None = None,

@@ -3,14 +3,16 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 from __future__ import annotations
+from typing_extensions import Annotated
+
+from pydantic.functional_validators import AfterValidator
 
 from typing import Any, Collection, Iterable, Literal, TypeVar, get_origin
-
+from pydantic import Field
 import numpy as np
 import pandas as pd
 
 T = TypeVar("T")
-
 
 # ====================================================================
 # `isSomething`-Checks: must not raise Exceptions by checking the value (but
@@ -20,6 +22,26 @@ T = TypeVar("T")
 #
 # Module should not have no saqc dependencies
 #
+def checkFrequency(freq: str) -> pd.offsets.BaseOffset:
+    try:
+        return pd.tseries.frequencies.to_offset(freq)
+    except ValueError:
+        raise ValueError(f"Not a frequecy String!: '{freq}'")
+
+FreqStr = Annotated[str, AfterValidator(checkFrequency)]
+
+def constraint(type, **constraints):
+    return Annotated[type, Field(**constraints)]
+def checkSaQC(o):
+    from saqc.core import SaQC
+    if isinstance(o, SaQC):
+        return o
+    else:
+        ValueError('WRONG!')
+
+SaQC = Annotated[object, AfterValidator(checkSaQC)]
+
+
 def isBoolLike(obj: Any, optional: bool = False) -> bool:
     """Return True if obj is a boolean or one of the integers 0 or 1.
     If optional is True, `None` also is considered a valid boolean.
