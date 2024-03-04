@@ -40,14 +40,14 @@ import numpy as np
 # global flag constants
 # ----------------------------------------------------------------------
 
-UNFLAGGED = -np.inf
-GOOD = 0
-DOUBTFUL = 25.0
-BAD = 255.0
+UNFLAGGED: float = -np.inf
+GOOD: float = 0.0
+DOUBTFUL: float = 25.0
+BAD: float = 255.0
 
 # ----------------------------------------------------------------------
 # global dfilter constants
 # ----------------------------------------------------------------------
 
-FILTER_ALL = -np.inf
-FILTER_NONE = np.inf
+FILTER_ALL: float = -np.inf
+FILTER_NONE: float = np.inf

@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Dict
+from typing import Any, Mapping
 
 import pandas as pd
 
@@ -17,18 +17,15 @@ from saqc import BAD, FILTER_ALL, UNFLAGGED
 from saqc.core import DictOfSeries, Flags
 from saqc.lib.types import ExternalFlag
 
-ForwardMap = Dict[ExternalFlag, float]
-BackwardMap = Dict[float, ExternalFlag]
+ForwardMap = dict[ExternalFlag, float]
+BackwardMap = dict[float, ExternalFlag]
 
 
-class TranslationScheme:  # pragma: no cover
-    @property
-    @abstractmethod
-    def DFILTER_DEFAULT(self):
-        pass
+class TranslationScheme:
+    DFILTER_DEFAULT = None
 
     @abstractmethod
-    def __call__(self, flag: ExternalFlag) -> float:
+    def __call__(self, flag) -> float:
         pass
 
     @abstractmethod
@@ -48,7 +45,9 @@ class TranslationScheme:  # pragma: no cover
         pass
 
     @abstractmethod
-    def toExternal(self, flags: Flags, attrs: dict | None = None) -> DictOfSeries:
+    def toExternal(
+        self, flags: Flags, attrs: dict | None = None
+    ) -> DictOfSeries | pd.DataFrame:
         """
         Translate from 'internal flags' to 'external flags'
 
@@ -99,7 +98,7 @@ class MappingScheme(TranslationScheme):
     DFILTER_DEFAULT: float = FILTER_ALL
 
     # additional arguments and default values the translation scheme accepts
-    ARGUMENTS: Dict[str, Any] = {}
+    ARGUMENTS: dict[str, Any] = {}
 
     def __init__(self, forward: ForwardMap, backward: BackwardMap):
         """
@@ -127,7 +126,7 @@ class MappingScheme(TranslationScheme):
     @staticmethod
     def _translate(
         flags: Flags | pd.DataFrame | pd.Series | DictOfSeries,
-        trans_map: ForwardMap | BackwardMap,
+        translation: ForwardMap | BackwardMap,
     ) -> DictOfSeries:
         """
         Translate a given flag data structure to another according to the
@@ -146,9 +145,9 @@ class MappingScheme(TranslationScheme):
             flags = flags.to_frame()
 
         out = DictOfSeries()
-        expected = pd.Index(trans_map.values())
+        expected = pd.Index(translation.values())
         for field in flags.columns:
-            out[field] = flags[field].replace(trans_map)
+            out[field] = flags[field].replace(translation)
             diff = pd.Index(out[field]).difference(expected)
             if not diff.empty:
                 raise ValueError(
@@ -195,7 +194,7 @@ class MappingScheme(TranslationScheme):
         self,
         flags: Flags,
         attrs: dict | None = None,
-    ) -> DictOfSeries:
+    ) -> DictOfSeries | pd.DataFrame:
         """
         Translate from 'internal flags' to 'external flags'
 

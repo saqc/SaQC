@@ -124,7 +124,7 @@ class SaQC(FunctionsMixin):
         return data
 
     @property
-    def flags(self) -> MutableMapping[str, pd.Series]:
+    def flags(self) -> pd.DataFrame | DictOfSeries:
         flags = self._scheme.toExternal(self._flags, attrs=self._attrs)
         flags.attrs = self._attrs.copy()
         return flags

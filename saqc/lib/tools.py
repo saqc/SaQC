@@ -17,7 +17,6 @@ from typing import (
     Callable,
     Collection,
     Iterable,
-    List,
     Literal,
     Sequence,
     TypeVar,
@@ -37,7 +36,7 @@ from saqc.lib.checking import _isLiteral
 from saqc.lib.types import CompT
 
 
-def extractLiteral(lit: type(Literal)) -> List:
+def extractLiteral(lit: type(Literal)) -> list:
     """Return a list of values from a typing.Literal[...] at runtime."""
     if not _isLiteral(lit):
         raise TypeError("'lit' must be a typing.Literal")
@@ -47,12 +46,12 @@ def extractLiteral(lit: type(Literal)) -> List:
 T = TypeVar("T")
 # fmt: off
 @overload
-def toSequence(value: Sequence[T]) -> List[T]:
+def toSequence(value: Sequence[T]) -> list[T]:
     ...
 @overload
-def toSequence(value: T) -> List[T]:
+def toSequence(value: T) -> list[T]:
     ...
-def toSequence(value) -> List:
+def toSequence(value) -> list:
     if value is None or isinstance(value, (str, float, int)):
         return [value]
     return list(value)
@@ -244,7 +243,7 @@ def estimateFrequency(
     max_freqs : int, default 10
         Maximum number of frequencies collected from the index. Mainly a value to prevent the frequency
         collection loop from collecting noise and running endlessly.
-    bins : {None, List[float]} : default None
+    bins : {None, list[float]} : default None
 
     Returns
     -------
@@ -252,7 +251,7 @@ def estimateFrequency(
             Either the sampling rate that was detected in the sample index (if uniform). Or
             the greates common rate of all the sampling rates detected. Equals `None` if
             detection failed and `"empty"`, if input index was empty.
-        freqs : List[str]
+        freqs : list[str]
             List of detected sampling rates.
 
     """

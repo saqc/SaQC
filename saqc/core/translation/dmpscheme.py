@@ -16,6 +16,7 @@ import pandas as pd
 
 from saqc import BAD, DOUBTFUL, GOOD, UNFLAGGED
 from saqc.core import Flags, History
+from saqc.core.frame import DictOfSeries
 from saqc.core.translation.basescheme import BackwardMap, ForwardMap, MappingScheme
 from saqc.lib.tools import getUnionIndex
 
@@ -90,7 +91,7 @@ class DmpScheme(MappingScheme):
             field_history.append(histcol, meta=meta)
         return field_history
 
-    def toInternal(self, df: pd.DataFrame) -> Flags:
+    def toInternal(self, flags: pd.DataFrame | DictOfSeries | pd.Series) -> Flags:
         """
         Translate from 'external flags' to 'internal flags'
 
@@ -104,18 +105,19 @@ class DmpScheme(MappingScheme):
         Flags object
         """
 
-        self.validityCheck(df)
+        if not isinstance(flags, pd.DataFrame):
+            raise ValueError(f"expected flags of type pd.DataFrame got {type(flags)}")
+
+        self.validityCheck(flags)
 
         data = {}
 
-        for field in df.columns.get_level_values(0).drop_duplicates():
-            data[str(field)] = self.toHistory(df[field])
+        for field in flags.columns.get_level_values(0).drop_duplicates():
+            data[str(field)] = self.toHistory(flags[field])
 
         return Flags(data)
 
-    def toExternal(
-        self, flags: Flags, attrs: dict | None = None, **kwargs
-    ) -> pd.DataFrame:
+    def toExternal(self, flags: Flags, attrs: dict | None = None) -> pd.DataFrame:
         """
         Translate from 'internal flags' to 'external flags'
 
@@ -169,7 +171,7 @@ class DmpScheme(MappingScheme):
         return out
 
     @classmethod
-    def validityCheck(cls, df: pd.DataFrame) -> None:
+    def validityCheck(cls, df: pd.DataFrame | pd.Series) -> None:
         """
         Check wether the given causes and comments are valid.
 

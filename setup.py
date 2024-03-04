@@ -5,6 +5,7 @@ import os
 import versioneer
 from setuptools import find_packages, setup
 
+
 # read the version string from saqc without importing it. See the
 # link for a more detailed description of the problem and the solution
 # https://stackoverflow.com/questions/2058802/how-can-i-get-the-version-defined-in-setup-py-setuptools-in-my-package

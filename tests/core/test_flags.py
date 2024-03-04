@@ -4,6 +4,8 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from __future__ import annotations
+
 from typing import Dict, Union
 
 import numpy as np
@@ -102,7 +104,7 @@ def test_init_raise_TypeError(data, msg):
 
 
 @pytest.mark.parametrize("data", testdata)
-def test_copy(data: Union[pd.DataFrame, DictOfSeries, Dict[str, pd.Series]]):
+def test_copy(data: pd.DataFrame | DictOfSeries):
     flags = Flags(data)
     shallow = flags.copy(deep=False)
     deep = flags.copy(deep=True)

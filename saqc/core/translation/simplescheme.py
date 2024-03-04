@@ -3,10 +3,13 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 
+from typing import Mapping
+
 import numpy as np
 
 from saqc.constants import BAD, GOOD, UNFLAGGED
 from saqc.core.translation import MappingScheme
+from saqc.lib.types import ExternalFlag
 
 
 class SimpleScheme(MappingScheme):
@@ -15,13 +18,13 @@ class SimpleScheme(MappingScheme):
     internal float flags
     """
 
-    _FORWARD = {
+    _FORWARD: dict[ExternalFlag, float] = {
         "UNFLAGGED": UNFLAGGED,
         "BAD": BAD,
         "OK": GOOD,
     }
 
-    _BACKWARD = {
+    _BACKWARD: dict[float, ExternalFlag] = {
         UNFLAGGED: "UNFLAGGED",
         np.nan: "UNFLAGGED",
         BAD: "BAD",
