@@ -40,6 +40,15 @@ if TYPE_CHECKING:
     from saqc import SaQC
 
 
+def _uniLOFAutoDensity(vals):
+    v_diff = vals.diff()
+    density = v_diff.abs().median()
+    if density == 0:
+        zero_step_mask = v_diff == 0
+        density = v_diff[~zero_step_mask].abs().median() / sum(zero_step_mask)
+    return density
+
+
 class OutliersMixin:
     @staticmethod
     def _validateLOF(algorithm, n, p, density):
@@ -390,11 +399,7 @@ class OutliersMixin:
             min_vals = od_groups.min()
             if min_offset is None:
                 if density == "auto":
-                    d_diff = dat.diff()
-                    eps = d_diff.abs().median()
-                    if eps == 0:
-                        zero_step_mask = d_diff == 0
-                        eps = d_diff[~zero_step_mask].abs().median() / sum(zero_step_mask)
+                    eps = _uniLOFAutoDensity(dat)
                 else:
                     eps = density
                 eps = 3 * eps
@@ -794,9 +799,6 @@ class OutliersMixin:
         """
         The function flags raises and drops in value courses, that exceed a certain threshold within a certain timespan.
 
-        .. deprecated:: 2.6.0
-           Function is deprecated since its not humanly parameterisable. Also more suitable alternatives are available. Depending on use case, use: :py:meth:`~saqc.SaQC.flagUniLOF`, :py:meth:`~saqc.SaQC.flagZScore`, :py:meth:`~saqc.SaQC.flagJumps` instead.
-
         Parameters
         ----------
         thresh :
@@ -851,15 +853,6 @@ class OutliersMixin:
            * :math:`x_k - x_{k-1} >` :py:attr:`slope`
            * :math:`t_k - t_{k-1} >` :py:attr:`weight` :math:`\\times` :py:attr:`freq`
         """
-
-        warnings.warn(
-            "The function flagRaise is deprecated with no 100% exact replacement function."
-            "When looking for changes in the value course, the use of flagraise can be replicated and more easily aimed "
-            "for, via the method flagJump.\n"
-            "When looking for raises to outliers or plateaus, use one of: "
-            "flagZScore(outliers), flagUniLOF (outliers and small plateaus) or flagOffset(Plateaus)",
-            DeprecationWarning,
-        )
 
         validateWindow(raise_window, "raise_window", allow_int=False)
         validateWindow(freq, "freq", allow_int=False)
@@ -1224,9 +1217,6 @@ class OutliersMixin:
         """
         Flag outliers using the Grubbs algorithm.
 
-        .. deprecated:: 2.6.0
-           Use :py:meth:`~saqc.SaQC.flagUniLOF` or :py:meth:`~saqc.SaQC.flagZScore` instead.
-
         Parameters
         ----------
         window :
@@ -1252,13 +1242,6 @@ class OutliersMixin:
 
         [1] https://en.wikipedia.org/wiki/Grubbs%27s_test_for_outliers
         """
-
-        warnings.warn(
-            "The function flagGrubbs is deprecated due to its inferior performance, with no 100% exact replacement function."
-            "When looking for outliers use one of: "
-            "flagZScore, flagUniLOF",
-            DeprecationWarning,
-        )
 
         validateWindow(window)
         validateFraction(alpha, "alpha")

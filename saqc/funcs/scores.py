@@ -16,6 +16,7 @@ from typing_extensions import Literal
 
 from saqc import UNFLAGGED
 from saqc.core import register
+from saqc.funcs.outliers import _uniLOFAutoDensity
 from saqc.lib.checking import (
     validateChoice,
     validateFuncSelection,
@@ -503,11 +504,7 @@ class ScoresMixin:
             filled = pd.Series(False, index=vals.index)
 
         if density == "auto":
-            v_diff = vals.diff()
-            density = v_diff.abs().median()
-            if density == 0:
-                zero_step_mask = v_diff == 0
-                density = v_diff[~zero_step_mask].abs().median()/sum(zero_step_mask)
+            density = _uniLOFAutoDensity(vals)
         elif isinstance(density, Callable):
             density = density(vals)
         if isinstance(density, pd.Series):

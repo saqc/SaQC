@@ -51,6 +51,7 @@ def test_flagSpikesBasic(spiky_data):
     test_sum = (flag_result.iloc[spiky_data[1]] == BAD).sum()
     assert test_sum == len(spiky_data[1])
 
+
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
 @pytest.mark.slow
 @pytest.mark.parametrize("dat", ["course_1", "course_2", "course_3", "course_4"])
@@ -100,6 +101,7 @@ def test_flagMVScores(course_3):
         flag=BAD,
     )
     _check(fields, qc.flags, characteristics)
+
 
 @pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_grubbs(course_3):
