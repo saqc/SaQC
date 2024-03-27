@@ -852,11 +852,11 @@ class OutliersMixin:
         """
 
         warnings.warn(
-            'The function flagRaise is deprecated with no 100% exact replacement function.'
-            'When looking for changes in the value course, the use of flagraise can be replicated and more easily aimed '
-            'for, via the method flagJump.\n'
-            'When looking for raises to outliers or plateaus, use one of: '
-            'flagZScore(outliers), flagUniLOF (outliers and small plateaus) or flagOffset(Plateaus)',
+            "The function flagRaise is deprecated with no 100% exact replacement function."
+            "When looking for changes in the value course, the use of flagraise can be replicated and more easily aimed "
+            "for, via the method flagJump.\n"
+            "When looking for raises to outliers or plateaus, use one of: "
+            "flagZScore(outliers), flagUniLOF (outliers and small plateaus) or flagOffset(Plateaus)",
             DeprecationWarning,
         )
 
@@ -1253,9 +1253,9 @@ class OutliersMixin:
         """
 
         warnings.warn(
-            'The function flagGrubbs is deprecated due to its inferior performance, with no 100% exact replacement function.'
-            'When looking for outliers use one of: '
-            'flagZScore, flagUniLOF',
+            "The function flagGrubbs is deprecated due to its inferior performance, with no 100% exact replacement function."
+            "When looking for outliers use one of: "
+            "flagZScore, flagUniLOF",
             DeprecationWarning,
         )
 
