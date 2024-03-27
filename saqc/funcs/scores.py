@@ -506,7 +506,8 @@ class ScoresMixin:
             v_diff = vals.diff()
             density = v_diff.abs().median()
             if density == 0:
-                density = v_diff[v_diff != 0].abs().median()
+                zero_step_mask = v_diff == 0
+                density = v_diff[~zero_step_mask].abs().median()/sum(zero_step_mask)
         elif isinstance(density, Callable):
             density = density(vals)
         if isinstance(density, pd.Series):

@@ -393,7 +393,8 @@ class OutliersMixin:
                     d_diff = dat.diff()
                     eps = d_diff.abs().median()
                     if eps == 0:
-                        eps = d_diff[d_diff != 0].abs().median()
+                        zero_step_mask = d_diff == 0
+                        eps = d_diff[~zero_step_mask].abs().median() / sum(zero_step_mask)
                 else:
                     eps = density
                 eps = 3 * eps
