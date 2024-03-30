@@ -33,7 +33,7 @@ def test_flagMad(spiky_data):
     field, *_ = data.columns
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).flagZScore(
-        field, window="1H", method="modified", thresh=3.5, flag=BAD
+        field, window="1h", method="modified", thresh=3.5, flag=BAD
     )
     flag_result = qc.flags[field]
     test_sum = (flag_result.iloc[spiky_data[1]] == BAD).sum()
@@ -52,18 +52,11 @@ def test_flagSpikesBasic(spiky_data):
     assert test_sum == len(spiky_data[1])
 
 
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 @pytest.mark.slow
-@pytest.mark.parametrize(
-    "dat",
-    [
-        # see test/functs/fixtures.py for the 'course_N'
-        pytest.lazy_fixture("course_1"),
-        pytest.lazy_fixture("course_2"),
-        pytest.lazy_fixture("course_3"),
-        pytest.lazy_fixture("course_4"),
-    ],
-)
-def test_flagSpikesLimitRaise(dat):
+@pytest.mark.parametrize("dat", ["course_1", "course_2", "course_3", "course_4"])
+def test_flagSpikesLimitRaise(dat, request):
+    dat = request.getfixturevalue(dat)
     data, characteristics = dat()
     field, *_ = data.columns
     flags = initFlagsLike(data)
@@ -80,8 +73,7 @@ def test_flagSpikesLimitRaise(dat):
 
 
 # see test/functs/fixtures.py for the 'course_N'
-@pytest.mark.parametrize("dat", [pytest.lazy_fixture("course_3")])
-def test_flagMVScores(dat):
+def test_flagMVScores(course_3):
     def _check(fields, flags, characteristics):
         for field in fields:
             isflagged = flags[field] > UNFLAGGED
@@ -89,10 +81,10 @@ def test_flagMVScores(dat):
             assert not isflagged[characteristics["return"]].any()
             assert not isflagged[characteristics["drop"]].any()
 
-    data1, characteristics = dat(
+    data1, characteristics = course_3(
         periods=1000, initial_level=5, final_level=15, out_val=50
     )
-    data2, characteristics = dat(
+    data2, characteristics = course_3(
         periods=1000, initial_level=20, final_level=1, out_val=30
     )
     fields = ["field1", "field2"]
@@ -111,9 +103,8 @@ def test_flagMVScores(dat):
     _check(fields, qc.flags, characteristics)
 
 
-@pytest.mark.parametrize("dat", [pytest.lazy_fixture("course_3")])
-def test_grubbs(dat):
-    data, char_dict = dat(
+def test_grubbs(course_3):
+    data, char_dict = course_3(
         freq="10min",
         periods=45,
         initial_level=0,
@@ -123,16 +114,15 @@ def test_grubbs(dat):
         out_val=-10,
     )
     flags = initFlagsLike(data)
-    qc = SaQC(data, flags).flagByGrubbs("data", window=20, min_periods=15, flag=BAD)
+    qc = SaQC(data, flags).flagUniLOF("data", density=0.4)
     assert np.all(qc.flags["data"][char_dict["drop"]] > UNFLAGGED)
 
 
-@pytest.mark.parametrize("dat", [pytest.lazy_fixture("course_2")])
 @pytest.mark.parametrize(
     "parameters",
     [("standard", 1), ("modified", 1), ("modified", 3), ("standard", "3h")],
 )
-def test_flagCrossStatistics(dat, parameters):
+def test_flagCrossStatistics(parameters):
     fields = [f"data{i}" for i in range(6)]
     data = pd.DataFrame(
         0, columns=fields, index=pd.date_range("2000", freq="1h", periods=10)

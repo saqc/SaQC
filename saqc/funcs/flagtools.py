@@ -17,9 +17,16 @@ from typing_extensions import Literal
 
 from saqc import BAD, FILTER_ALL, UNFLAGGED
 from saqc.core import DictOfSeries, flagging, register
+from saqc.core.flags import Flags
 from saqc.core.history import History
 from saqc.lib.checking import validateChoice, validateWindow
-from saqc.lib.tools import initializeTargets, isflagged, isunflagged, toSequence
+from saqc.lib.tools import (
+    initializeTargets,
+    isflagged,
+    isunflagged,
+    multivariateParameters,
+    toSequence,
+)
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -30,6 +37,10 @@ class FlagtoolsMixin:
     def flagDummy(self: "SaQC", field: str, **kwargs) -> "SaQC":
         """
         Function does nothing but returning data and flags.
+
+        Parameters
+        ----------
+
         """
         return self
 
@@ -38,10 +49,14 @@ class FlagtoolsMixin:
         """
         Set whole column to a flag value.
 
-        See Also
+        Parameters
+        ----------
+
+        See also
         --------
         clearFlags : set whole column to UNFLAGGED
         flagUnflagged : set flag value at all unflagged positions
+
         """
         self._flags[:, field] = flag
         return self
@@ -49,7 +64,7 @@ class FlagtoolsMixin:
     @register(mask=[], demask=[], squeeze=["field"])
     def clearFlags(self: "SaQC", field: str, **kwargs) -> "SaQC":
         """
-        Set whole column to UNFLAGGED.
+        Assign UNFLAGGED value to all periods in field.
 
         Notes
         -----
@@ -58,7 +73,7 @@ class FlagtoolsMixin:
         A warning is triggered if the ``flag`` keyword is given, because
         the flags are always set to `UNFLAGGED`.
 
-        See Also
+        See also
         --------
         forceFlags : set whole column to a flag value
         flagUnflagged : set flag value at all unflagged positions
@@ -76,16 +91,21 @@ class FlagtoolsMixin:
         """
         Function sets a flag at all unflagged positions.
 
-        See Also
-        --------
-        clearFlags : set whole column to UNFLAGGED
-        forceFlags : set whole column to a flag value
+        Parameters
+        ----------
 
         Notes
         -----
         This function ignores the ``dfilter`` keyword, because the
         data is not relevant for processing.
+
+        See also
+        --------
+        clearFlags : set whole column to UNFLAGGED
+        forceFlags : set whole column to a flag value
+
         """
+
         unflagged = self._flags[field].isna() | (self._flags[field] == UNFLAGGED)
         self._flags[unflagged, field] = flag
         return self
@@ -108,7 +128,7 @@ class FlagtoolsMixin:
         data :
             Determines which timestamps to set flags at, depending on the passed type:
 
-            * 1-d `array` or `List` of timestamps: flag `field` with `flag` at every timestamp in `f_data`
+            * 1-d `array` or `List` of timestamps or `pandas.Index`: flag `field` with `flag` at every timestamp in `f_data`
             * 2-d `array` or List of tuples: for all elements `t[k]` out of f_data:
               flag `field` with `flag` at every timestamp in between `t[k][0]` and `t[k][1]`
             * pd.Series: flag `field` with `flag` in between any index and data value of the passed series
@@ -123,7 +143,7 @@ class FlagtoolsMixin:
         to_flag = pd.Series(False, index=self._data[field].index)
 
         # check if f_data is meant to denote timestamps:
-        if (isinstance(data, (list, np.ndarray))) and not isinstance(
+        if (isinstance(data, (list, np.ndarray, pd.Index))) and not isinstance(
             data[0], (tuple, np.ndarray)
         ):
             set_idx = pd.DatetimeIndex(data).intersection(to_flag.index)
@@ -356,6 +376,7 @@ class FlagtoolsMixin:
         demask=[],
         squeeze=[],
         handles_target=True,  # function defines a target parameter, so it needs to handle it
+        multivariate=True,
     )
     def transferFlags(
         self: "SaQC",
@@ -368,16 +389,15 @@ class FlagtoolsMixin:
         """
         Transfer Flags of one variable to another.
 
+        Parameters
+        ----------
+
         squeeze :
             Squeeze the history into a single column if ``True``, function specific flag information is lost.
 
         overwrite :
             Overwrite existing flags if ``True``.
 
-        See Also
-        --------
-        * :py:meth:`saqc.SaQC.flagGeneric`
-        * :py:meth:`saqc.SaQC.concatFlags`
 
         Examples
         --------
@@ -414,17 +434,15 @@ class FlagtoolsMixin:
                   a      b      c
            0   -inf   -inf   -inf
            1  255.0  255.0  255.0
+
+        See also
+        --------
+        * :py:meth:`saqc.SaQC.flagGeneric`
+        * :py:meth:`saqc.SaQC.concatFlags`
+
         """
-        history = self._flags.history[field]
 
-        if target is None:
-            target = field
-
-        if overwrite is False:
-            mask = isflagged(self._flags[target], thresh=kwargs["dfilter"])
-            history._hist[mask] = np.nan
-
-        # append a dummy column
+        fields, targets, broadcasting = multivariateParameters(field, target)
         meta = {
             "func": f"transferFlags",
             "args": (),
@@ -437,15 +455,45 @@ class FlagtoolsMixin:
             },
         }
 
-        if squeeze:
-            flags = history.squeeze(raw=True)
-            # init an empty history to which we later append the squeezed flags
-            history = History(index=history.index)
-        else:
-            flags = pd.Series(np.nan, index=history.index, dtype=float)
+        for field, target in zip(fields, targets):
+            # initialize non existing targets
+            if target not in self._data:
+                self._data[target] = pd.Series(np.nan, index=self._data[field].index)
+                self._flags._data[target] = History(self._data[target].index)
+            if not self._data[field].index.equals(self._data[target].index):
+                raise ValueError(
+                    f"All Field and Target indices must match!\n"
+                    f"Indices of {field} and {target} seem to be not congruent within the context of the given\n"
+                    f"- fields: {fields}\n "
+                    f"- and targets: {targets}"
+                )
+            history = self._flags.history[field].copy(deep=True)
 
-        history.append(flags, meta)
-        self._flags.history[target].append(history)
+            if overwrite is False:
+                mask = isflagged(self._flags[target], thresh=kwargs["dfilter"])
+                history._hist[mask] = np.nan
+
+            if squeeze:
+                # add squeezed flags
+                flags = history.squeeze(raw=True)
+                history = History(index=history.index).append(flags, meta)
+            elif broadcasting is False:
+                # add an empty flags
+                flags = pd.Series(np.nan, index=history.index, dtype=float)
+                history.append(flags, meta)
+            # else:
+            #    broadcasting -> multiple fields will be written to one target
+            #    only add the fields' histories and add an empty column later
+
+            self._flags.history[target].append(history)
+
+        if broadcasting and not squeeze:
+            # add one final history column
+            # all targets are identical, if we broadcast fields -> target
+            target = targets[0]
+            history = self._flags.history[target]
+            flags = pd.Series(np.nan, index=history.index, dtype=float)
+            self._flags.history[target].append(flags, meta)
 
         return self
 
@@ -587,7 +635,7 @@ class FlagtoolsMixin:
         ----------
         group:
             A collection of ``SaQC`` objects. Flag checks are performed on all ``SaQC`` objects
-            based on the variables specified in :py:attr:`field`. Whenever all monitored variables
+            based on the variables specified in ``field``. Whenever all monitored variables
             are flagged, the associated timestamps will receive a flag.
         """
         return _groupOperation(
