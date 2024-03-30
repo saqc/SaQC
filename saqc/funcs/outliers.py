@@ -525,7 +525,7 @@ class OutliersMixin:
         iter_start: constraint(float, ge=0, le=1) = 0.5,
         window: constraint(int, ge=1) | OffsetStr = None,
         min_periods: constraint(int, gt=1) = 11,
-        stray_range: OffsetStr= None,
+        stray_range: OffsetStr = None,
         drop_flagged: bool = False,  # TODO: still a case ?
         thresh: constraint(float, ge=0) = 3.5,
         min_periods_r: constraint(int, ge=0) = 1,
