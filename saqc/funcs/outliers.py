@@ -8,39 +8,24 @@
 
 from __future__ import annotations
 
-
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Callable, ForwardRef, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Sequence, Tuple
 
 import numpy as np
 import numpy.polynomial.polynomial as poly
 import pandas as pd
 from outliers import smirnov_grubbs  # noqa, on pypi as outlier-utils
-from pydantic import Field, ValidationError, validate_call
+from pydantic import Field, validate_call
 from scipy.stats import median_abs_deviation
 from typing_extensions import Annotated, Literal
 
 from saqc import BAD, UNFLAGGED
 from saqc.core import DictOfSeries, Flags, flagging, register
-from saqc.lib.checking import (
-    constraint,
-    FreqStr,
-    isCallable,
-    isFloatLike,
-    validateChoice,
-    validateFraction,
-    validateFrequency,
-    validateFuncSelection,
-    validateMinPeriods,
-    validateValueBounds,
-    validateWindow,
-    #SaQC_like
-)
+from saqc.lib.checking import FreqStr, OffsetStr, constraint
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.rolling import windowRoller
 from saqc.lib.tools import getFreqDelta, isflagged, toSequence
-
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -106,16 +91,6 @@ class OutliersMixin:
             * ``1`` - Manhattan Metric
             * ``2`` - Euclidian Metric
 
-        density :
-            How to calculate the temporal distance/density for the variable to flag.
-
-            * ``'auto'`` - introduces linear density with an increment
-              equal to the median of the absolute diff of the variable to flag.
-            * ``float`` - introduces linear density with an increment
-              equal to :py:attr:`density`
-            * Callable - calculates the density by applying the function
-              passed onto the variable to flag (passed as Series).
-
         Notes
         -----
         * The :py:meth:`~saqc.SaQC.flagLOF` function calculates the Local
@@ -162,7 +137,7 @@ class OutliersMixin:
     @validate_call()
     @flagging()
     def flagUniLOF(
-        self,
+        self: SaQC,
         field: str,
         n: constraint(int, ge=1) = 20,
         thresh: Literal["auto"] | constraint(float, ge=1) = 1.5,
@@ -171,10 +146,10 @@ class OutliersMixin:
         density: Literal["auto"] | Annotated[float, Field(gt=0)] = "auto",
         fill_na: bool = True,
         slope_correct: bool = True,
-        min_offset: float = None,
+        min_offset: constraint(float, ge=0) = None,
         flag: float = BAD,
         **kwargs,
-    ):
+    ) -> SaQC:
         """
         Flag "univariate" Local Outlier Factor (LOF) exceeding cutoff.
 
@@ -417,7 +392,7 @@ class OutliersMixin:
         max: float = np.inf,
         flag: float = BAD,
         **kwargs,
-    ):
+    ) -> SaQC:
         """
         Function flags values exceeding the closed
         interval [:py:attr:`min`, :py:attr:`max`].
@@ -437,15 +412,15 @@ class OutliersMixin:
 
     @flagging()
     def flagByStray(
-        self: "SaQC",
+        self: SaQC,
         field: str,
-        window: FreqStr | constraint(int, ge=1) = None,
+        window: OffsetStr | constraint(int, ge=1) = None,
         min_periods: constraint(int, ge=1) = 11,
         iter_start: constraint(float, ge=0, le=1) = 0.5,
         alpha: constraint(float, ge=0, le=1) = 0.05,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ) -> SaQC:
         """
         Flag outliers in 1-dimensional (score) data using the STRAY Algorithm.
 
@@ -531,6 +506,7 @@ class OutliersMixin:
 
         return self
 
+    @validate_call()
     @register(
         mask=["field"],
         demask=["field"],
@@ -540,10 +516,10 @@ class OutliersMixin:
         docstring={"field": DOC_TEMPLATES["field"]},
     )
     def flagMVScores(
-        self: "SaQC",
+        self: SaQC,
         field: Sequence[str],
         trafo: Callable[[pd.Series], pd.Series] = lambda x: x,
-        alpha: constraint(float ,ge=0, le=1) = 0.05,
+        alpha: constraint(float, ge=0, le=1) = 0.05,
         n: constraint(int, ge=1) = 10,
         func: Callable[[pd.Series], float] | str = "sum",
         iter_start: float = 0.5,
@@ -555,7 +531,7 @@ class OutliersMixin:
         min_periods_r: int = 1,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ) -> SaQC:
         """
         The algorithm implements a 3-step outlier detection procedure for
         simultaneously flagging of higher dimensional data (dimensions > 3).
@@ -758,20 +734,21 @@ class OutliersMixin:
         )
         return qc.dropField(knn_field)
 
+    @validate_call()
     @flagging()
     def flagRaise(
-        self: "SaQC",
+        self: SaQC,
         field: str,
         thresh: float,
-        raise_window: str,
-        freq: str,
-        average_window: str | None = None,
-        raise_factor: float = 2.0,
-        slope: float | None = None,
-        weight: float = 0.8,
+        raise_window: FreqStr,
+        freq: FreqStr,
+        average_window: FreqStr | None = None,
+        raise_factor: constraint(float, ge=0) = 2.0,
+        slope: constraint(float, ge=0) = None,
+        weight: constraint(float, ge=0) = 0.8,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ) -> SaQC:
         """
         The function flags raises and drops in value courses, that exceed a certain threshold within a certain timespan.
 
@@ -841,10 +818,6 @@ class OutliersMixin:
             "flagZScore(outliers), flagUniLOF (outliers and small plateaus) or flagOffset(Plateaus)",
             DeprecationWarning,
         )
-
-        validateWindow(raise_window, "raise_window", allow_int=False)
-        validateWindow(freq, "freq", allow_int=False)
-        validateWindow(average_window, "average_window", allow_int=False, optional=True)
 
         # prepare input args
         dataseries = self._data[field].dropna()
@@ -928,18 +901,19 @@ class OutliersMixin:
 
         return self
 
+    @validate_call()
     @flagging()
     def flagMAD(
-        self: "SaQC",
+        self: SaQC,
         field: str,
-        window: str | int | None = None,
-        z: float = 3.5,
-        min_residuals: int | None = None,
-        min_periods: int | None = None,
+        window: FreqStr | constraint(int, ge=0) | None = None,
+        z: constraint(float, ge=0) = 3.5,
+        min_residuals: constraint(float, ge=0) = None,
+        min_periods: constraint(int, ge=0) | None = None,
         center: bool = False,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ) -> SaQC:
         """
         Flag outiers using the modified Z-score outlier detection method.
 
@@ -989,17 +963,18 @@ class OutliersMixin:
             flag=flag,
         )
 
+    @validate_call()
     @flagging()
     def flagOffset(
-        self: "SaQC",
+        self: SaQC,
         field: str,
-        tolerance: float,
-        window: int | str,
-        thresh: float | None = None,
+        tolerance: constraint(float, ge=0),
+        window: FreqStr,
+        thresh: constraint(float, ge=0) = None,
         thresh_relative: float | None = None,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ) -> SaQC:
         """
         A basic outlier test that works on regularly and irregularly sampled data.
 
@@ -1136,7 +1111,6 @@ class OutliersMixin:
            >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=-.5, tolerance=1.5, window='6H')
            >>> qc.plot('data')  # doctest: +SKIP
         """
-        validateWindow(window)
         if thresh is None and thresh_relative is None:
             raise ValueError(
                 "At least one of parameters 'thresh' and 'thresh_relative' "
@@ -1192,17 +1166,18 @@ class OutliersMixin:
         self._flags[to_flag, field] = flag
         return self
 
+    @validate_call()
     @flagging()
     def flagByGrubbs(
-        self: "SaQC",
+        self: SaQC,
         field: str,
-        window: str | int,
-        alpha: float = 0.05,
-        min_periods: int = 8,
+        window: FreqStr | constraint(int, ge=0),
+        alpha: constraint(float, ge=0, le=1) = 0.05,
+        min_periods: constraint(int, ge=1) = 8,
         pedantic: bool = False,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ) -> SaQC:
         """
         Flag outliers using the Grubbs algorithm.
 
@@ -1241,10 +1216,6 @@ class OutliersMixin:
             "flagZScore, flagUniLOF",
             DeprecationWarning,
         )
-
-        validateWindow(window)
-        validateFraction(alpha, "alpha")
-        validateMinPeriods(min_periods, optional=False)
 
         datcol = self._data[field].copy()
         rate = getFreqDelta(datcol.index)
@@ -1299,6 +1270,7 @@ class OutliersMixin:
         self._flags[to_flag, field] = flag
         return self
 
+    @validate_call()
     @register(
         mask=["field"],
         demask=["field"],
@@ -1308,13 +1280,13 @@ class OutliersMixin:
         docstring={"field": DOC_TEMPLATES["field"]},
     )
     def flagCrossStatistics(
-        self: "SaQC",
+        self: SaQC,
         field: Sequence[str],
         thresh: float,
         method: Literal["modZscore", "Zscore"] = "modZscore",
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ) -> SaQC:
         """
         Function checks for outliers relatively to the "horizontal" input data axis.
 
@@ -1378,6 +1350,7 @@ class OutliersMixin:
             flag=flag,
         )
 
+    @validate_call()
     @register(
         mask=["field"],
         demask=["field"],
@@ -1386,18 +1359,18 @@ class OutliersMixin:
         docstring={"field": DOC_TEMPLATES["field"]},
     )
     def flagZScore(
-        self: "SaQC",
-        field: Sequence[str],
+        self: SaQC,
+        field: str | Sequence[str],
         method: Literal["standard", "modified"] = "standard",
-        window: str | int | None = None,
-        thresh: float = 3,
-        min_residuals: int | None = None,
-        min_periods: int | None = None,
+        window: FreqStr | constraint(int, ge=0) = None,
+        thresh: constraint(float, ge=0) = 3,
+        min_residuals: constraint(float, ge=0) = None,
+        min_periods: constraint(int, ge=0) = None,
         center: bool = True,
-        axis: int = 0,
+        axis: constraint(int, ge=0, le=1) = 0,
         flag: float = BAD,
         **kwargs,
-    ) -> "SaQC":
+    ) -> SaQC:
         """
         Flag data where its (rolling) Zscore exceeds a threshold.
 
@@ -1492,10 +1465,6 @@ class OutliersMixin:
                     "anymore"
                 )
 
-        validateChoice(method, "method", ["standard", "modified"])
-        validateWindow(window, optional=True)
-        validateMinPeriods(min_periods)
-
         min_residuals = min_residuals or 0
         min_periods = min_periods or 0
 
@@ -1579,10 +1548,10 @@ def _evalStrayLabels(
     field: str,
     flags: Flags,
     target: Sequence[str],
-    reduction_range: str | None = None,
+    reduction_range: FreqStr | None = None,
     reduction_drop_flagged: bool = False,  # TODO: still a case ?
-    reduction_thresh: float = 3.5,
-    reduction_min_periods: int = 1,
+    reduction_thresh: constraint(float, ge=0) = 3.5,
+    reduction_min_periods: constraint(int, ge=1) = 1,
     at_least_one: bool = True,
     flag: float = BAD,
     **kwargs,

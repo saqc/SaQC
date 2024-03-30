@@ -3,16 +3,17 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # -*- coding: utf-8 -*-
 from __future__ import annotations
-from typing_extensions import Annotated
-
-from pydantic.functional_validators import AfterValidator
 
 from typing import Any, Collection, Iterable, Literal, TypeVar, get_origin
-from pydantic import Field
+
 import numpy as np
 import pandas as pd
+from pydantic import Field
+from pydantic.functional_validators import AfterValidator
+from typing_extensions import Annotated
 
 T = TypeVar("T")
+
 
 # ====================================================================
 # `isSomething`-Checks: must not raise Exceptions by checking the value (but
@@ -22,22 +23,44 @@ T = TypeVar("T")
 #
 # Module should not have no saqc dependencies
 #
-def checkFrequency(freq: str) -> pd.offsets.BaseOffset:
+def checkOffsetStr(freq: str) -> pd.offsets.BaseOffset:
     try:
-        return pd.tseries.frequencies.to_offset(freq)
+        pd.tseries.frequencies.to_offset(freq)
     except ValueError:
-        raise ValueError(f"Not a frequecy String!: '{freq}'")
+        raise ValueError(f"Not an Offset String!: '{freq}'")
+    return freq
 
-FreqStr = Annotated[str, AfterValidator(checkFrequency)]
+
+OffsetStr = Annotated[str, AfterValidator(checkOffsetStr)]
+
+
+def checkFreqStr(freq: str) -> pd.offsets.BaseOffset:
+    try:
+        f = pd.tseries.frequencies.to_offset(freq)
+    except ValueError:
+        raise ValueError(f"Not a frequency String!: '{freq}'")
+    try:
+        f._as_pd_timedelta
+    except AttributeError:
+        raise AttributeError(f"Not a fixed frequency String!: '{freq}'")
+    return freq
+
+
+FreqStr = Annotated[str, AfterValidator(checkFreqStr)]
+
 
 def constraint(type, **constraints):
     return Annotated[type, Field(**constraints)]
+
+
 def checkSaQC(o):
     from saqc.core import SaQC
+
     if isinstance(o, SaQC):
         return o
     else:
-        ValueError('WRONG!')
+        ValueError("WRONG!")
+
 
 SaQC = Annotated[object, AfterValidator(checkSaQC)]
 
