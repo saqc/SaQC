@@ -143,7 +143,7 @@ class OutliersMixin:
         thresh: Literal["auto"] | constraint(float, ge=1) = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: constraint(int, ge=1) = 1,
-        density: Literal["auto"] | Annotated[float, Field(gt=0)] = "auto",
+        density: Literal["auto"] | constraint(float, ge=0) = "auto",
         fill_na: bool = True,
         slope_correct: bool = True,
         min_offset: constraint(float, ge=0) = None,
