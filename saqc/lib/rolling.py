@@ -79,7 +79,6 @@ def removeRollingRamps(
     data: pd.Series,
     window: int | str | pd.Timedelta,
     center: bool = False,
-    min_periods: int = 0,
     inplace: bool = False,
     fill_val: any = np.nan,
 ) -> pd.Series:
@@ -126,8 +125,6 @@ def removeRollingRamps(
         Pass the same value as was passed to the prior called pd.rolling.
     center :
         Pass the same value as was passed to the prior called pd.rolling.
-    inner_ramps :
-        Where the data has gaps wider than `window`, should the ramp also be masked when the window starts to "reenter" the data afterwards?
     inplace :
         Return a modified copy if False, otherwise return the modified
         passed in data.
