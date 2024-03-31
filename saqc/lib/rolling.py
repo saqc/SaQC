@@ -79,11 +79,12 @@ def removeRollingRamps(
     data: pd.Series,
     window: int | str | pd.Timedelta,
     center: bool = False,
-    inplace=False,
+    inplace: bool = False,
+    fill_val: any = np.nan,
 ) -> pd.Series:
     """
-    Set data to `NaN`, where the window of prior rolling function was
-    not fully shifted into the data.
+    Set data to `fill_val`, where the window of prior rolling function was
+    not fully shifted into the data or part of it was already shifted beyond the end of the data.
 
     Pandas rolling implementation shift a window over the data from left to right.
     The window starts on the far left, outside the data [d], and the window result
@@ -124,11 +125,12 @@ def removeRollingRamps(
         Pass the same value as was passed to the prior called pd.rolling.
     center :
         Pass the same value as was passed to the prior called pd.rolling.
-    closed :
-        Pass the same value as was passed to the prior called pd.rolling.
+    inner_ramps :
+        Where the data has gaps wider than `window`, should the ramp also be masked when the window starts to "reenter" the data afterwards?
     inplace :
         Return a modified copy if False, otherwise return the modified
         passed in data.
+
 
     Returns
     -------
@@ -182,29 +184,25 @@ def removeRollingRamps(
     2000-02-04  2.0  2.0
     2000-02-05  1.0  NaN
     """
+    if isinstance(window, int) :
+        # for integer defined windows rolling ramps are already 'NaN'-valued
+        return data
+
     if not inplace:
         data = data.copy()
+        data = data.astype(type(fill_val))
+    elif not (data._validate_dtype(type(fill_val))==data.dtype):
+        raise ValueError(f'cant assign {fill_val} to series of type {data.dtype} without casting to {type(fill_val)}: (inplace-modification not possible)')
 
-    # this ensures index[0] and index[-1]
     if data.empty:
         return data
 
-    data = data.astype(float)  # to allow nan
-    if isinstance(window, int):
-        window = max(window - 1, 0)
-        if center:
-            left = math.ceil(window / 2)
-            right = math.floor(window / 2)
-            data.iloc[:left] = np.nan
-            data.iloc[-right:] = np.nan
-        else:
-            data.iloc[:window] = np.nan
+    window = pd.Timedelta(window)
+
+    if center:
+        ramp_select = lambda i, w=window: (i<i[0] + w/2) & (i> i[-1]- w/2)
     else:
-        window = pd.Timedelta(window)
-        if center:
-            window //= 2
-            data.loc[data.index < data.index[0] + window] = np.nan
-            data.loc[data.index > data.index[-1] - window] = np.nan
-        else:
-            data.loc[data.index < data.index[0] + window] = np.nan
+        ramp_select = lambda i, w=window: (i < i[0] + w)
+    data.loc[ramp_select(data.index)] = fill_val
+
     return data
