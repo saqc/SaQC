@@ -79,6 +79,7 @@ def removeRollingRamps(
     data: pd.Series,
     window: int | str | pd.Timedelta,
     center: bool = False,
+    min_periods: int = 0,
     inplace: bool = False,
     fill_val: any = np.nan,
 ) -> pd.Series:
@@ -184,9 +185,6 @@ def removeRollingRamps(
     2000-02-04  2.0  2.0
     2000-02-05  1.0  NaN
     """
-    if isinstance(window, int):
-        # for integer defined windows rolling ramps are already 'NaN'-valued
-        return data
 
     if not inplace:
         data = data.copy()
@@ -199,12 +197,23 @@ def removeRollingRamps(
     if data.empty:
         return data
 
-    window = pd.Timedelta(window)
-
-    if center:
-        ramp_select = lambda i, w=window: (i < i[0] + w / 2) & (i > i[-1] - w / 2)
+    data = data.astype(float)  # to allow nan
+    if isinstance(window, int):
+        window = max(window - 1, 0)
+        if center:
+            left = math.ceil(window / 2)
+            right = math.floor(window / 2)
+            data.iloc[:left] = np.nan
+            data.iloc[-right:] = np.nan
+        else:
+            data.iloc[:window] = np.nan
     else:
-        ramp_select = lambda i, w=window: (i < i[0] + w)
-    data.loc[ramp_select(data.index)] = fill_val
-
+        window = pd.Timedelta(window)
+        res = window.resolution
+        if center:
+            window //= 2
+            data.loc[: data.index[0] + window - res] = np.nan
+            data.loc[data.index[-1] - window + res :] = np.nan
+        else:
+            data.loc[: data.index[0] + window - res] = np.nan
     return data
