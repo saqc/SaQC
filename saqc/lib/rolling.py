@@ -184,15 +184,17 @@ def removeRollingRamps(
     2000-02-04  2.0  2.0
     2000-02-05  1.0  NaN
     """
-    if isinstance(window, int) :
+    if isinstance(window, int):
         # for integer defined windows rolling ramps are already 'NaN'-valued
         return data
 
     if not inplace:
         data = data.copy()
         data = data.astype(type(fill_val))
-    elif not (data._validate_dtype(type(fill_val))==data.dtype):
-        raise ValueError(f'cant assign {fill_val} to series of type {data.dtype} without casting to {type(fill_val)}: (inplace-modification not possible)')
+    elif not (data._validate_dtype(type(fill_val)) == data.dtype):
+        raise ValueError(
+            f"cant assign {fill_val} to series of type {data.dtype} without casting to {type(fill_val)}: (inplace-modification not possible)"
+        )
 
     if data.empty:
         return data
@@ -200,7 +202,7 @@ def removeRollingRamps(
     window = pd.Timedelta(window)
 
     if center:
-        ramp_select = lambda i, w=window: (i<i[0] + w/2) & (i> i[-1]- w/2)
+        ramp_select = lambda i, w=window: (i < i[0] + w / 2) & (i > i[-1] - w / 2)
     else:
         ramp_select = lambda i, w=window: (i < i[0] + w)
     data.loc[ramp_select(data.index)] = fill_val
