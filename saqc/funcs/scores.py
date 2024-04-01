@@ -395,7 +395,6 @@ class ScoresMixin:
         from saqc.funcs.outliers import OutliersMixin
 
         validateMinPeriods(min_periods)
-        OutliersMixin._validateLOF(algorithm, n, p, 1.0)
 
         if isinstance(target, list):
             if len(target) > 1:
@@ -493,9 +492,6 @@ class ScoresMixin:
         --------
 
         """
-        from saqc.funcs.outliers import OutliersMixin
-
-        OutliersMixin._validateLOF(algorithm, n, p, density)
 
         vals = self._data[field]
 

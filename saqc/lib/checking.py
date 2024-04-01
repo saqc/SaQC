@@ -8,6 +8,9 @@ from typing import Any, Collection, Iterable, Literal, TypeVar, get_origin
 
 import numpy as np
 import pandas as pd
+from pydantic import Field
+from pydantic.functional_validators import AfterValidator
+from typing_extensions import Annotated
 
 T = TypeVar("T")
 
@@ -20,6 +23,48 @@ T = TypeVar("T")
 #
 # Module should not have no saqc dependencies
 #
+def checkOffsetStr(freq: str) -> pd.offsets.BaseOffset:
+    try:
+        pd.tseries.frequencies.to_offset(freq)
+    except ValueError:
+        raise ValueError(f"Not an Offset String!: '{freq}'")
+    return freq
+
+
+OffsetStr = Annotated[str, AfterValidator(checkOffsetStr)]
+
+
+def checkFreqStr(freq: str) -> pd.offsets.BaseOffset:
+    try:
+        f = pd.tseries.frequencies.to_offset(freq)
+    except ValueError:
+        raise ValueError(f"Not a frequency String!: '{freq}'")
+    try:
+        f._as_pd_timedelta
+    except AttributeError:
+        raise AttributeError(f"Not a fixed frequency String!: '{freq}'")
+    return freq
+
+
+FreqStr = Annotated[str, AfterValidator(checkFreqStr)]
+
+
+def constraint(type, **constraints):
+    return Annotated[type, Field(**constraints)]
+
+
+def checkSaQC(o):
+    from saqc.core import SaQC
+
+    if isinstance(o, SaQC):
+        return o
+    else:
+        ValueError("WRONG!")
+
+
+SaQC = Annotated[object, AfterValidator(checkSaQC)]
+
+
 def isBoolLike(obj: Any, optional: bool = False) -> bool:
     """Return True if obj is a boolean or one of the integers 0 or 1.
     If optional is True, `None` also is considered a valid boolean.
