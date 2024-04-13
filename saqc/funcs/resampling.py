@@ -329,8 +329,7 @@ class ResamplingMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        A method to "regularize" data by interpolating linearly the data
-        at regular timestamp.
+        A method to align data by interpolating linearly to another timestamp
 
             .. deprecated:: 2.4.0
                Use :py:meth:`~saqc.SaQC.align` with ``method="linear"``
