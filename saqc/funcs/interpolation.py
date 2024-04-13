@@ -26,7 +26,7 @@ from saqc.lib.checking import (
     validateValueBounds,
     validateWindow,
 )
-from saqc.lib.tools import isflagged, getFreqDelta
+from saqc.lib.tools import getFreqDelta, isflagged
 from saqc.lib.ts_operators import interpolateNANs
 from saqc.parsing.environ import ENV_OPERATORS
 
@@ -415,7 +415,7 @@ class InterpolationMixin:
            If set to `True`, existing flags will be cleared.
         """
 
-        #validateWindow(freq, "freq", allow_int=False)
+        # validateWindow(freq, "freq", allow_int=False)
         validateValueBounds(order, "order", left=0, strict_int=True)
 
         method = "fshift" if method == "pad" else method
