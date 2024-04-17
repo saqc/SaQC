@@ -272,7 +272,6 @@ def offSetSearch(
 
         if start_jump < min_jump:
             continue
-        offset_start_out = y_idx[offset_start - 1]
         offset_start = y_idx[offset_start]
 
         # repeat process for the second half of the anomaly
@@ -286,7 +285,6 @@ def offSetSearch(
         end_jump = y[offset_end] - y[offset_end + 1]
         if end_jump < min_jump:
             continue
-        offset_end_out = y_idx[offset_end + 1]
         offset_end = y_idx[offset_end]
         outlier_slice = slice(offset_start, offset_end)
         ano_vals = anomaly_ser.loc[outlier_slice]
@@ -307,10 +305,7 @@ def offSetSearch(
             .data[anomaly_ser.name]
         )
         if (uniLofScores[offset_start] >= -1) | (uniLofScores[offset_end] >= -1):
-            continue
-        if (uniLofScores[offset_start_out] >= -1) | (
-            uniLofScores[offset_end_out] >= -1
-        ):
+            print("happened")
             continue
         to_flag.loc[outlier_slice] = True
 
@@ -408,11 +403,34 @@ class PatternMixin:
         max_length: int | str,
         granularity: int | str = 5,
         min_jump: float = None,
-        bound_scales: int = 10,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
-        """ """
+        """
+        Flag anomalous value plateaus discriminated by temporal extension.
+
+        Parameters
+        ----------
+        min_length:
+            Minimum temporal extension of plateau/outlier
+
+        max_length:
+            Maximum temporal extension of plateau/outlier
+
+        granularity:
+            Precision of search: The smaller the better, but also, the more numerically expensive.
+
+        min_jump:
+            minimum margin anomalies/plateaus have to differ from directly preceding and succeeding periods.
+            If not passed an explicit value (default), the minimum jump threshold will be derived automatically from the median
+            of the local absolute difference between any two periods in the vicinity of any potential anomaly.
+
+        Notes
+        -----
+        Minimum length of plateaus should be selected higher than 5 times the sampling rate.
+        To search for shorter plateaus/anomalies, use :py:meth:~`saqc.SaQC.flagUniLOF` or :py:meth:~`saqc.SaQC.flagZScore`.
+        """
+        bound_scales = 10
         datcol = self.data[field]
         datcol = datcol.interpolate("time")
         freq = getFreqDelta(datcol.index)
