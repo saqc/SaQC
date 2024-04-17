@@ -7,14 +7,324 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import fastdtw
-import pandas as pd
 
 from saqc import BAD
 from saqc.core import flagging
 from saqc.lib.rolling import removeRollingRamps
+from saqc.lib.tools import getFreqDelta
 
 if TYPE_CHECKING:
     from saqc import SaQC
+
+import numpy as np
+import pandas as pd
+from scipy import signal
+
+import saqc
+
+
+def patternSearch(x, wv):
+    # pattern search: scales x to [0,1] and returns mean absolute error between x and wv (the wavelet)
+    x = x - x.min()
+    x = x / x.max()
+    return (np.abs(x - wv)).mean()
+
+
+def argminSer(x, order, max=100):
+    # function searches for local minima
+    # get indices of local minima
+    idx = signal.argrelmin(x.values, order=order)[0]
+    # only consider local minima that are small enough
+    thresh_mask = x < max
+    # make Series holding local minima
+    y = pd.Series(False, index=x.index)
+    y.iloc[idx] = True
+    y = y & thresh_mask
+    return y.astype(bool)
+
+
+def scaleScoring(scale, wv, data, bumb_cond_factor=1.5, width_factor=2):
+    # derive width of the wavelet -> (current scale = width*.1)
+    width = len(wv)
+    # scale wavelt to [0,1]
+    wv = wv - wv.min()
+    wv = wv / wv.max()
+    # get statistics that checks if the data is sufficiently changing to qualify as outlierish in any window of size scale*width_factor
+    d_r = data.rolling(int((width * 0.1) * width_factor), center=True)
+    diff_md = 4 * data.diff().abs().median()
+    resid = d_r.max() - d_r.min()
+    mask_r = resid > diff_md
+
+    # check any width-sized window of scale, if it resembles the wavelet (in terms of the mean absolute comparison error)
+    result = (
+        pd.Series(scale)
+        .rolling(width, center=True)
+        .apply(raw=True, func=lambda x: patternSearch(x, wv=wv))
+    )
+
+    # check where the scale has enough consecutive sign values to qualify for resambling the wavelet
+    # bumb - qualify
+    bool_signs = scale > 0
+    # make series that is True when series switches signum with regard to predecessor and False otherwise
+    switches = ~(bool_signs == np.roll(bool_signs, 1))
+    # make cumulative sum of switch series: as a result, consecutive values that do not switch signum have the same integer assigned
+    signum_groups = np.cumsum(switches)
+
+    # use pandas grouper to group the comparison scores into partitions, where the scale has the same signum:
+    consec_sign_groups = result.groupby(by=signum_groups)
+    # filter function for checking wich of the groups have sufficiently many consecutive na value
+    filter_func = lambda x: x.count() > bumb_cond_factor * (width / 10)
+    # apply filter: where scores dont belong to groups where the scale has not siffuciently many consecutive values of same sign, the score is overridden with nan (no_score)
+    filtered = consec_sign_groups.filter(filter_func, dropna=False)
+    # generate the timeseries to return
+    out = pd.Series(filtered.values, index=data.index)
+    # also override the scores, where the data did not pass the absolute variation test applie earlier
+    out[~mask_r] = np.nan
+
+    return out
+
+
+def offSetSearch(
+    base_series,
+    scale_vals,
+    wavelet,
+    matchlet,
+    freq,
+    min_j,
+    thresh=0.1,
+    anomaly_integrity=None,
+    qc_d=None,
+    width_factor=2.5,
+    bound_scales=10,
+):
+    scales = signal.cwt(base_series.values, wavelet, scale_vals)
+    # qc = saqc.SaQC([pd.DataFrame(scales.T, columns=[str(s) for s in scale_vals], index=base_series.index), base_series])
+    # prepare dataframe holding the calculated scores
+    res = pd.DataFrame(
+        np.nan, index=base_series.index, columns=[f"score_{s}" for s in scale_vals]
+    )
+    for s in enumerate(scale_vals):
+        # calculate and assign the comparison score series between wavelet and scale:
+        res[f"score_{s[1]}"] = scaleScoring(
+            scales[s[0]],
+            matchlet(s[1] * 10, s[1]),
+            base_series,
+            width_factor=width_factor,
+        )
+    # generate a dataframe of scales from the scales array:
+    scale_cols = [f'scale_{k.split("_")[-1]}' for k in res.columns]
+    scales = pd.DataFrame(scales.T, index=res.index, columns=scale_cols)
+
+    # apply the local minima search to the calculated scores:
+    # (used saqc here, to be able to plot/inspect the result easily - but not actually performance efficient)
+    qc = saqc.SaQC(res)
+    for score in res.columns:
+        # loop over all the scores variables:
+        # get the scale value the score was calculated from (derive it from its name)
+        sc = int(score.split("_")[-1])
+        # check for local minima (the scale value determines the width of the comparison area for the minima)
+        qc = qc.flagGeneric(score, func=lambda x: argminSer(x, order=sc, max=thresh))
+
+    # collect all the local minima (by collecting the flags from the saqc object) and merge them into one boolean series
+    # called 'critical'
+    critical = qc.flags[res.columns[0]] > 0
+    for f in res.columns[1:]:
+        critical |= qc.flags[f] > 0
+
+    # again collect the local minimas from the scores: this time override all the scales values, that are not corresponding
+    # to a local minima: this will come in handy, when searching for the scale that maximizes a 'bumb' - since scales
+    # where the comparison score does not minimize, are not qualifying to be the "right" scale for the anomaly
+    for f in res.columns:
+        width = int(f.split("_")[-1])
+        mask = qc.flags[f].values > 0
+        scales.loc[~mask, f"scale_{width}"] = np.nan
+
+    # ------------------------------------------------------------------------
+    # The following part is not really optimized and contains a lot of redundance:
+    # -> it basically combines the scores and scales informations and searches for
+    # the optimal 'scale' (from wich we than derive the with of the outlier) for
+    # every critical value
+    # -------------------------------------------------------------------------
+
+    # derive a dataframe from the scales frame,
+    # that only holds those timestamps, where the scores had local minima
+    # (earlier we collected the local minima in the 'critical' variable, so we
+    # use this as indexer for the scales)
+    test_vals = scales.loc[critical.values, :]
+    # for later use, we also generate a dataframe that has the same size as the scales
+    # frame, but contains nan values everywhere, besides for the 'critical` timestamps
+    r_test_vals = test_vals.reindex(scales.index)
+    agged_vals = pd.DataFrame(0.0, columns=scales.columns, index=scales.index)
+    # The maxima for every bumb will not be at exactly the same timestamp at every scale,
+    # (due to noise) -> this is why we broaden the maxima points with the rolling operation, so
+    # we tha can just look for the column minima to find the optimal
+    # scale for every anomaly (wich appears as bumb in the scales)
+    for v in test_vals.columns:
+        width = int(v.split("_")[-1])
+        agged_vals.loc[:, v] = (
+            r_test_vals[v].rolling(pd.to_timedelta(freq) * width, center=True).max()
+        )
+
+    # for every timestamp we count in how much scales it is a part of a bumb
+    agged_counts = agged_vals.count(axis=1)
+    # timestamps that only appear on one scale as part of a bumb, are suspiceaous and
+    # likely belong to noise
+    sus_idx = agged_counts != 1
+    sus_idx = sus_idx[sus_idx].index
+    # we remove those suspiceous indices from the test_values frame
+    test_vals = test_vals.loc[test_vals.index.join(sus_idx, how="inner")]
+    # the following block searches for the maximizing scale of every timestamp
+    # 1. seperate different bumbs
+    agged_groups = (agged_counts == 0).diff().cumsum()
+    agged_groups = agged_groups.loc[test_vals.index]
+    agged_counts = agged_counts.loc[test_vals.index]
+    agged_counts = agged_counts.groupby(by=agged_groups).idxmax()
+    critical_stamps = agged_counts.values
+    agged_vals = agged_vals.loc[critical_stamps, :]
+    max_scales = np.nanargmax(agged_vals.values, axis=1)
+    # finally we collect the scales in a list of results:
+    # this list runs in parallel to the list of remaining critical timestamps
+    # we collected at 'critical_stamps'
+    result = [scale_vals[k] * width_factor for k in max_scales]
+    # for the next stage, we will sort the results in ascending order,
+    # with respect to the scales the anomalies are detected to belong to
+    # sort anomalies by extension:
+    sort_idx = max_scales.argsort(kind="stable")
+    critical_stamps = critical_stamps[sort_idx]
+    max_scales = max_scales[sort_idx]
+    result = np.array(result)[sort_idx]
+    # ----------------------------------------------------------------
+    # Next part we mainly detect the exact starting and ending points of
+    # any anomaly with the help of the 'dynamic timewarping' (fastdtw) algorithm.
+    # ----------------------------------------------------------------
+    op_series = base_series.copy()
+    if qc_d is None:
+        qc_d = saqc.SaQC(base_series)
+    # looping over the critical timstamps (that supposedly lie in the middle of any detected anomaly
+    for c in enumerate(critical_stamps):
+        # in every loop prepare a series that will hold the timestamps to set flags at:
+        to_flag = pd.Series(False, index=base_series.index)
+        # at first, we do not apply flagging, if the detected anomaly is at a scale that is too
+        # close to the limits of the scales we searched at: because this could mean it is actually
+        # smaller or wider that detected and we would thus overflag/underflag
+        if (
+            scale_vals[max_scales[c[0]]]
+            in pd.Series(scale_vals).nsmallest(bound_scales).values
+        ):
+            if min(scale_vals) > 3:
+                continue
+        if (
+            scale_vals[max_scales[c[0]]]
+            in pd.Series(scale_vals).nlargest(bound_scales).values
+        ):
+            continue
+
+        # --------------------------------
+        # correct/validate found anomalies
+        # --------------------------------
+        # we derive the most likely timestamp in the middle of the anomaly under test:
+        s = test_vals.loc[:, f"scale_{scale_vals[max_scales[c[0]]]}"].notna()
+        s = s[s]
+        idx = np.argmin(np.abs(c[1] - s.index))
+
+        idx_date = s.index[idx]
+        idx = to_flag.index.searchsorted(idx_date)
+
+        # we cut out the a piece of the target timseries that is likely wider than the anomaly:
+        anomaly_slice = slice(
+            idx - int(result[c[0]] * 0.5), idx + int(result[c[0]] * 0.5) + 1
+        )
+        anomaly_ser = op_series.iloc[anomaly_slice]
+        if min_j is None:
+            min_jump = anomaly_ser.diff().abs().quantile(0.9)
+        else:
+            min_jump = min_j
+
+        # we cut out a smaller piece from the target timeseries, that likely only contains the actual anomaleous plateau:
+        inner_slice = slice(
+            idx - int(scale_vals[max_scales[c[0]]] * 0.5),
+            idx + int(scale_vals[max_scales[c[0]]] * 0.5) + 1,
+        )
+        inner_ser = op_series.iloc[inner_slice]
+
+        # deriving some statistics and making another plausibility check
+        if len(inner_ser) == 1:
+            m_start = m_end = inner_ser.iloc[0]
+        else:
+            m_start = inner_ser[:idx_date].median()  # inner_ser[:c[1]].median()
+            m_end = inner_ser[idx_date:].median()
+
+        # now we try to find the real start and ending points of the anomaly
+        # the idea basically is to map the 2-periods series containing one value likely outside the
+        # anomaly and the inner most value of the anomaly onto the first half of the anomaly slice with fastdtw:
+        # The point where the algorithm switches from mapping the outside value to mapping the inside value,
+        # is a most likely candidate for the start of the anomaly. Than, we do the same for
+        # other half to get the ending point of the anomaly:
+
+        x = np.array([m_start, anomaly_ser[0]])
+        y_idx = anomaly_ser[::-1][idx_date:].index
+        y = np.array([v for v in anomaly_ser[::-1][idx_date:]])
+        _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
+
+        path = np.array(path)
+        offset_start = path[:, 0].argmax() - 1
+        start_jump = y[offset_start] - y[offset_start + 1]
+
+        if start_jump < min_jump:
+            continue
+        offset_start_out = y_idx[offset_start - 1]
+        offset_start = y_idx[offset_start]
+
+        # repeat process for the second half of the anomaly
+        x = np.array([m_end, anomaly_ser[-1]])
+        y_idx = anomaly_ser[idx_date:].index
+        y = np.array([v for v in anomaly_ser[idx_date:]])
+        _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
+
+        path = np.array(path)
+        offset_end = path[:, 0].argmax() - 1
+        end_jump = y[offset_end] - y[offset_end + 1]
+        if end_jump < min_jump:
+            continue
+        offset_end_out = y_idx[offset_end + 1]
+        offset_end = y_idx[offset_end]
+        outlier_slice = slice(offset_start, offset_end)
+        ano_vals = anomaly_ser.loc[outlier_slice]
+
+        if anomaly_integrity is not None:
+            anomaly_integrity = max([start_jump, end_jump]) * anomaly_integrity
+            if abs(ano_vals.max() - ano_vals.min()) > anomaly_integrity:
+                continue
+
+        num_anovals = len(to_flag.loc[outlier_slice])
+        if num_anovals < (scale_vals[max_scales[c[0]]]):
+            continue
+
+        N = min([(num_anovals // 2) - 1, 20])
+        uniLofScores = (
+            saqc.SaQC(anomaly_ser)
+            .assignUniLOF(anomaly_ser.name, n=N)
+            .data[anomaly_ser.name]
+        )
+        if (uniLofScores[offset_start] >= -1) | (uniLofScores[offset_end] >= -1):
+            continue
+        if (uniLofScores[offset_start_out] >= -1) | (
+            uniLofScores[offset_end_out] >= -1
+        ):
+            continue
+        to_flag.loc[outlier_slice] = True
+
+        # we remove the anomaly from the series, so that it wont interfere with later checks
+        op_series.loc[outlier_slice] = np.nan
+        op_series = op_series.interpolate("linear")
+
+        qc_d = qc_d.flagGeneric(
+            base_series.name,
+            func=lambda x: to_flag,
+            label=f"scale {scale_vals[max_scales[c[0]]]} anomaly",
+        )
+
+    return qc_d
 
 
 def calculateDistanceByDTW(
@@ -90,6 +400,63 @@ def calculateDistanceByDTW(
 
 class PatternMixin:
     # todo should we mask `reference` even if the func fail if reference has NaNs
+    @flagging()
+    def flagPlateau(
+        self: "SaQC",
+        field: str,
+        min_length: int | str,
+        max_length: int | str,
+        granularity: int | str = 5,
+        min_jump: float = None,
+        bound_scales: int = 10,
+        flag: float = BAD,
+        **kwargs,
+    ) -> "SaQC":
+        """ """
+        datcol = self.data[field]
+        datcol = datcol.interpolate("time")
+        freq = getFreqDelta(datcol.index)
+        if freq is None:
+            raise ValueError("Not a unitary sampling rate")
+        if isinstance(min_length, str):
+            min_length = pd.Timedelta(min_length) // freq
+            max_length = pd.Timedelta(max_length) // freq
+        if isinstance(granularity, str):
+            granularity = pd.Timedelta(granularity) // freq
+
+        min_length = max(min_length // 2, 1)
+        max_length = max_length // 2
+        scale_vals = list(np.arange(min_length, max_length, granularity))
+        bounding = [
+            min_length - b for b in range(1, min(bound_scales, scale_vals[0]))
+        ] + [max_length + b for b in range(1, bound_scales)]
+        scale_vals = np.array(scale_vals + bounding)
+        scale_vals.sort(kind="stable")
+        qc_d = offSetSearch(
+            base_series=datcol,
+            scale_vals=scale_vals,
+            freq=freq,
+            wavelet=signal.ricker,
+            matchlet=signal.ricker,
+            min_j=min_jump,
+            thresh=0.1,
+            bound_scales=bound_scales,
+        )
+        qc_d = offSetSearch(
+            qc_d=qc_d,
+            base_series=datcol.max() - datcol,
+            scale_vals=scale_vals,
+            freq=freq,
+            wavelet=signal.ricker,
+            matchlet=signal.ricker,
+            min_j=min_jump,
+            thresh=0.1,
+            bound_scales=bound_scales,
+        )
+        mask = qc_d._flags[field] > -np.inf
+        self._flags[mask, field] = flag
+        return self
+
     @flagging()
     def flagPatternByDTW(
         self: "SaQC",
