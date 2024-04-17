@@ -8,94 +8,318 @@ Flags, History and Translations
 ===============================
 
 
-The tutorial aims to introduce into a simple to use, jet powerful method for clearing :ref:`uniformly sampled <cookbooks/DataRegularisation:Data Regularization>`, *univariate*
-data, from global und local outliers as well as outlier clusters.
-Therefor, we will introduce into the usage of the :py:meth:`~saqc.SaQC.flagUniLOF` method, which represents a
-modification of the established `Local Outlier Factor <https://de.wikipedia.org/wiki/Local_Outlier_Factor>`_ (LOF)
-algorithm and is applicable without prior modelling of the data to flag.
-
-* :ref:`Example Data Import <cookbooks/OutlierDetection:Example Data Import>`
-* :ref:`Initial Flagging <cookbooks/OutlierDetection:Initial Flagging>`
-* :ref:`Tuning Threshold Parameter <cookbooks/OutlierDetection:Tuning Threshold Parameter>`
-* :ref:`Tuning Locality Parameter <cookbooks/OutlierDetection:Tuning Locality Parameter>`
-
-
-Example Data Import
--------------------
-
-.. plot::
-   :context: reset
-   :include-source: False
-
-   import matplotlib
-   import saqc
-   import pandas as pd
-   data = pd.read_csv('../resources/data/hydro_data.csv')
-   data = data.set_index('Timestamp')
-   data.index = pd.DatetimeIndex(data.index)
-   qc = saqc.SaQC(data)
-
-We load the example `data set <https://git.ufz.de/rdm-software/saqc/-/blob/develop/docs/resources/data/hydro_data.csv>`_
-from the *saqc* repository using the `pandas <https://pandas.pydata.org/>`_ csv
-file reader.
-Subsequently, we cast the index of the imported data to `DatetimeIndex <https://pandas.pydata.org/docs/reference/api/pandas.DatetimeIndex.html>`, then initialize
-a :py:class:`~saqc.SaQC` instance using the imported data and finally we plot
-it via the built-in :py:meth:`~saqc.SaQC.plot` method.
-
-.. doctest:: flagUniLOFExample
+.. doctest:: FlagsDemo
 
    >>> import saqc
    >>> data = pd.read_csv('./resources/data/hydro_data.csv')
    >>> data = data.set_index('Timestamp')
    >>> data.index = pd.DatetimeIndex(data.index)
-   >>> qc = saqc.SaQC(data)
-   >>> qc.plot('sac254_raw') # doctest: +SKIP
+   >>> qc = saqc.SaQC(data[['sac254_raw', 'level_raw']])
+   >>> qc = qc.align('sac254_raw', method='time', freq='10min')
+   >>> qc = qc.flagRange('sac254_raw', max=25, label='too high')
+   >>> qc = qc.flagRange('sac254_raw', min=25, label='too low')
 
-.. plot::
-   :context:
-   :include-source: False
-   :class: center
+We can now check out the result
 
-    qc.plot('sac254_raw')
+.. doctest:: FlagsDemo
 
-Initial Flagging
-----------------
+   >>> qc.flags  # doctest: +SKIP
+                   sac254_raw |                level_raw |
+   ========================== | ======================== |
+   2016-01-01 00:00:00   -inf | 2016-01-01 00:02:00 -inf |
+   2016-01-01 00:10:00  255.0 | 2016-01-01 00:17:00 -inf |
+   2016-01-01 00:20:00   -inf | 2016-01-01 00:32:00 -inf |
+   2016-01-01 00:30:00   -inf | 2016-01-01 00:47:00 -inf |
+   2016-01-01 00:40:00  255.0 | 2016-01-01 01:02:00 -inf |
+   ...                    ... | ...                  ... |
+   2017-12-31 23:10:00  255.0 | 2017-12-31 22:47:00 -inf |
+   2017-12-31 23:20:00   -inf | 2017-12-31 23:02:00 -inf |
+   2017-12-31 23:30:00   -inf | 2017-12-31 23:17:00 -inf |
+   2017-12-31 23:40:00  255.0 | 2017-12-31 23:32:00 -inf |
+   2017-12-31 23:50:00   -inf | 2017-12-31 23:47:00 -inf |
 
-We start by applying the algorithm :py:meth:`~saqc.SaQC.flagUniLOF` with
-default arguments, so the main calibration
-parameters :py:attr:`n` and :py:attr:`thresh` are set to `20` and `1.5`
-respectively.
+Merging all the results to Dataframe
 
-For an detailed overview over all the parameters, as well as an introduction
-into the working of the algorithm, see the documentation of :py:meth:`~saqc.SaQC.flagUniLOF`
-itself.
+.. doctest:: FlagsDemo
 
-.. doctest:: flagUniLOFExample
+   >>> qc.flags.to_pandas()
+                        sac254_raw  level_raw
+   2016-01-01 00:00:00        -inf        NaN
+   2016-01-01 00:02:00         NaN       -inf
+   2016-01-01 00:10:00       255.0        NaN
+   2016-01-01 00:17:00         NaN       -inf
+   2016-01-01 00:20:00        -inf        NaN
+   ...                         ...        ...
+   2017-12-31 23:30:00        -inf        NaN
+   2017-12-31 23:32:00         NaN       -inf
+   2017-12-31 23:40:00       255.0        NaN
+   2017-12-31 23:47:00         NaN       -inf
+   2017-12-31 23:50:00        -inf        NaN
+
+
+Getting effective flags of specific Variable:
+
+.. doctest:: FlagsDemo
+
+   >>> qc.flags['sac254_raw']
+   2016-01-01 00:00:00     -inf
+   2016-01-01 00:10:00    255.0
+   2016-01-01 00:20:00     -inf
+   2016-01-01 00:30:00     -inf
+   2016-01-01 00:40:00    255.0
+                          ...
+   2017-12-31 23:10:00    255.0
+   2017-12-31 23:20:00     -inf
+   2017-12-31 23:30:00     -inf
+   2017-12-31 23:40:00    255.0
+   2017-12-31 23:50:00     -inf
+   Freq: 10min, Length: 105264, dtype: float64
+
+The History Accessor:
+
+.. doctest:: FlagsDemo
+
+   >>> qc._history['sac254_raw']  #doctest: +SKIP
+
+Access a variables history as a Dataframe:
+
+.. doctest:: FlagsDemo
+
+   >>> qc._history['sac254_raw'].hist
+                         0      1      2
+   2016-01-01 00:00:00 NaN    NaN    NaN
+   2016-01-01 00:10:00 NaN    NaN  255.0
+   2016-01-01 00:20:00 NaN    NaN    NaN
+   2016-01-01 00:30:00 NaN    NaN    NaN
+   2016-01-01 00:40:00 NaN    NaN  255.0
+   ...                  ..    ...    ...
+   2017-12-31 23:10:00 NaN  255.0    NaN
+   2017-12-31 23:20:00 NaN    NaN    NaN
+   2017-12-31 23:30:00 NaN    NaN    NaN
+   2017-12-31 23:40:00 NaN  255.0    NaN
+   2017-12-31 23:50:00 NaN    NaN    NaN
+
+Accessing the flags origin annotations:
+
+.. doctest:: FlagsDemo
+
+   >>> qc._history['sac254_raw'].meta[1]
+   {'func': 'flagRange',
+   'args': (),
+   'kwargs': {'max': 25,
+   'label': 'too high',
+   'dfilter': -inf,
+   'field': 'sac254_raw'}}
+
+work with flags Translation schemes:
+
+.. doctest:: SchemeDemo
 
    >>> import saqc
-   >>> qc = qc.flagUniLOF('sac254_raw')
-   >>> qc.plot('sac254_raw') # doctest: +SKIP
+   >>> data = pd.read_csv('./resources/data/hydro_data.csv')
+   >>> data = data.set_index('Timestamp')
+   >>> data.index = pd.DatetimeIndex(data.index)
+   >>> qc = saqc.SaQC(data[['sac254_raw', 'level_raw']], scheme=saqc.SimpleScheme())
+   >>> qc = qc.align('sac254_raw', method='time', freq='10min')
+   >>> qc = qc.flagRange('sac254_raw', max=25, label='too high')
+   >>> qc = qc.flagRange('sac254_raw', min=25, label='too low')
 
-.. plot::
-   :context: close-figs
-   :include-source: False
-   :class: center
-   :caption: Flagging result with default parameter configuration.
+Now flags look different:
 
-   qc = qc.flagUniLOF('sac254_raw')
-   qc.plot('sac254_raw')
+.. doctest:: SchemeDemo
 
-The results from that initial shot seem to look not too bad.
-Most instances of obvious outliers seem to have been flagged right
-away and there seem to be no instances of inliers having been falsely labeled.
-Zooming in onto a 3 months strip on *2016*, gives the impression of
-some not so extreme outliers having passed :py:meth:`~saqc.SaQC.flagUniLOF`
-undetected:
+   >>> qc.flags # doctest: #SKIP
+                       sac254_raw |                      level_raw |
+   ============================== | ============================== |
+   2016-01-01 00:00:00  UNFLAGGED | 2016-01-01 00:02:00  UNFLAGGED |
+   2016-01-01 00:10:00         OK | 2016-01-01 00:17:00  UNFLAGGED |
+   2016-01-01 00:20:00  UNFLAGGED | 2016-01-01 00:32:00  UNFLAGGED |
+   2016-01-01 00:30:00  UNFLAGGED | 2016-01-01 00:47:00  UNFLAGGED |
+   2016-01-01 00:40:00         OK | 2016-01-01 01:02:00  UNFLAGGED |
+   ...                        ... | ...                        ... |
+   2017-12-31 23:10:00        BAD | 2017-12-31 22:47:00  UNFLAGGED |
+   2017-12-31 23:20:00  UNFLAGGED | 2017-12-31 23:02:00  UNFLAGGED |
+   2017-12-31 23:30:00  UNFLAGGED | 2017-12-31 23:17:00  UNFLAGGED |
+   2017-12-31 23:40:00        BAD | 2017-12-31 23:32:00  UNFLAGGED |
+   2017-12-31 23:50:00  UNFLAGGED | 2017-12-31 23:47:00  UNFLAGGED |
 
-.. plot::
-   :context: close-figs
-   :include-source: False
-   :class: centers
-   :caption: Assuming the flickering values in late september also qualify as outliers, we will see how to tune the algorithm to detect those in the next section.
+Getting columns of effective flags works the same:
 
-   qc.plot('sac254_raw', xscope=slice('2016-09','2016-11'))
+.. doctest:: SchemeDemo
+
+   >>> qc.flags['sac254_raw']
+   2016-01-01 00:00:00    UNFLAGGED
+   2016-01-01 00:10:00           OK
+   2016-01-01 00:20:00    UNFLAGGED
+   2016-01-01 00:30:00    UNFLAGGED
+   2016-01-01 00:40:00           OK
+                                ...
+   2017-12-31 23:10:00          BAD
+   2017-12-31 23:20:00    UNFLAGGED
+   2017-12-31 23:30:00    UNFLAGGED
+   2017-12-31 23:40:00          BAD
+   2017-12-31 23:50:00    UNFLAGGED
+
+History unfortunately shows only internal values:
+
+.. doctest:: SchemeDemo
+
+   >>> qc._history['sac254_raw'].hist
+                         0      1      2
+   2016-01-01 00:00:00  nan    nan    nan
+   2016-01-01 00:10:00  nan    nan  255.0
+   2016-01-01 00:20:00  nan    nan    nan
+   2016-01-01 00:30:00  nan    nan    nan
+   2016-01-01 00:40:00  nan    nan  255.0
+                     ...    ...    ...
+   2017-12-31 23:10:00  nan  255.0    nan
+   2017-12-31 23:20:00  nan    nan    nan
+   2017-12-31 23:30:00  nan    nan    nan
+   2017-12-31 23:40:00  nan  255.0    nan
+   2017-12-31 23:50:00  nan    nan    nan
+
+
+We can use the Schemes Value translation dictionary to get a proper representation:
+
+.. doctest:: SchemeDemo
+
+   >>> qc._history['sac254_raw'].hist.replace(saqc.SimpleScheme._BACKWARD)
+                                0          1          2
+   2016-01-01 00:00:00  UNFLAGGED  UNFLAGGED  UNFLAGGED
+   2016-01-01 00:10:00  UNFLAGGED  UNFLAGGED        BAD
+   2016-01-01 00:20:00  UNFLAGGED  UNFLAGGED  UNFLAGGED
+   2016-01-01 00:30:00  UNFLAGGED  UNFLAGGED  UNFLAGGED
+   2016-01-01 00:40:00  UNFLAGGED  UNFLAGGED        BAD
+                           ...        ...        ...
+   2017-12-31 23:10:00  UNFLAGGED        BAD  UNFLAGGED
+   2017-12-31 23:20:00  UNFLAGGED  UNFLAGGED  UNFLAGGED
+   2017-12-31 23:30:00  UNFLAGGED  UNFLAGGED  UNFLAGGED
+   2017-12-31 23:40:00  UNFLAGGED        BAD  UNFLAGGED
+   2017-12-31 23:50:00  UNFLAGGED  UNFLAGGED  UNFLAGGED
+   [105264 rows x 3 columns]
+
+Schemes can be changed by simple assignment:
+
+.. doctest:: SchemeDemo
+
+   >>> qc.scheme = saqc.PositionalScheme()
+   qc.flags['sac254_raw']
+   2016-01-01 00:00:00    9000
+   2016-01-01 00:10:00    9002
+   2016-01-01 00:20:00    9000
+   2016-01-01 00:30:00    9000
+   2016-01-01 00:40:00    9002
+                          ...
+   2017-12-31 23:10:00    9020
+   2017-12-31 23:20:00    9000
+   2017-12-31 23:30:00    9000
+   2017-12-31 23:40:00    9020
+   2017-12-31 23:50:00    9000
+   Freq: 10min, Length: 105264, dtype: int64
+
+The positional scheme is a custom scheme that generates effective flags with digits referring to tests ran over the variable.
+A test that didnt flag a value is represented by a `0`, a flag is represented by a `2`. We can checkout the Value Translations dictionary
+to learn about a flags values internal *Flag intensity*:
+
+.. doctest:: SchemeDemo
+
+   >>> saqc.PositionalScheme()._BACKWARD
+   {nan: 0, -inf: 0, 0: 0, 25.0: 1, 255.0: 2}
+
+So, values not checked by any tests and values not flagged by any tests are both represented by `0`, where
+`1` represents flag intensity `25.0` and `2` is associated with the worst possible flag (`255.0`). We can
+again look at the translated history:
+
+.. doctest:: SchemeDemo
+
+   >>> qc._history['sac254_raw'].hist.replace(saqc.PositionalScheme()._BACKWARD)
+                         0    1    2
+   2016-01-01 00:00:00  0.0  0.0  0.0
+   2016-01-01 00:10:00  0.0  0.0  2.0
+   2016-01-01 00:20:00  0.0  0.0  0.0
+   2016-01-01 00:30:00  0.0  0.0  0.0
+   2016-01-01 00:40:00  0.0  0.0  2.0
+                     ...  ...  ...
+   2017-12-31 23:10:00  0.0  2.0  0.0
+   2017-12-31 23:20:00  0.0  0.0  0.0
+   2017-12-31 23:30:00  0.0  0.0  0.0
+   2017-12-31 23:40:00  0.0  2.0  0.0
+   2017-12-31 23:50:00  0.0  0.0  0.0
+
+`SaQC` provides a simple scheme that readily makes available a flags origin in the effective flags series, so we dont have to investigate the history.
+The annotated float Scheme:
+
+.. doctest:: SchemeDemo
+
+   >>> qc.scheme = saqc.core.translation.AnnotatedFloatScheme()
+   >>> qc.flags['sac254_raw']
+                         flag  ...                                         parameters
+   2016-01-01 00:00:00   -inf  ...
+   2016-01-01 00:10:00  255.0  ...  {'min': 25, 'label': 'too low', 'dfilter': 26....
+   2016-01-01 00:20:00   -inf  ...
+   2016-01-01 00:30:00   -inf  ...
+   2016-01-01 00:40:00  255.0  ...  {'min': 25, 'label': 'too low', 'dfilter': 26....
+                       ...  ...                                                ...
+   2017-12-31 23:10:00  255.0  ...  {'max': 25, 'label': 'too high', 'dfilter': 26...
+   2017-12-31 23:20:00   -inf  ...
+   2017-12-31 23:30:00   -inf  ...
+   2017-12-31 23:40:00  255.0  ...  {'max': 25, 'label': 'too high', 'dfilter': 26...
+   2017-12-31 23:50:00   -inf  ...
+
+Every effective flag in this scheme consists of three components (instead of just one).
+
+1. The flags value itself:
+
+.. doctest:: SchemeDemo
+
+   >>> qc.flags['sac254']['flag']
+   2016-01-01 00:00:00     -inf
+   2016-01-01 00:10:00    255.0
+   2016-01-01 00:20:00     -inf
+   2016-01-01 00:30:00     -inf
+   2016-01-01 00:40:00    255.0
+                          ...
+   2017-12-31 23:10:00    255.0
+   2017-12-31 23:20:00     -inf
+   2017-12-31 23:30:00     -inf
+   2017-12-31 23:40:00    255.0
+   2017-12-31 23:50:00     -inf
+   Freq: 10min, Name: flag, Length: 105264, dtype: float64
+
+2. The function every flag originated from:
+
+.. doctest:: SchemeDemo
+
+   >>> qc.flags['sac254']['func']
+   2016-01-01 00:00:00
+   2016-01-01 00:10:00    flagRange
+   2016-01-01 00:20:00
+   2016-01-01 00:30:00
+   2016-01-01 00:40:00    flagRange
+                            ...
+   2017-12-31 23:10:00    flagRange
+   2017-12-31 23:20:00
+   2017-12-31 23:30:00
+   2017-12-31 23:40:00    flagRange
+   2017-12-31 23:50:00
+   Freq: 10min, Name: func, Length: 105264, dtype: object
+
+3. And the parameters the flag generating function was called with:
+
+.. doctest:: SchemeDemo
+
+   >>> qc.flags['sac254_raw']['parameters']
+   2016-01-01 00:00:00
+   2016-01-01 00:10:00    {'min': 25, 'label': 'too low', 'dfilter': 26....
+   2016-01-01 00:20:00
+   2016-01-01 00:30:00
+   2016-01-01 00:40:00    {'min': 25, 'label': 'too low', 'dfilter': 26....
+                                                ...
+   2017-12-31 23:10:00    {'max': 25, 'label': 'too high', 'dfilter': 26...
+   2017-12-31 23:20:00
+   2017-12-31 23:30:00
+   2017-12-31 23:40:00    {'max': 25, 'label': 'too high', 'dfilter': 26...
+   2017-12-31 23:50:00
+   Freq: 10min, Name: parameters, Length: 105264, dtype: object
+
+
