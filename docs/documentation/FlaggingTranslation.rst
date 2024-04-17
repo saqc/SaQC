@@ -55,7 +55,8 @@ Merging all the results to Dataframe
    2017-12-31 23:40:00       255.0        NaN
    2017-12-31 23:47:00         NaN       -inf
    2017-12-31 23:50:00        -inf        NaN
-
+   <BLANKLINE>
+   [175427 rows x 2 columns]
 
 Getting effective flags of specific Variable:
 
@@ -98,18 +99,16 @@ Access a variables history as a Dataframe:
    2017-12-31 23:30:00 NaN    NaN    NaN
    2017-12-31 23:40:00 NaN  255.0    NaN
    2017-12-31 23:50:00 NaN    NaN    NaN
+   <BLANKLINE>
+   [105264 rows x 3 columns]
+
 
 Accessing the flags origin annotations:
 
 .. doctest:: FlagsDemo
 
    >>> qc._history['sac254_raw'].meta[1]
-   {'func': 'flagRange',
-   'args': (),
-   'kwargs': {'max': 25,
-   'label': 'too high',
-   'dfilter': -inf,
-   'field': 'sac254_raw'}}
+   {'func': 'flagRange', 'args': (), 'kwargs': {'max': 25, 'label': 'too high', 'dfilter': -inf, 'field': 'sac254_raw'}}
 
 work with flags Translation schemes:
 
@@ -128,7 +127,7 @@ Now flags look different:
 
 .. doctest:: SchemeDemo
 
-   >>> qc.flags # doctest: #SKIP
+   >>> qc.flags # doctest: +SKIP
                        sac254_raw |                      level_raw |
    ============================== | ============================== |
    2016-01-01 00:00:00  UNFLAGGED | 2016-01-01 00:02:00  UNFLAGGED |
@@ -147,43 +146,48 @@ Getting columns of effective flags works the same:
 
 .. doctest:: SchemeDemo
 
-   >>> qc.flags['sac254_raw']
+   >>> qc.flags['sac254_raw'] # doctest: +NORMALIZE_WHITESPACE
    2016-01-01 00:00:00    UNFLAGGED
-   2016-01-01 00:10:00           OK
+   2016-01-01 00:10:00          BAD
    2016-01-01 00:20:00    UNFLAGGED
    2016-01-01 00:30:00    UNFLAGGED
-   2016-01-01 00:40:00           OK
+   2016-01-01 00:40:00          BAD
                                 ...
    2017-12-31 23:10:00          BAD
    2017-12-31 23:20:00    UNFLAGGED
    2017-12-31 23:30:00    UNFLAGGED
    2017-12-31 23:40:00          BAD
    2017-12-31 23:50:00    UNFLAGGED
+   Freq: 10min, Length: 105264, dtype: object
+
+
 
 History unfortunately shows only internal values:
 
 .. doctest:: SchemeDemo
 
-   >>> qc._history['sac254_raw'].hist
-                         0      1      2
-   2016-01-01 00:00:00  nan    nan    nan
-   2016-01-01 00:10:00  nan    nan  255.0
-   2016-01-01 00:20:00  nan    nan    nan
-   2016-01-01 00:30:00  nan    nan    nan
-   2016-01-01 00:40:00  nan    nan  255.0
-                     ...    ...    ...
-   2017-12-31 23:10:00  nan  255.0    nan
-   2017-12-31 23:20:00  nan    nan    nan
-   2017-12-31 23:30:00  nan    nan    nan
-   2017-12-31 23:40:00  nan  255.0    nan
-   2017-12-31 23:50:00  nan    nan    nan
+   >>> qc._history['sac254_raw'].hist # doctest: +NORMALIZE_WHITESPACE
+                        0      1      2
+   2016-01-01 00:00:00 NaN    NaN    NaN
+   2016-01-01 00:10:00 NaN    NaN  255.0
+   2016-01-01 00:20:00 NaN    NaN    NaN
+   2016-01-01 00:30:00 NaN    NaN    NaN
+   2016-01-01 00:40:00 NaN    NaN  255.0
+   ...                  ..    ...    ...
+   2017-12-31 23:10:00 NaN  255.0    NaN
+   2017-12-31 23:20:00 NaN    NaN    NaN
+   2017-12-31 23:30:00 NaN    NaN    NaN
+   2017-12-31 23:40:00 NaN  255.0    NaN
+   2017-12-31 23:50:00 NaN    NaN    NaN
+   <BLANKLINE>
+   [105264 rows x 3 columns]
 
 
 We can use the Schemes Value translation dictionary to get a proper representation:
 
 .. doctest:: SchemeDemo
 
-   >>> qc._history['sac254_raw'].hist.replace(saqc.SimpleScheme._BACKWARD)
+   >>> qc._history['sac254_raw'].hist.replace(saqc.SimpleScheme._BACKWARD) # doctest: +NORMALIZE_WHITESPACE
                                 0          1          2
    2016-01-01 00:00:00  UNFLAGGED  UNFLAGGED  UNFLAGGED
    2016-01-01 00:10:00  UNFLAGGED  UNFLAGGED        BAD
@@ -203,7 +207,7 @@ Schemes can be changed by simple assignment:
 .. doctest:: SchemeDemo
 
    >>> qc.scheme = saqc.PositionalScheme()
-   qc.flags['sac254_raw']
+   >>> qc.flags['sac254_raw'] # doctest: +NORMALIZE_WHITESPACE
    2016-01-01 00:00:00    9000
    2016-01-01 00:10:00    9002
    2016-01-01 00:20:00    9000
@@ -223,7 +227,7 @@ to learn about a flags values internal *Flag intensity*:
 
 .. doctest:: SchemeDemo
 
-   >>> saqc.PositionalScheme()._BACKWARD
+   >>> saqc.PositionalScheme()._BACKWARD # doctest: +NORMALIZE_WHITESPACE
    {nan: 0, -inf: 0, 0: 0, 25.0: 1, 255.0: 2}
 
 So, values not checked by any tests and values not flagged by any tests are both represented by `0`, where
@@ -232,19 +236,21 @@ again look at the translated history:
 
 .. doctest:: SchemeDemo
 
-   >>> qc._history['sac254_raw'].hist.replace(saqc.PositionalScheme()._BACKWARD)
-                         0    1    2
+   >>> qc._history['sac254_raw'].hist.replace(saqc.PositionalScheme()._BACKWARD) # doctest: +NORMALIZE_WHITESPACE
+                          0    1    2
    2016-01-01 00:00:00  0.0  0.0  0.0
    2016-01-01 00:10:00  0.0  0.0  2.0
    2016-01-01 00:20:00  0.0  0.0  0.0
    2016-01-01 00:30:00  0.0  0.0  0.0
    2016-01-01 00:40:00  0.0  0.0  2.0
-                     ...  ...  ...
+   ...                  ...  ...  ...
    2017-12-31 23:10:00  0.0  2.0  0.0
    2017-12-31 23:20:00  0.0  0.0  0.0
    2017-12-31 23:30:00  0.0  0.0  0.0
    2017-12-31 23:40:00  0.0  2.0  0.0
    2017-12-31 23:50:00  0.0  0.0  0.0
+   <BLANKLINE>
+   [105264 rows x 3 columns]
 
 `SaQC` provides a simple scheme that readily makes available a flags origin in the effective flags series, so we dont have to investigate the history.
 The annotated float Scheme:
@@ -252,19 +258,21 @@ The annotated float Scheme:
 .. doctest:: SchemeDemo
 
    >>> qc.scheme = saqc.core.translation.AnnotatedFloatScheme()
-   >>> qc.flags['sac254_raw']
-                         flag  ...                                         parameters
-   2016-01-01 00:00:00   -inf  ...
-   2016-01-01 00:10:00  255.0  ...  {'min': 25, 'label': 'too low', 'dfilter': 26....
-   2016-01-01 00:20:00   -inf  ...
-   2016-01-01 00:30:00   -inf  ...
-   2016-01-01 00:40:00  255.0  ...  {'min': 25, 'label': 'too low', 'dfilter': 26....
-                       ...  ...                                                ...
-   2017-12-31 23:10:00  255.0  ...  {'max': 25, 'label': 'too high', 'dfilter': 26...
-   2017-12-31 23:20:00   -inf  ...
-   2017-12-31 23:30:00   -inf  ...
-   2017-12-31 23:40:00  255.0  ...  {'max': 25, 'label': 'too high', 'dfilter': 26...
-   2017-12-31 23:50:00   -inf  ...
+   >>> qc.flags['sac254_raw'] # doctest: +NORMALIZE_WHITESPACE
+                         flag       func                                         parameters
+   2016-01-01 00:00:00   -inf
+   2016-01-01 00:10:00  255.0  flagRange  {'min': 25, 'label': 'too low', 'dfilter': -in...
+   2016-01-01 00:20:00   -inf
+   2016-01-01 00:30:00   -inf
+   2016-01-01 00:40:00  255.0  flagRange  {'min': 25, 'label': 'too low', 'dfilter': -in...
+   ...                    ...        ...                                                ...
+   2017-12-31 23:10:00  255.0  flagRange  {'max': 25, 'label': 'too high', 'dfilter': -i...
+   2017-12-31 23:20:00   -inf
+   2017-12-31 23:30:00   -inf
+   2017-12-31 23:40:00  255.0  flagRange  {'max': 25, 'label': 'too high', 'dfilter': -i...
+   2017-12-31 23:50:00   -inf
+   <BLANKLINE>
+   [105264 rows x 3 columns]
 
 Every effective flag in this scheme consists of three components (instead of just one).
 
@@ -272,7 +280,7 @@ Every effective flag in this scheme consists of three components (instead of jus
 
 .. doctest:: SchemeDemo
 
-   >>> qc.flags['sac254']['flag']
+   >>> qc.flags['sac254_raw']['flag'] # doctest: +NORMALIZE_WHITESPACE
    2016-01-01 00:00:00     -inf
    2016-01-01 00:10:00    255.0
    2016-01-01 00:20:00     -inf
@@ -290,7 +298,7 @@ Every effective flag in this scheme consists of three components (instead of jus
 
 .. doctest:: SchemeDemo
 
-   >>> qc.flags['sac254']['func']
+   >>> qc.flags['sac254_raw']['func'] # doctest: +NORMALIZE_WHITESPACE
    2016-01-01 00:00:00
    2016-01-01 00:10:00    flagRange
    2016-01-01 00:20:00
@@ -308,18 +316,19 @@ Every effective flag in this scheme consists of three components (instead of jus
 
 .. doctest:: SchemeDemo
 
-   >>> qc.flags['sac254_raw']['parameters']
+   >>> qc.flags['sac254_raw']['parameters'] # doctest: +NORMALIZE_WHITESPACE
    2016-01-01 00:00:00
-   2016-01-01 00:10:00    {'min': 25, 'label': 'too low', 'dfilter': 26....
+   2016-01-01 00:10:00    {'min': 25, 'label': 'too low', 'dfilter': -in...
    2016-01-01 00:20:00
    2016-01-01 00:30:00
-   2016-01-01 00:40:00    {'min': 25, 'label': 'too low', 'dfilter': 26....
+   2016-01-01 00:40:00    {'min': 25, 'label': 'too low', 'dfilter': -in...
                                                 ...
-   2017-12-31 23:10:00    {'max': 25, 'label': 'too high', 'dfilter': 26...
+   2017-12-31 23:10:00    {'max': 25, 'label': 'too high', 'dfilter': -i...
    2017-12-31 23:20:00
    2017-12-31 23:30:00
-   2017-12-31 23:40:00    {'max': 25, 'label': 'too high', 'dfilter': 26...
+   2017-12-31 23:40:00    {'max': 25, 'label': 'too high', 'dfilter': -i...
    2017-12-31 23:50:00
    Freq: 10min, Name: parameters, Length: 105264, dtype: object
+
 
 
