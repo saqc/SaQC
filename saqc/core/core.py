@@ -395,95 +395,178 @@ class SaQC(FunctionsMixin):
         return flags
 
     def __and__(self, other):
-        if len(self.columns)!=len(other.columns):
-            raise ValueError('Logical saqc object combination only supported for saqc objects of the same number of variables.')
+        if len(self.columns) != len(other.columns):
+            raise ValueError(
+                "Logical saqc object combination only supported for saqc objects of the same number of variables."
+            )
         if type(self.scheme) != type(other.scheme):
-            raise ValueError('Cant combine differently schemed saqc objects in logical operation.')
+            raise ValueError(
+                "Cant combine differently schemed saqc objects in logical operation."
+            )
         self = self.copy(deep=True)
         other = other.copy(deep=True)
-        for f,of in zip(self.columns, other.columns):
-            self_flags = self._flags.history[f].hist.iloc[:,-1].replace(np.nan, -np.inf)
-            other_flags = other._flags.history[of].hist.iloc[:,-1].replace(np.nan, -np.inf)
-            flagscol = self_flags.where(self_flags<=other_flags, other_flags)
+        for f, of in zip(self.columns, other.columns):
+            self_flags = (
+                self._flags.history[f].hist.iloc[:, -1].replace(np.nan, -np.inf)
+            )
+            other_flags = (
+                other._flags.history[of].hist.iloc[:, -1].replace(np.nan, -np.inf)
+            )
+            flagscol = self_flags.where(self_flags <= other_flags, other_flags)
             if len(self._flags.history[f].meta) == 0:
-                new_meta = [{'func': 'squashed', 'args': (), 'kwargs': {'dfilter': -np.inf, 'field': f}}]
+                new_meta = [
+                    {
+                        "func": "squashed",
+                        "args": (),
+                        "kwargs": {"dfilter": -np.inf, "field": f},
+                    }
+                ]
             else:
                 new_meta = self._flags.history[f].meta[-1]
             if len(other._flags.history[of].meta) == 0:
-                other_meta = [{'func': 'squashed', 'args': (), 'kwargs': {'dfilter': -np.inf, 'field': of}}]
+                other_meta = [
+                    {
+                        "func": "squashed",
+                        "args": (),
+                        "kwargs": {"dfilter": -np.inf, "field": of},
+                    }
+                ]
             else:
                 other_meta = other._flags.history[of].meta[-1]
 
-            self_operands = [int(v.split('_')[-1]) for v in new_meta['kwargs'].keys() if v.startswith('operand_')]
-            other_operands = [int(v.split('_')[-1]) for v in other_meta['kwargs'].keys() if v.startswith('operand_')]
-            if len(self_operands)==0:
-                new_meta['kwargs'] = {'operand_0':new_meta['kwargs']}
-                self_operands=[0]
-            if len(other_operands)==0:
-                other_meta['kwargs'] = {f"operand_{max(self_operands)+1}": other_meta["kwargs"]}
-                other_operands = [max(self_operands)+1]
+            self_operands = [
+                int(v.split("_")[-1])
+                for v in new_meta["kwargs"].keys()
+                if v.startswith("operand_")
+            ]
+            other_operands = [
+                int(v.split("_")[-1])
+                for v in other_meta["kwargs"].keys()
+                if v.startswith("operand_")
+            ]
+            if len(self_operands) == 0:
+                new_meta["kwargs"] = {"operand_0": new_meta["kwargs"]}
+                self_operands = [0]
+            if len(other_operands) == 0:
+                other_meta["kwargs"] = {
+                    f"operand_{max(self_operands)+1}": other_meta["kwargs"]
+                }
+                other_operands = [max(self_operands) + 1]
 
-            new_meta['func'] = f'({new_meta["func"]} & {other_meta["func"]})'
-            new_meta['kwargs']={f'operand_{k}':new_meta['kwargs'][f'operand_{s}'] for k,s in enumerate(self_operands)}
-            new_meta['kwargs'].update({f'operand_{k + len(self_operands)}':other_meta['kwargs'][f'operand_{s}'] for k,s in enumerate(other_operands)})
+            new_meta["func"] = f'({new_meta["func"]} & {other_meta["func"]})'
+            new_meta["kwargs"] = {
+                f"operand_{k}": new_meta["kwargs"][f"operand_{s}"]
+                for k, s in enumerate(self_operands)
+            }
+            new_meta["kwargs"].update(
+                {
+                    f"operand_{k + len(self_operands)}": other_meta["kwargs"][
+                        f"operand_{s}"
+                    ]
+                    for k, s in enumerate(other_operands)
+                }
+            )
 
-            self._flags.history[f] = self._flags.history[f][:,:-1].append(flagscol, new_meta)
+            self._flags.history[f] = self._flags.history[f][:, :-1].append(
+                flagscol, new_meta
+            )
         return self
 
     def __or__(self, other):
         if len(self.columns) != len(other.columns):
             raise ValueError(
-                'Logical saqc object combination only supported for saqc objects of the same number of variables.')
+                "Logical saqc object combination only supported for saqc objects of the same number of variables."
+            )
         if type(self.scheme) != type(other.scheme):
-            raise ValueError('Cant combine differently schemed saqc objects in logical operation.')
+            raise ValueError(
+                "Cant combine differently schemed saqc objects in logical operation."
+            )
         self = self.copy(deep=True)
         other = other.copy(deep=True)
         for f, of in zip(self.columns, other.columns):
-            self_flags = self._flags.history[f].hist.iloc[:, -1].replace(np.nan, -np.inf)
-            other_flags = other._flags.history[of].hist.iloc[:, -1].replace(np.nan, -np.inf)
+            self_flags = (
+                self._flags.history[f].hist.iloc[:, -1].replace(np.nan, -np.inf)
+            )
+            other_flags = (
+                other._flags.history[of].hist.iloc[:, -1].replace(np.nan, -np.inf)
+            )
             flagscol = self_flags.where(self_flags >= other_flags, other_flags)
             if len(self._flags.history[f].meta) == 0:
-                new_meta = [{'func': 'squashed', 'args': (), 'kwargs': {'dfilter': -np.inf, 'field': f}}]
+                new_meta = [
+                    {
+                        "func": "squashed",
+                        "args": (),
+                        "kwargs": {"dfilter": -np.inf, "field": f},
+                    }
+                ]
             else:
                 new_meta = self._flags.history[f].meta[-1]
             if len(other._flags.history[of].meta) == 0:
-                other_meta = [{'func': 'squashed', 'args': (), 'kwargs': {'dfilter': -np.inf, 'field': of}}]
+                other_meta = [
+                    {
+                        "func": "squashed",
+                        "args": (),
+                        "kwargs": {"dfilter": -np.inf, "field": of},
+                    }
+                ]
             else:
                 other_meta = other._flags.history[of].meta[-1]
 
-            self_operands = [int(v.split('_')[-1]) for v in new_meta['kwargs'].keys() if v.startswith('operand_')]
-            other_operands = [int(v.split('_')[-1]) for v in other_meta['kwargs'].keys() if v.startswith('operand_')]
+            self_operands = [
+                int(v.split("_")[-1])
+                for v in new_meta["kwargs"].keys()
+                if v.startswith("operand_")
+            ]
+            other_operands = [
+                int(v.split("_")[-1])
+                for v in other_meta["kwargs"].keys()
+                if v.startswith("operand_")
+            ]
             if len(self_operands) == 0:
-                new_meta['kwargs'] = {'operand_0': new_meta['kwargs']}
+                new_meta["kwargs"] = {"operand_0": new_meta["kwargs"]}
                 self_operands = [0]
             if len(other_operands) == 0:
-                other_meta['kwargs'] = {f"operand_{max(self_operands) + 1}": other_meta["kwargs"]}
+                other_meta["kwargs"] = {
+                    f"operand_{max(self_operands) + 1}": other_meta["kwargs"]
+                }
                 other_operands = [max(self_operands) + 1]
 
-            new_meta['func'] = f'({new_meta["func"]} | {other_meta["func"]})'
-            new_meta['kwargs'] = {f'operand_{k}': new_meta['kwargs'][f'operand_{s}'] for k, s in
-                                  enumerate(self_operands)}
-            new_meta['kwargs'].update(
-                {f'operand_{k + len(self_operands)}': other_meta['kwargs'][f'operand_{s}'] for k, s in
-                 enumerate(other_operands)})
+            new_meta["func"] = f'({new_meta["func"]} | {other_meta["func"]})'
+            new_meta["kwargs"] = {
+                f"operand_{k}": new_meta["kwargs"][f"operand_{s}"]
+                for k, s in enumerate(self_operands)
+            }
+            new_meta["kwargs"].update(
+                {
+                    f"operand_{k + len(self_operands)}": other_meta["kwargs"][
+                        f"operand_{s}"
+                    ]
+                    for k, s in enumerate(other_operands)
+                }
+            )
 
-            self._flags.history[f] = self._flags.history[f][:, :-1].append(flagscol, new_meta)
+            self._flags.history[f] = self._flags.history[f][:, :-1].append(
+                flagscol, new_meta
+            )
         return self
 
     def __invert__(self):
         out = saqc.SaQC(self.data, self.flags, scheme=self.scheme)
         for f in self.columns:
-            out._flags.history[f].meta[0]['func'] = 'squashed'
-            out._flags.history[f].meta[0]['kwargs'] = {'field': f}
+            out._flags.history[f].meta[0]["func"] = "squashed"
+            out._flags.history[f].meta[0]["kwargs"] = {"field": f}
         return out
 
     def __add__(self, other):
         if isinstance(other, saqc.SaQC):
             if len(self.columns) != len(other.columns):
                 raise ValueError(
-                    'Arithmetic saqc object combination only supported for saqc objects of the same number of variables.')
+                    "Arithmetic saqc object combination only supported for saqc objects of the same number of variables."
+                )
             if type(self.scheme) != type(other.scheme):
-                raise ValueError('Cant combine differently schemed saqc objects in arithmetic operation.')
+                raise ValueError(
+                    "Cant combine differently schemed saqc objects in arithmetic operation."
+                )
             self = self.copy(deep=True)
             other = other.copy(deep=True)
             for f, of in zip(self.columns, other.columns):
@@ -491,30 +574,60 @@ class SaQC(FunctionsMixin):
                 other_flags = other._flags[of]
                 flagscol = self_flags.where(self_flags <= other_flags, other_flags)
                 if len(self._flags.history[f].meta) == 0:
-                    new_meta = [{'func': 'squashed', 'args': (), 'kwargs': {'dfilter': -np.inf, 'field': f}}]
+                    new_meta = [
+                        {
+                            "func": "squashed",
+                            "args": (),
+                            "kwargs": {"dfilter": -np.inf, "field": f},
+                        }
+                    ]
                 else:
                     new_meta = self._flags.history[f].meta[-1]
                 if len(other._flags.history[of].meta) == 0:
-                    other_meta = [{'func': 'squashed', 'args': (), 'kwargs': {'dfilter': -np.inf, 'field': of}}]
+                    other_meta = [
+                        {
+                            "func": "squashed",
+                            "args": (),
+                            "kwargs": {"dfilter": -np.inf, "field": of},
+                        }
+                    ]
                 else:
                     other_meta = other._flags.history[of].meta[-1]
 
-                self_operands = [int(v.split('_')[-1]) for v in new_meta['kwargs'].keys() if v.startswith('operand_')]
-                other_operands = [int(v.split('_')[-1]) for v in other_meta['kwargs'].keys() if v.startswith('operand_')]
+                self_operands = [
+                    int(v.split("_")[-1])
+                    for v in new_meta["kwargs"].keys()
+                    if v.startswith("operand_")
+                ]
+                other_operands = [
+                    int(v.split("_")[-1])
+                    for v in other_meta["kwargs"].keys()
+                    if v.startswith("operand_")
+                ]
                 if len(self_operands) == 0:
-                    new_meta['kwargs'] = {'operand_0': new_meta['kwargs']}
+                    new_meta["kwargs"] = {"operand_0": new_meta["kwargs"]}
                     self_operands = [0]
                 if len(other_operands) == 0:
-                    other_meta['kwargs'] = {f"operand_{max(self_operands) + 1}": other_meta["kwargs"]}
+                    other_meta["kwargs"] = {
+                        f"operand_{max(self_operands) + 1}": other_meta["kwargs"]
+                    }
                     other_operands = [max(self_operands) + 1]
 
-                new_meta['func'] = f'({new_meta["func"]} | {other_meta["func"]})'
-                new_meta['kwargs'] = {f'operand_{k}': new_meta['kwargs'][f'operand_{s}'] for k, s in
-                                      enumerate(self_operands)}
-                new_meta['kwargs'].update(
-                    {f'operand_{k + len(self_operands)}': other_meta['kwargs'][f'operand_{s}'] for k, s in
-                     enumerate(other_operands)})
+                new_meta["func"] = f'({new_meta["func"]} | {other_meta["func"]})'
+                new_meta["kwargs"] = {
+                    f"operand_{k}": new_meta["kwargs"][f"operand_{s}"]
+                    for k, s in enumerate(self_operands)
+                }
+                new_meta["kwargs"].update(
+                    {
+                        f"operand_{k + len(self_operands)}": other_meta["kwargs"][
+                            f"operand_{s}"
+                        ]
+                        for k, s in enumerate(other_operands)
+                    }
+                )
 
-                self._flags.history[f] = self._flags.history[f][:, :-1].append(flagscol, new_meta)
+                self._flags.history[f] = self._flags.history[f][:, :-1].append(
+                    flagscol, new_meta
+                )
         return self
-
