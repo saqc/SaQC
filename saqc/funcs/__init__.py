@@ -23,6 +23,7 @@ from saqc.funcs.rolling import RollingMixin
 from saqc.funcs.scores import ScoresMixin
 from saqc.funcs.tools import ToolsMixin
 from saqc.funcs.transformation import TransformationMixin
+from saqc.funcs.boolops import BoolOpsMixin
 
 
 class FunctionsMixin(
@@ -43,5 +44,6 @@ class FunctionsMixin(
     ScoresMixin,
     ToolsMixin,
     TransformationMixin,
+    BoolOpsMixin,
 ):
     pass
