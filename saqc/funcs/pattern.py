@@ -22,6 +22,11 @@ from scipy import signal
 
 import saqc
 
+def stride_trickser(data, win_len, wave):
+    stack_view = np.lib.stride_tricks.sliding_window_view(data, win_len, (0))
+    samples = stack_view.shape[0]
+    m = stack_view.min(axis=1).reshape(samples,1)
+    return (np.abs((stack_view - m) / (stack_view.max(axis=1).reshape(samples,1) - m) - wave)).mean(axis=1)
 
 def patternSearch(x, wv):
     # pattern search: scales x to [0,1] and returns mean absolute error between x and wv (the wavelet)
@@ -43,7 +48,7 @@ def argminSer(x, order, max=100):
     return y.astype(bool)
 
 
-def scaleScoring(scale, wv, data, bumb_cond_factor=1.5, width_factor=2):
+def scaleScoring(scale, wv, data, bumb_cond_factor=1.5, width_factor=2, opt_kwargs={'thresh':500, 'factor':5}):
     # derive width of the wavelet -> (current scale = width*.1)
     width = len(wv)
     # scale wavelt to [0,1]
@@ -56,12 +61,18 @@ def scaleScoring(scale, wv, data, bumb_cond_factor=1.5, width_factor=2):
     mask_r = resid > diff_md
 
     # check any width-sized window of scale, if it resembles the wavelet (in terms of the mean absolute comparison error)
-    result = (
-        pd.Series(scale)
-        .rolling(width, center=True)
-        .apply(raw=True, func=lambda x: patternSearch(x, wv=wv))
-    )
-
+    reduction_factor = 1
+    print(width)
+    if width > opt_kwargs['thresh']:
+        reduction_factor = opt_kwargs['factor']
+    r = stride_trickser(scale[::reduction_factor], width//reduction_factor, wv[::reduction_factor])
+    result = np.full([len(scale)], np.nan)
+    w = width//2
+    result[w:w+(len(r)*reduction_factor): reduction_factor] = r
+    result = pd.Series(result)
+    if reduction_factor > 1:
+        # result = result.ffill(limit=reduction_factor//2).bfill(limit=reduction_factor//2)
+        result = result.interpolate('linear', limit=reduction_factor)
     # check where the scale has enough consecutive sign values to qualify for resambling the wavelet
     # bumb - qualify
     bool_signs = scale > 0
@@ -81,7 +92,7 @@ def scaleScoring(scale, wv, data, bumb_cond_factor=1.5, width_factor=2):
     # also override the scores, where the data did not pass the absolute variation test applie earlier
     out[~mask_r] = np.nan
 
-    return out
+    return out, reduction_factor
 
 
 def offSetSearch(
@@ -96,60 +107,35 @@ def offSetSearch(
     qc_d=None,
     width_factor=2.5,
     bound_scales=10,
+    opt_kwargs={'thresh':500, 'factor':5}
 ):
     scales = signal.cwt(base_series.values, wavelet, scale_vals)
-    # qc = saqc.SaQC([pd.DataFrame(scales.T, columns=[str(s) for s in scale_vals], index=base_series.index), base_series])
-    # prepare dataframe holding the calculated scores
     res = pd.DataFrame(
         np.nan, index=base_series.index, columns=[f"score_{s}" for s in scale_vals]
     )
+    reduction_factors = np.ones(len(scale_vals), dtype=int)
     for s in enumerate(scale_vals):
         # calculate and assign the comparison score series between wavelet and scale:
-        res[f"score_{s[1]}"] = scaleScoring(
+        res[f"score_{s[1]}"], reduction_factors[s[0]] = scaleScoring(
             scales[s[0]],
             matchlet(s[1] * 10, s[1]),
             base_series,
             width_factor=width_factor,
+            opt_kwargs=opt_kwargs
         )
     # generate a dataframe of scales from the scales array:
     scale_cols = [f'scale_{k.split("_")[-1]}' for k in res.columns]
     scales = pd.DataFrame(scales.T, index=res.index, columns=scale_cols)
 
-    # apply the local minima search to the calculated scores:
-    # (used saqc here, to be able to plot/inspect the result easily - but not actually performance efficient)
-    qc = saqc.SaQC(res)
-    for score in res.columns:
-        # loop over all the scores variables:
-        # get the scale value the score was calculated from (derive it from its name)
-        sc = int(score.split("_")[-1])
-        # check for local minima (the scale value determines the width of the comparison area for the minima)
-        qc = qc.flagGeneric(score, func=lambda x: argminSer(x, order=sc, max=thresh))
+    qc_frame = pd.DataFrame(False, index=res.index, columns=res.columns)
+    for score in zip(res.columns, reduction_factors):
+        sc = int(score[0].split("_")[-1])
+        d=argminSer(res[score[0]][::score[1]], order=sc // score[1], max=thresh)
+        qc_frame.loc[d[d].index, score[0]] = True
 
-    # collect all the local minima (by collecting the flags from the saqc object) and merge them into one boolean series
-    # called 'critical'
-    critical = qc.flags[res.columns[0]] > 0
-    for f in res.columns[1:]:
-        critical |= qc.flags[f] > 0
+    critical=qc_frame.any(axis=1)
+    scales[~qc_frame.values] = np.nan
 
-    # again collect the local minimas from the scores: this time override all the scales values, that are not corresponding
-    # to a local minima: this will come in handy, when searching for the scale that maximizes a 'bumb' - since scales
-    # where the comparison score does not minimize, are not qualifying to be the "right" scale for the anomaly
-    for f in res.columns:
-        width = int(f.split("_")[-1])
-        mask = qc.flags[f].values > 0
-        scales.loc[~mask, f"scale_{width}"] = np.nan
-
-    # ------------------------------------------------------------------------
-    # The following part is not really optimized and contains a lot of redundance:
-    # -> it basically combines the scores and scales informations and searches for
-    # the optimal 'scale' (from wich we than derive the with of the outlier) for
-    # every critical value
-    # -------------------------------------------------------------------------
-
-    # derive a dataframe from the scales frame,
-    # that only holds those timestamps, where the scores had local minima
-    # (earlier we collected the local minima in the 'critical' variable, so we
-    # use this as indexer for the scales)
     test_vals = scales.loc[critical.values, :]
     # for later use, we also generate a dataframe that has the same size as the scales
     # frame, but contains nan values everywhere, besides for the 'critical` timestamps
@@ -199,8 +185,9 @@ def offSetSearch(
     # ----------------------------------------------------------------
     op_series = base_series.copy()
     if qc_d is None:
-        qc_d = saqc.SaQC(base_series)
+        qc_d = pd.Series(False, index=base_series.index)
     # looping over the critical timstamps (that supposedly lie in the middle of any detected anomaly
+
     for c in enumerate(critical_stamps):
         # in every loop prepare a series that will hold the timestamps to set flags at:
         to_flag = pd.Series(False, index=base_series.index)
@@ -261,13 +248,15 @@ def offSetSearch(
         # is a most likely candidate for the start of the anomaly. Than, we do the same for
         # other half to get the ending point of the anomaly:
 
-        x = np.array([m_start, anomaly_ser[0]])
+        x = np.array([m_start, anomaly_ser.iloc[0]])
         y_idx = anomaly_ser[::-1][idx_date:].index
         y = np.array([v for v in anomaly_ser[::-1][idx_date:]])
         _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
 
         path = np.array(path)
         offset_start = path[:, 0].argmax() - 1
+        if offset_start==(len(y)-1):
+            continue
         start_jump = y[offset_start] - y[offset_start + 1]
 
         if start_jump < min_jump:
@@ -275,13 +264,15 @@ def offSetSearch(
         offset_start = y_idx[offset_start]
 
         # repeat process for the second half of the anomaly
-        x = np.array([m_end, anomaly_ser[-1]])
+        x = np.array([m_end, anomaly_ser.iloc[-1]])
         y_idx = anomaly_ser[idx_date:].index
         y = np.array([v for v in anomaly_ser[idx_date:]])
         _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
 
         path = np.array(path)
         offset_end = path[:, 0].argmax() - 1
+        if offset_end==(len(y)-1):
+            continue
         end_jump = y[offset_end] - y[offset_end + 1]
         if end_jump < min_jump:
             continue
@@ -305,7 +296,6 @@ def offSetSearch(
             .data[anomaly_ser.name]
         )
         if (uniLofScores[offset_start] >= -1) | (uniLofScores[offset_end] >= -1):
-            print("happened")
             continue
         to_flag.loc[outlier_slice] = True
 
@@ -313,11 +303,7 @@ def offSetSearch(
         op_series.loc[outlier_slice] = np.nan
         op_series = op_series.interpolate("linear")
 
-        qc_d = qc_d.flagGeneric(
-            base_series.name,
-            func=lambda x: to_flag,
-            label=f"scale {scale_vals[max_scales[c[0]]]} anomaly",
-        )
+        qc_d |= to_flag
 
     return qc_d
 
@@ -403,6 +389,8 @@ class PatternMixin:
         max_length: int | str,
         granularity: int | str = 5,
         min_jump: float = None,
+        opt_strategy: int = None,
+        opt_thresh: int = 500,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -450,7 +438,7 @@ class PatternMixin:
         ] + [max_length + b for b in range(1, bound_scales)]
         scale_vals = np.array(scale_vals + bounding)
         scale_vals.sort(kind="stable")
-        qc_d = offSetSearch(
+        to_flag = offSetSearch(
             base_series=datcol,
             scale_vals=scale_vals,
             freq=freq,
@@ -459,9 +447,10 @@ class PatternMixin:
             min_j=min_jump,
             thresh=0.1,
             bound_scales=bound_scales,
+            opt_kwargs={'thresh':opt_thresh, 'factor':opt_strategy or granularity}
         )
-        qc_d = offSetSearch(
-            qc_d=qc_d,
+        to_flag = offSetSearch(
+            qc_d=to_flag,
             base_series=datcol.max() - datcol,
             scale_vals=scale_vals,
             freq=freq,
@@ -470,9 +459,9 @@ class PatternMixin:
             min_j=min_jump,
             thresh=0.1,
             bound_scales=bound_scales,
+            opt_kwargs={'thresh': opt_thresh, 'factor': opt_strategy or granularity}
         )
-        mask = qc_d._flags[field] > -np.inf
-        self._flags[mask, field] = flag
+        self._flags[to_flag, field] = flag
         return self
 
     @flagging()
