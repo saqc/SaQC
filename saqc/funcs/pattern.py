@@ -22,11 +22,17 @@ from scipy import signal
 
 import saqc
 
+
 def stride_trickser(data, win_len, wave):
     stack_view = np.lib.stride_tricks.sliding_window_view(data, win_len, (0))
     samples = stack_view.shape[0]
-    m = stack_view.min(axis=1).reshape(samples,1)
-    return (np.abs((stack_view - m) / (stack_view.max(axis=1).reshape(samples,1) - m) - wave)).mean(axis=1)
+    m = stack_view.min(axis=1).reshape(samples, 1)
+    return (
+        np.abs(
+            (stack_view - m) / (stack_view.max(axis=1).reshape(samples, 1) - m) - wave
+        )
+    ).mean(axis=1)
+
 
 def patternSearch(x, wv):
     # pattern search: scales x to [0,1] and returns mean absolute error between x and wv (the wavelet)
@@ -48,7 +54,14 @@ def argminSer(x, order, max=100):
     return y.astype(bool)
 
 
-def scaleScoring(scale, wv, data, bumb_cond_factor=1.5, width_factor=2, opt_kwargs={'thresh':500, 'factor':5}):
+def scaleScoring(
+    scale,
+    wv,
+    data,
+    bumb_cond_factor=1.5,
+    width_factor=2,
+    opt_kwargs={"thresh": 500, "factor": 5},
+):
     # derive width of the wavelet -> (current scale = width*.1)
     width = len(wv)
     # scale wavelt to [0,1]
@@ -63,16 +76,28 @@ def scaleScoring(scale, wv, data, bumb_cond_factor=1.5, width_factor=2, opt_kwar
     # check any width-sized window of scale, if it resembles the wavelet (in terms of the mean absolute comparison error)
     reduction_factor = 1
     print(width)
-    if width > opt_kwargs['thresh']:
-        reduction_factor = opt_kwargs['factor']
-    r = stride_trickser(scale[::reduction_factor], width//reduction_factor, wv[::reduction_factor])
+    if not isinstance(opt_kwargs["thresh"],list):
+        thr = np.array([0, opt_kwargs["thresh"]])
+        fc = np.array([1, opt_kwargs["factor"]])
+    else:
+        thr = np.array([0] + opt_kwargs["thresh"])
+        fc = np.array([1] + opt_kwargs["factor"])
+    lv = np.where(width>=thr)[0][-1]
+    reduction_factor = int(fc[lv])
+    print(f"LV:{lv}, FC:{reduction_factor}")
+    wv_ = wv[::reduction_factor]
+
+    r = stride_trickser(
+        scale[::reduction_factor], wv_.shape[0], wv_
+    )
+
     result = np.full([len(scale)], np.nan)
-    w = width//2
-    result[w:w+(len(r)*reduction_factor): reduction_factor] = r
+    w = width // 2
+    result[w : w + (len(r) * reduction_factor) : reduction_factor] = r
     result = pd.Series(result)
     if reduction_factor > 1:
         # result = result.ffill(limit=reduction_factor//2).bfill(limit=reduction_factor//2)
-        result = result.interpolate('linear', limit=reduction_factor)
+        result = result.interpolate("linear", limit=reduction_factor)
     # check where the scale has enough consecutive sign values to qualify for resambling the wavelet
     # bumb - qualify
     bool_signs = scale > 0
@@ -107,7 +132,7 @@ def offSetSearch(
     qc_d=None,
     width_factor=2.5,
     bound_scales=10,
-    opt_kwargs={'thresh':500, 'factor':5}
+    opt_kwargs={"thresh": 500, "factor": 5},
 ):
     scales = signal.cwt(base_series.values, wavelet, scale_vals)
     res = pd.DataFrame(
@@ -121,7 +146,7 @@ def offSetSearch(
             matchlet(s[1] * 10, s[1]),
             base_series,
             width_factor=width_factor,
-            opt_kwargs=opt_kwargs
+            opt_kwargs=opt_kwargs,
         )
     # generate a dataframe of scales from the scales array:
     scale_cols = [f'scale_{k.split("_")[-1]}' for k in res.columns]
@@ -130,10 +155,10 @@ def offSetSearch(
     qc_frame = pd.DataFrame(False, index=res.index, columns=res.columns)
     for score in zip(res.columns, reduction_factors):
         sc = int(score[0].split("_")[-1])
-        d=argminSer(res[score[0]][::score[1]], order=sc // score[1], max=thresh)
+        d = argminSer(res[score[0]][:: score[1]], order=sc // score[1], max=thresh)
         qc_frame.loc[d[d].index, score[0]] = True
 
-    critical=qc_frame.any(axis=1)
+    critical = qc_frame.any(axis=1)
     scales[~qc_frame.values] = np.nan
 
     test_vals = scales.loc[critical.values, :]
@@ -255,7 +280,7 @@ def offSetSearch(
 
         path = np.array(path)
         offset_start = path[:, 0].argmax() - 1
-        if offset_start==(len(y)-1):
+        if offset_start == (len(y) - 1):
             continue
         start_jump = y[offset_start] - y[offset_start + 1]
 
@@ -271,7 +296,7 @@ def offSetSearch(
 
         path = np.array(path)
         offset_end = path[:, 0].argmax() - 1
-        if offset_end==(len(y)-1):
+        if offset_end == (len(y) - 1):
             continue
         end_jump = y[offset_end] - y[offset_end + 1]
         if end_jump < min_jump:
@@ -447,7 +472,7 @@ class PatternMixin:
             min_j=min_jump,
             thresh=0.1,
             bound_scales=bound_scales,
-            opt_kwargs={'thresh':opt_thresh, 'factor':opt_strategy or granularity}
+            opt_kwargs={"thresh": opt_thresh, "factor": opt_strategy or granularity},
         )
         to_flag = offSetSearch(
             qc_d=to_flag,
@@ -459,7 +484,7 @@ class PatternMixin:
             min_j=min_jump,
             thresh=0.1,
             bound_scales=bound_scales,
-            opt_kwargs={'thresh': opt_thresh, 'factor': opt_strategy or granularity}
+            opt_kwargs={"thresh": opt_thresh, "factor": opt_strategy or granularity},
         )
         self._flags[to_flag, field] = flag
         return self
