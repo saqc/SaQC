@@ -164,9 +164,16 @@ class NoiseMixin:
         if isinstance(func, str):
             func = ENV_OPERATORS[func]
 
-        stat_pass = statPass(datcol=self._data[field], stat=func, winsz=pd.Timedelta(window), thresh=thresh,
-                             comparator=operator.gt, sub_winsz=sub_window, sub_thresh=sub_thresh or thresh,
-                             min_periods=min_periods or 0, )
+        stat_pass = statPass(
+            datcol=self._data[field],
+            stat=func,
+            winsz=pd.Timedelta(window),
+            thresh=thresh,
+            comparator=operator.gt,
+            sub_winsz=sub_window,
+            sub_thresh=sub_thresh or thresh,
+            min_periods=min_periods or 0,
+        )
         to_set = stat_pass
         mask = isunflagged(self._flags[field], kwargs["dfilter"]) & to_set
         self._flags[mask, field] = flag
