@@ -24,19 +24,21 @@ import saqc
 
 
 def _getCritical(idx_map, agged_vals, agged_counts, width_factor):
-    #agged_groups = (agged_counts == 0).diff().cumsum()
-    ac = (agged_counts == 0)
+    # agged_groups = (agged_counts == 0).diff().cumsum()
+    ac = agged_counts == 0
     agged_groups = ac ^ np.roll(ac, 1)
     agged_groups = np.cumsum(agged_groups)
-    #agged_groups = agged_groups.loc[test_vals.index]
-    #agged_counts = agged_counts.loc[test_vals.index]
+    # agged_groups = agged_groups.loc[test_vals.index]
+    # agged_counts = agged_counts.loc[test_vals.index]
     agged_groups = agged_groups[idx_map]
     agged_counts = agged_counts[idx_map]
-    #agged_counts = agged_counts.groupby(by=agged_groups).idxmax()
-    agged_counts = pd.Series(agged_counts, index=idx_map).groupby(by=agged_groups).idxmax()
+    # agged_counts = agged_counts.groupby(by=agged_groups).idxmax()
+    agged_counts = (
+        pd.Series(agged_counts, index=idx_map).groupby(by=agged_groups).idxmax()
+    )
 
     critical_stamps = agged_counts.values
-    #agged_vals = agged_vals.loc[critical_stamps, :]
+    # agged_vals = agged_vals.loc[critical_stamps, :]
     agged_vals = agged_vals[critical_stamps, :]
     critical_scales_idx = np.nanargmax(agged_vals, axis=1)
     sort_idx = critical_scales_idx.argsort(kind="stable")
@@ -44,12 +46,10 @@ def _getCritical(idx_map, agged_vals, agged_counts, width_factor):
     critical_scales_idx = critical_scales_idx[sort_idx]
     return critical_stamps, critical_scales_idx
 
+
 def _rmBounds(critical_stamps, critical_scales_idx, bounds):
     bound_mask = (critical_scales_idx > bounds[0]) & (critical_scales_idx < (bounds[1]))
-    return (
-        critical_stamps[bound_mask],
-        critical_scales_idx[bound_mask]
-    )
+    return (critical_stamps[bound_mask], critical_scales_idx[bound_mask])
 
 
 def _variationCheck(data, score, width, width_factor):
@@ -111,9 +111,9 @@ def _edgeDetect(
     test_vals,
     min_j,
     scale_vals,
-    idx_map
+    idx_map,
 ):
-    critical_widths = [width_factor*w for w in critical_scales]
+    critical_widths = [width_factor * w for w in critical_scales]
     op_series = base_series.copy()
     to_finally_flag = pd.Series(False, index=op_series.index)
     # looping over the critical timstamps (that supposedly lie in the middle of any detected anomaly
@@ -131,13 +131,13 @@ def _edgeDetect(
         # --------------------------------
         # we derive the most likely timestamp in the middle of the anomaly under test:
         s = ~np.isnan(test_vals[:, scale_iloc])
-        #s = s[s]
+        # s = s[s]
         s = idx_map[s]
         idx = np.argmin(np.abs(c[1] - s))
 
-        #idx_date = s.index[idx]
+        # idx_date = s.index[idx]
         idx_date = s[idx]
-        #idx = to_flag.index.searchsorted(idx_date)
+        # idx = to_flag.index.searchsorted(idx_date)
         idx = idx_date
         # we cut out the a piece of the target timseries that is likely wider than the anomaly:
         anomaly_range = int(critical_widths[c[0]] * 0.5)
@@ -147,7 +147,7 @@ def _edgeDetect(
         )
         anomaly_ser = op_series.iloc[anomaly_slice].values
         if min_j is None:
-            min_jump = np.quantile(np.abs(np.diff(anomaly_ser)),.9)
+            min_jump = np.quantile(np.abs(np.diff(anomaly_ser)), 0.9)
         else:
             min_jump = min_j
 
@@ -173,11 +173,10 @@ def _edgeDetect(
         # is a most likely candidate for the start of the anomaly. Than, we do the same for
         # other half to get the ending point of the anomaly:
 
-
-        #x = np.array([m_start, anomaly_ser[0]])
+        # x = np.array([m_start, anomaly_ser[0]])
         x = np.array([anomaly_ser[0], m_start])
 
-        #y = np.array([v for v in anomaly_ser[::-1][idx_date:]])
+        # y = np.array([v for v in anomaly_ser[::-1][idx_date:]])
         y = anomaly_ser[:anomaly_range]
         _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
 
@@ -190,12 +189,11 @@ def _edgeDetect(
         if start_jump < min_jump:
             continue
 
-
         # repeat process for the second half of the anomaly
-        #x = np.array([m_end, anomaly_ser.iloc[-1]])
+        # x = np.array([m_end, anomaly_ser.iloc[-1]])
         x = np.array([m_end, anomaly_ser[-1]])
 
-        #y = np.array([v for v in anomaly_ser[idx_date:]])
+        # y = np.array([v for v in anomaly_ser[idx_date:]])
         y = anomaly_ser[anomaly_range:]
         _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
 
@@ -203,23 +201,22 @@ def _edgeDetect(
         offset_end = path[:, 0].argmax() - 1
         if offset_end == (len(y) - 1):
             continue
-        end_jump = y[offset_end] - y[offset_end+1]
+        end_jump = y[offset_end] - y[offset_end + 1]
         if end_jump < min_jump:
             continue
 
-        s = idx-anomaly_range+offset_start
-        e = idx+offset_end
+        s = idx - anomaly_range + offset_start
+        e = idx + offset_end
         outlier_slice = slice(s, e)
 
-
-        if (e-s) < (critical_scales[c[0]]):
+        if (e - s) < (critical_scales[c[0]]):
             continue
 
-        N = min([((e-s) // 2) - 1, 20])
+        N = min([((e - s) // 2) - 1, 20])
         uniLofScores = (
-            saqc.SaQC(pd.Series(anomaly_ser,name='test'))
-            .assignUniLOF('test', n=N)
-            .data['test']
+            saqc.SaQC(pd.Series(anomaly_ser, name="test"))
+            .assignUniLOF("test", n=N)
+            .data["test"]
         )
         if (uniLofScores[offset_start] >= -1) | (uniLofScores[offset_end] >= -1):
             continue
@@ -334,7 +331,7 @@ def offSetSearch(
 
     # generate a dataframe of scales from the scales array:
     scale_cols = [f'scale_{k.split("_")[-1]}' for k in res.columns]
-    #scales = pd.DataFrame(scales.T, index=res.index, columns=scale_cols)
+    # scales = pd.DataFrame(scales.T, index=res.index, columns=scale_cols)
     scale_ = pd.DataFrame(scales.T, index=res.index, columns=scale_cols)
     scales = scales.T
 
@@ -354,24 +351,29 @@ def offSetSearch(
     test_vals = scales[critical.values, :].copy()
     # for later use, we also generate a dataframe that has the same size as the scales
     # frame, but contains nan values everywhere, besides for the 'critical` timestamps
-    #r_test_vals = test_vals.reindex(scales.index)
-    #agged_vals = pd.DataFrame(0.0, columns=scales.columns, index=scales.index)
+    # r_test_vals = test_vals.reindex(scales.index)
+    # agged_vals = pd.DataFrame(0.0, columns=scales.columns, index=scales.index)
     agged_vals = np.zeros(scales.shape)
     # The maxima for every bumb will not be at exactly the same timestamp at every scale,
     # (due to noise) -> this is why we broaden the maxima points with the rolling operation, so
     # we tha can just look for the column minima to find the optimal
     # scale for every anomaly (wich appears as bumb in the scales)
-    #for v in test_vals.columns:
+    # for v in test_vals.columns:
     for v in range(r_test_vals.shape[1]):
-        #width = int(v.split("_")[-1])
+        # width = int(v.split("_")[-1])
         width = scale_vals[v]
-        agged_vals[:, v] = pd.Series(r_test_vals[:,v]).rolling(width, center=True, min_periods=0).max().values
-        #agged_vals.loc[:, v] = (
+        agged_vals[:, v] = (
+            pd.Series(r_test_vals[:, v])
+            .rolling(width, center=True, min_periods=0)
+            .max()
+            .values
+        )
+        # agged_vals.loc[:, v] = (
         #    r_test_vals[v].rolling(pd.to_timedelta(freq) * width, center=True).max()
-        #)
+        # )
 
     # for every timestamp we count in how much scales it is a part of a bumb
-    #agged_counts = agged_vals.count(axis=1)
+    # agged_counts = agged_vals.count(axis=1)
     agged_counts = (~np.isnan(agged_vals)).sum(axis=1)
     # timestamps that only appear on one scale as part of a bumb, are suspiceaous and
     # likely belong to noise
@@ -381,7 +383,9 @@ def offSetSearch(
     test_vals = test_vals[idx_bool[idx_map]]
     idx_map = idx_map[idx_bool[idx_map]]
 
-    critical_stamps, critical_scales_idx = _getCritical(idx_map, agged_vals, agged_counts, width_factor)
+    critical_stamps, critical_scales_idx = _getCritical(
+        idx_map, agged_vals, agged_counts, width_factor
+    )
 
     critical_stamps, critical_scales_idx = _rmBounds(
         critical_stamps,
@@ -400,7 +404,7 @@ def offSetSearch(
         test_vals=test_vals,
         min_j=min_j,
         scale_vals=scale_vals,
-        idx_map=idx_map
+        idx_map=idx_map,
     )
     return to_flag
 
