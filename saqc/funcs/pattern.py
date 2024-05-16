@@ -110,6 +110,8 @@ def _edgeDetect(
     width_factor,
     test_vals,
     min_j,
+    scale_vals,
+    idx_map
 ):
     critical_widths = [width_factor*w for w in critical_scales]
     op_series = base_series.copy()
@@ -119,6 +121,7 @@ def _edgeDetect(
     for c in enumerate(critical_stamps):
         # in every loop prepare a series that will hold the timestamps to set flags at:
         to_flag = pd.Series(False, index=op_series.index)
+        scale_iloc = scale_vals.searchsorted(critical_scales[c[0]])
         # at first, we do not apply flagging, if the detected anomaly is at a scale that is too
         # close to the limits of the scales we searched at: because this could mean it is actually
         # smaller or wider that detected and we would thus overflag/underflag
@@ -127,37 +130,41 @@ def _edgeDetect(
         # correct/validate found anomalies
         # --------------------------------
         # we derive the most likely timestamp in the middle of the anomaly under test:
-        s = test_vals.loc[:, f"scale_{critical_scales[c[0]]}"].notna()
-        s = s[s]
-        idx = np.argmin(np.abs(c[1] - s.index))
+        s = ~np.isnan(test_vals[:, scale_iloc])
+        #s = s[s]
+        s = idx_map[s]
+        idx = np.argmin(np.abs(c[1] - s))
 
-        idx_date = s.index[idx]
-        idx = to_flag.index.searchsorted(idx_date)
-
+        #idx_date = s.index[idx]
+        idx_date = s[idx]
+        #idx = to_flag.index.searchsorted(idx_date)
+        idx = idx_date
         # we cut out the a piece of the target timseries that is likely wider than the anomaly:
+        anomaly_range = int(critical_widths[c[0]] * 0.5)
         anomaly_slice = slice(
-            idx - int(critical_widths[c[0]] * 0.5),
-            idx + int(critical_widths[c[0]] * 0.5) + 1,
+            idx - anomaly_range,
+            idx + anomaly_range + 1,
         )
-        anomaly_ser = op_series.iloc[anomaly_slice]
+        anomaly_ser = op_series.iloc[anomaly_slice].values
         if min_j is None:
-            min_jump = anomaly_ser.diff().abs().quantile(0.9)
+            min_jump = np.quantile(np.abs(np.diff(anomaly_ser)),.9)
         else:
             min_jump = min_j
 
         # we cut out a smaller piece from the target timeseries, that likely only contains the actual anomaleous plateau:
+        inner_range = int(critical_scales[c[0]] * 0.5)
         inner_slice = slice(
-            idx - int(critical_scales[c[0]] * 0.5),
-            idx + int(critical_scales[c[0]] * 0.5) + 1,
+            idx - inner_range,
+            idx + inner_range + 1,
         )
-        inner_ser = op_series.iloc[inner_slice]
+        inner_ser = op_series.iloc[inner_slice].values
 
         # deriving some statistics and making another plausibility check
         if len(inner_ser) == 1:
-            m_start = m_end = inner_ser.iloc[0]
+            m_start = m_end = inner_ser[0]
         else:
-            m_start = inner_ser[:idx_date].median()  # inner_ser[:c[1]].median()
-            m_end = inner_ser[idx_date:].median()
+            m_start = np.median(inner_ser[:inner_range])  # inner_ser[:c[1]].median()
+            m_end = np.median(inner_ser[inner_range:])
 
         # now we try to find the real start and ending points of the anomaly
         # the idea basically is to map the 2-periods series containing one value likely outside the
@@ -166,54 +173,60 @@ def _edgeDetect(
         # is a most likely candidate for the start of the anomaly. Than, we do the same for
         # other half to get the ending point of the anomaly:
 
-        x = np.array([m_start, anomaly_ser.iloc[0]])
-        y_idx = anomaly_ser[::-1][idx_date:].index
-        y = np.array([v for v in anomaly_ser[::-1][idx_date:]])
+
+        #x = np.array([m_start, anomaly_ser[0]])
+        x = np.array([anomaly_ser[0], m_start])
+
+        #y = np.array([v for v in anomaly_ser[::-1][idx_date:]])
+        y = anomaly_ser[:anomaly_range]
         _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
 
         path = np.array(path)
-        offset_start = path[:, 0].argmax() - 1
+        offset_start = path[:, 0].argmax()
         if offset_start == (len(y) - 1):
             continue
-        start_jump = y[offset_start] - y[offset_start + 1]
+        start_jump = y[offset_start] - y[offset_start - 1]
 
         if start_jump < min_jump:
             continue
-        offset_start = y_idx[offset_start]
+
 
         # repeat process for the second half of the anomaly
-        x = np.array([m_end, anomaly_ser.iloc[-1]])
-        y_idx = anomaly_ser[idx_date:].index
-        y = np.array([v for v in anomaly_ser[idx_date:]])
+        #x = np.array([m_end, anomaly_ser.iloc[-1]])
+        x = np.array([m_end, anomaly_ser[-1]])
+
+        #y = np.array([v for v in anomaly_ser[idx_date:]])
+        y = anomaly_ser[anomaly_range:]
         _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
 
         path = np.array(path)
         offset_end = path[:, 0].argmax() - 1
         if offset_end == (len(y) - 1):
             continue
-        end_jump = y[offset_end] - y[offset_end + 1]
+        end_jump = y[offset_end] - y[offset_end+1]
         if end_jump < min_jump:
             continue
-        offset_end = y_idx[offset_end]
-        outlier_slice = slice(offset_start, offset_end)
-        ano_vals = anomaly_ser.loc[outlier_slice]
 
-        num_anovals = len(to_flag.loc[outlier_slice])
-        if num_anovals < (critical_scales[c[0]]):
+        s = idx-anomaly_range+offset_start
+        e = idx+offset_end
+        outlier_slice = slice(s, e)
+
+
+        if (e-s) < (critical_scales[c[0]]):
             continue
 
-        N = min([(num_anovals // 2) - 1, 20])
+        N = min([((e-s) // 2) - 1, 20])
         uniLofScores = (
-            saqc.SaQC(anomaly_ser)
-            .assignUniLOF(anomaly_ser.name, n=N)
-            .data[anomaly_ser.name]
+            saqc.SaQC(pd.Series(anomaly_ser,name='test'))
+            .assignUniLOF('test', n=N)
+            .data['test']
         )
         if (uniLofScores[offset_start] >= -1) | (uniLofScores[offset_end] >= -1):
             continue
-        to_flag.loc[outlier_slice] = True
+        to_flag.iloc[outlier_slice] = True
 
         # we remove the anomaly from the series, so that it wont interfere with later checks
-        op_series.loc[outlier_slice] = np.nan
+        op_series.iloc[outlier_slice] = np.nan
         op_series = op_series.interpolate("linear")
 
         to_finally_flag |= to_flag
@@ -281,7 +294,6 @@ def offSetSearch(
     base_series,
     scale_vals,
     wavelet,
-    freq,
     min_j,
     thresh=0.1,
     width_factor=2.5,
@@ -289,7 +301,6 @@ def offSetSearch(
     opt_kwargs={"thresh": 500, "factor": 5},
 ):
     idx_map = np.arange(len(base_series))
-    idx_bool = np.ones(len(base_series)).astype(bool)
     scales = signal.cwt(base_series.values, wavelet, scale_vals)
     scale_ = pd.DataFrame(scales.T, index=base_series.index, columns=scale_vals)
 
@@ -388,6 +399,8 @@ def offSetSearch(
         width_factor=width_factor,
         test_vals=test_vals,
         min_j=min_j,
+        scale_vals=scale_vals,
+        idx_map=idx_map
     )
     return to_flag
 
@@ -525,7 +538,6 @@ class PatternMixin:
         to_flag = offSetSearch(
             base_series=datcol,
             scale_vals=scale_vals,
-            freq=freq,
             wavelet=signal.ricker,
             min_j=min_jump,
             thresh=0.1,
@@ -535,7 +547,6 @@ class PatternMixin:
         to_flag |= offSetSearch(
             base_series=datcol.max() - datcol,
             scale_vals=scale_vals,
-            freq=freq,
             wavelet=signal.ricker,
             min_j=min_jump,
             thresh=0.1,
