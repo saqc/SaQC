@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 
+
 def _fullfillTasks(tasks, F):
     if len(tasks) > 1:
         with mp.Pool(len(tasks)) as pool:
@@ -125,9 +126,7 @@ def _mpTask(S, scales, base_series, opt_kwargs, thresh):
     i = 0
     for s in S:
         out = _mpFunc(s[1], scales[s[0]], opt_kwargs)
-        qc_arr = np.zeros(len(base_series)).astype(
-            bool
-        )
+        qc_arr = np.zeros(len(base_series)).astype(bool)
         qc_arr_inv = np.zeros(len(base_series)).astype(bool)
         order = s[1] // out[1]
         d = _argminSer(out[0].values[:: out[1]], order=order, max=thresh)
@@ -272,7 +271,7 @@ def _edgeDetect(
         inner_ser, inner_range = _getValueSlice(idx, critical_scales[c[0]], base_series)
 
         if min_j is None:
-            min_jump = 2*np.median(np.abs(np.diff(anomaly_ser)))
+            min_jump = 2 * np.median(np.abs(np.diff(anomaly_ser)))
         else:
             min_jump = min_j
 
@@ -306,7 +305,7 @@ def _strideTrickser(data, win_len, wave):
     mi = stack_view.min(axis=1).reshape(samples, 1)
     r = (stack_view - mi) / (stack_view.max(axis=1).reshape(samples, 1) - mi)
     r1 = np.abs(r - wave).mean(axis=1)
-    r2 = np.abs((-r) - (wave-1)).mean(axis=1)
+    r2 = np.abs((-r) - (wave - 1)).mean(axis=1)
     return r1, r2
 
 
