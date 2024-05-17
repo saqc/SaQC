@@ -21,7 +21,7 @@ import multiprocessing as mp
 
 import numpy as np
 import pandas as pd
-from scipy import signal
+from scipy import signal, stats
 
 
 def _fullfillTasks(tasks, F):
@@ -33,8 +33,10 @@ def _fullfillTasks(tasks, F):
     return result
 
 
-def _makeTasks(scale_vals, min_tasks=10):
+def _makeTasks(scale_vals, min_tasks=50, max_cores=4):
     core_count = min(mp.cpu_count(), len(scale_vals) // min_tasks)
+    core_count = min(core_count, max_cores)
+    print(f"Making Tasks for {core_count} workers")
     enum = np.arange(len(scale_vals))
     return [
         list(zip(enum[k::core_count], scale_vals[k::core_count]))
@@ -43,7 +45,15 @@ def _makeTasks(scale_vals, min_tasks=10):
 
 
 def _evalScoredScales(
-    qc_arr, scales, base_series, min_j, idx_map, scale_vals, bound_scales, width_factor
+    qc_arr,
+    scales,
+    base_series,
+    min_j,
+    idx_map,
+    scale_vals,
+    bound_scales,
+    width_factor,
+    mi_ma,
 ):
     critical = qc_arr.any(axis=1)
     scales[~qc_arr] = np.nan
@@ -103,6 +113,7 @@ def _evalScoredScales(
         min_j=min_j,
         scale_vals=scale_vals,
         idx_map=idx_map,
+        mi_ma=mi_ma,
     )
     return to_flag
 
@@ -113,30 +124,18 @@ def _mpFunc(s, scale, base_series, width_factor, opt_kwargs):
         signal.ricker(s * 10, s),
         opt_kwargs=opt_kwargs,
     )
+    print(f"Currently thinking about: {s}")
     similarity_scores = _similarityScoreReduction(
         result=similarity_scores,
         scale=scale,
         width=s * 10,
-        bumb_cond_factor=1.5,
     )
     similarity_scores_inv = _similarityScoreReduction(
         result=similarity_scores_inv,
         scale=-scale,  # scales[s[0]],
         width=s * 10,
-        bumb_cond_factor=1.5,
     )
-    similarity_scores = _variationCheck(
-        data=base_series,
-        score=similarity_scores,
-        width=s * 10,
-        width_factor=width_factor,
-    )
-    similarity_scores_inv = _variationCheck(
-        data=-base_series,
-        score=similarity_scores_inv,
-        width=s * 10,
-        width_factor=width_factor,
-    )
+
     return similarity_scores, reduction_factor, similarity_scores_inv
 
 
@@ -191,7 +190,7 @@ def _getEdgeIdx(x, y, min_jump):
     return offset_start
 
 
-def _getEdges(anomaly_ser, anomaly_range, m_start, m_end, min_jump):
+def _getEdges(anomaly_ser, anomaly_range, m_start, m_end, min_jump, mi_ma):
     offset_start = _getEdgeIdx(
         x=np.array([anomaly_ser[0], m_start]),
         y=anomaly_ser[:anomaly_range],
@@ -203,7 +202,10 @@ def _getEdges(anomaly_ser, anomaly_range, m_start, m_end, min_jump):
     )
     if (offset_start < 0) or (offset_end < 0):
         return -1, -1
-    offset_end = len(y_inv) - offset_end - 1
+    offset_end = len(y_inv) - offset_end
+    L = offset_end - offset_start
+    if (L < mi_ma[0]) | (L > mi_ma[1]):
+        return -1, -1
     return offset_start, offset_end
 
 
@@ -229,15 +231,6 @@ def _getCritical(idx_map, agged_vals, agged_counts):
 def _rmBounds(critical_stamps, critical_scales_idx, bounds):
     bound_mask = (critical_scales_idx > bounds[0]) & (critical_scales_idx < (bounds[1]))
     return (critical_stamps[bound_mask], critical_scales_idx[bound_mask])
-
-
-def _variationCheck(data, score, width, width_factor):
-    d_r = data.rolling(int((width * 0.1) * width_factor), center=True)
-    diff_md = 4 * data.diff().abs().median()
-    resid = d_r.max() - d_r.min()
-    mask_r = resid > diff_md
-    score[~mask_r.values] = np.nan
-    return score
 
 
 def _waveSimilarityScoring(scale, wv, opt_kwargs={"thresh": 500, "factor": 5}):
@@ -287,10 +280,10 @@ def _edgeDetect(
     min_j,
     scale_vals,
     idx_map,
+    mi_ma,
 ):
     critical_widths = [width_factor * w for w in critical_scales]
-    op_series = base_series.copy()
-    to_finally_flag = np.zeros(len(op_series)).astype(bool)
+    to_finally_flag = np.zeros(len(base_series)).astype(bool)
     to_flag = to_finally_flag.copy()
     # looping over the critical timstamps (that supposedly lie in the middle of any detected anomaly
 
@@ -308,13 +301,15 @@ def _edgeDetect(
         # we derive the most likely timestamp in the middle of the anomaly under test:
         idx = _getAnomalyCenter(test_vals[:, scale_iloc], idx_map, c[1])
         anomaly_ser, anomaly_range = _getValueSlice(
-            idx, critical_widths[c[0]], op_series
+            idx, critical_widths[c[0]], base_series
         )
-        inner_ser, inner_range = _getValueSlice(idx, critical_scales[c[0]], op_series)
+        inner_ser, inner_range = _getValueSlice(idx, critical_scales[c[0]], base_series)
         # we cut out the a piece of the target timseries that is likely wider than the anomaly:
 
         if min_j is None:
-            min_jump = np.quantile(np.abs(np.diff(anomaly_ser)), 0.9)
+            v = np.abs(np.diff(anomaly_ser))
+            min_jump = 3 * stats.median_abs_deviation(v, scale="normal")
+            # min_jump = 2*np.median(np.abs(np.diff(anomaly_ser)))
         else:
             min_jump = min_j
 
@@ -337,16 +332,13 @@ def _edgeDetect(
             m_start=m_start,
             m_end=m_end,
             min_jump=min_jump,
+            mi_ma=mi_ma,
         )
         if offset_start < 0:
             continue
 
         outlier_slice = slice(idx - anomaly_range + offset_start, idx + offset_end)
         to_flag[outlier_slice] = True
-
-        # we remove the anomaly from the series, so that it wont interfere with later checks
-        op_series.iloc[outlier_slice] = np.nan
-        op_series = op_series.interpolate("linear")
 
         to_finally_flag |= to_flag
     return to_finally_flag
@@ -392,12 +384,12 @@ def _similarityScoreReduction(
     signum_groups = np.cumsum(switches)
 
     # use pandas grouper to group the comparison scores into partitions, where the scale has the same signum:
-    consec_sign_groups = result.groupby(by=signum_groups)
+    consec_sign_groups_vals = result.groupby(by=signum_groups)
     # filter function for checking wich of the groups have sufficiently many consecutive na value
     filter_func = lambda x: x.count() > bumb_cond_factor * (width / 10)
     # apply filter: where scores dont belong to groups where the scale has not siffuciently many consecutive values of same sign, the score is overridden with nan (no_score)
-    filtered = consec_sign_groups.filter(filter_func, dropna=False)
-    # generate the timeseries to return
+    filtered = consec_sign_groups_vals.filter(filter_func, dropna=False)
+
     out = pd.Series(filtered.values, index=result.index)
     return out
 
@@ -407,6 +399,7 @@ def offSetSearch(
     scale_vals,
     wavelet,
     min_j,
+    mi_ma,
     thresh=0.1,
     width_factor=2.5,
     bound_scales=10,
@@ -420,6 +413,7 @@ def offSetSearch(
     scale_order = {s: n for n, s in enumerate(scale_vals)}
 
     tasks = _makeTasks(scale_vals, min_tasks=10)
+    print(f"every cpu assignment contains around {len(tasks[0])} tasks")
     worker_func = functools.partial(
         _mpTask,
         scales=scales,
@@ -429,12 +423,11 @@ def offSetSearch(
         thresh=thresh,
     )
     result = _fullfillTasks(tasks, worker_func)
-
+    print("So i did the tasks")
     for task_return in result:
         for r in task_return:
             qc_arr[:, scale_order[r[1]]] = r[0]
             qc_arr_inv[:, scale_order[r[1]]] = r[3]
-
     scales = scales.T
     to_flag = _evalScoredScales(
         qc_arr,
@@ -445,6 +438,7 @@ def offSetSearch(
         scale_vals,
         bound_scales,
         width_factor,
+        mi_ma,
     )
     to_flag = to_flag | _evalScoredScales(
         qc_arr_inv,
@@ -455,6 +449,7 @@ def offSetSearch(
         scale_vals,
         bound_scales,
         width_factor,
+        mi_ma,
     )
     return to_flag
 
@@ -581,8 +576,10 @@ class PatternMixin:
         if isinstance(granularity, str):
             granularity = pd.Timedelta(granularity) // freq
 
+        mi_ma = min_length, max_length
         min_length = max(min_length // 2, 1)
         max_length = max_length // 2
+
         scale_vals = list(np.arange(min_length, max_length, granularity))
         bounding = [
             min_length - b for b in range(1, min(bound_scales, scale_vals[0]))
@@ -596,9 +593,9 @@ class PatternMixin:
             min_j=min_jump,
             thresh=0.1,
             bound_scales=bound_scales,
+            mi_ma=mi_ma,
             opt_kwargs={"thresh": opt_thresh, "factor": opt_strategy or granularity},
         )
-
         self._flags[to_flag, field] = flag
         return self
 
