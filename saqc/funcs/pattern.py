@@ -38,7 +38,7 @@ def _makeTasks(scale_vals, d_len, min_tasks=50):
     print(f"Making {core_count} tasks")
     enum = np.arange(len(scale_vals))
     return [
-        list(zip(enum[k::int(core_count)], scale_vals[k::int(core_count)]))
+        list(zip(enum[k :: int(core_count)], scale_vals[k :: int(core_count)]))
         for k in range(int(core_count))
     ]
 
@@ -536,7 +536,7 @@ class PatternMixin:
         min_jump: float = None,
         opt_strategy: int = None,
         opt_thresh: int = None,
-        fill_strat: str = 'pad',
+        fill_strat: str = "pad",
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
