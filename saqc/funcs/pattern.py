@@ -16,11 +16,148 @@ from saqc.lib.tools import getFreqDelta
 if TYPE_CHECKING:
     from saqc import SaQC
 
+import functools
+import multiprocessing as mp
+
 import numpy as np
 import pandas as pd
 from scipy import signal
 
-import saqc
+
+def _fullfillTasks(tasks, F):
+    if len(tasks) > 1:
+        with mp.Pool(len(tasks)) as pool:
+            result = pool.map(F, tasks)
+    else:
+        result = [F(tasks[0])]
+    return result
+
+
+def _makeTasks(scale_vals, min_tasks=10):
+    core_count = min(mp.cpu_count(), len(scale_vals) // min_tasks)
+    enum = np.arange(len(scale_vals))
+    return [
+        list(zip(enum[k::core_count], scale_vals[k::core_count]))
+        for k in range(core_count)
+    ]
+
+
+def _evalScoredScales(
+    qc_arr, scales, base_series, min_j, idx_map, scale_vals, bound_scales, width_factor
+):
+    critical = qc_arr.any(axis=1)
+    scales[~qc_arr] = np.nan
+
+    r_test_vals = scales.copy()
+    r_test_vals[~critical, :] = np.nan
+    idx_map = idx_map[critical]
+    idx_bool = critical
+    test_vals = scales[critical, :].copy()
+    # for later use, we also generate a dataframe that has the same size as the scales
+    # frame, but contains nan values everywhere, besides for the 'critical` timestamps
+    # r_test_vals = test_vals.reindex(scales.index)
+    # agged_vals = pd.DataFrame(0.0, columns=scales.columns, index=scales.index)
+    agged_vals = np.zeros(scales.shape)
+    # The maxima for every bumb will not be at exactly the same timestamp at every scale,
+    # (due to noise) -> this is why we broaden the maxima points with the rolling operation, so
+    # we tha can just look for the column minima to find the optimal
+    # scale for every anomaly (wich appears as bumb in the scales)
+    for v in range(r_test_vals.shape[1]):
+        width = scale_vals[v]
+        agged_vals[:, v] = (
+            pd.Series(r_test_vals[:, v])
+            .rolling(width, center=True, min_periods=0)
+            .max()
+            .values
+        )
+
+    # for every timestamp we count in how much scales it is a part of a bumb
+    agged_counts = (~np.isnan(agged_vals)).sum(axis=1)
+    # timestamps that only appear on one scale as part of a bumb, are suspiceaous and
+    # likely belong to noise
+    idx_bool = idx_bool & (agged_counts != 1)
+
+    # we remove those suspiceous indices from the test_values frame
+    test_vals = test_vals[idx_bool[idx_map]]
+    idx_map = idx_map[idx_bool[idx_map]]
+
+    critical_stamps, critical_scales_idx = _getCritical(
+        idx_map, agged_vals, agged_counts
+    )
+
+    critical_stamps, critical_scales_idx = _rmBounds(
+        critical_stamps,
+        critical_scales_idx,
+        (bound_scales, len(scale_vals - bound_scales)),
+    )
+    # ----------------------------------------------------------------
+    # Next part we mainly detect the exact starting and ending points of
+    # any anomaly with the help of the 'dynamic timewarping' (fastdtw) algorithm.
+    # ----------------------------------------------------------------
+    to_flag = _edgeDetect(
+        base_series=base_series,
+        critical_stamps=critical_stamps,
+        critical_scales=scale_vals[critical_scales_idx],
+        width_factor=width_factor,
+        test_vals=test_vals,
+        min_j=min_j,
+        scale_vals=scale_vals,
+        idx_map=idx_map,
+    )
+    return to_flag
+
+
+def _mpFunc(s, scale, base_series, width_factor, opt_kwargs):
+    similarity_scores, similarity_scores_inv, reduction_factor = _waveSimilarityScoring(
+        scale,
+        signal.ricker(s * 10, s),
+        opt_kwargs=opt_kwargs,
+    )
+    similarity_scores = _similarityScoreReduction(
+        result=similarity_scores,
+        scale=scale,
+        width=s * 10,
+        bumb_cond_factor=1.5,
+    )
+    similarity_scores_inv = _similarityScoreReduction(
+        result=similarity_scores_inv,
+        scale=-scale,  # scales[s[0]],
+        width=s * 10,
+        bumb_cond_factor=1.5,
+    )
+    similarity_scores = _variationCheck(
+        data=base_series,
+        score=similarity_scores,
+        width=s * 10,
+        width_factor=width_factor,
+    )
+    similarity_scores_inv = _variationCheck(
+        data=-base_series,
+        score=similarity_scores_inv,
+        width=s * 10,
+        width_factor=width_factor,
+    )
+    return similarity_scores, reduction_factor, similarity_scores_inv
+
+
+def _mpTask(S, scales, base_series, width_factor, opt_kwargs, thresh):
+    out_r = [None] * len(S)
+    i = 0
+    for s in S:
+        out = _mpFunc(s[1], scales[s[0]], base_series, width_factor, opt_kwargs)
+        qc_arr = np.zeros(len(base_series)).astype(
+            bool
+        )  # zip(res.columns, reduction_factors):
+        qc_arr_inv = np.zeros(len(base_series)).astype(bool)
+        order = s[1] // out[1]
+        d = _argminSer(out[0].values[:: out[1]], order=order, max=thresh)
+        d_inv = _argminSer(out[2].values[:: out[1]], order=order, max=thresh)
+        qc_arr[:: out[1]] = d
+        qc_arr_inv[:: out[1]] = d_inv
+        out_r[i] = (qc_arr, s[1], out[1], qc_arr_inv)
+        i += 1
+
+    return out_r
 
 
 def _getValueSlice(idx, base_range, value_ser):
@@ -103,16 +240,12 @@ def _variationCheck(data, score, width, width_factor):
     return score
 
 
-def _waveSimilarityScoring(
-    scale, wv, data, width_factor=2, opt_kwargs={"thresh": 500, "factor": 5}
-):
+def _waveSimilarityScoring(scale, wv, opt_kwargs={"thresh": 500, "factor": 5}):
     # derive width of the wavelet -> (current scale = width*.1)
     width = len(wv)
     # scale wavelt to [0,1]
     wv = wv - wv.min()
     wv = wv / wv.max()
-    # get statistics that checks if the data is sufficiently changing to qualify as outlierish in any window of size scale*width_factor
-    d_r = data.rolling(int((width * 0.1) * width_factor), center=True)
 
     # check any width-sized window of scale, if it resambles the wavelet (in terms of the mean absolute comparison error)
     if opt_kwargs["thresh"] is None:
@@ -126,21 +259,23 @@ def _waveSimilarityScoring(
             fc = np.array([1] + opt_kwargs["factor"])
         lv = np.where(width >= thr)[0][-1]
         reduction_factor = int(fc[lv])
-    print(width)
-    print(f"LV:{lv}, FC:{reduction_factor}")
     wv_ = wv[::reduction_factor]
 
-    r = stride_trickser(scale[::reduction_factor], wv_.shape[0], wv_)
+    r, r_inv = _stride_trickser(scale[::reduction_factor], wv_.shape[0], wv_)
 
     result = np.full([len(scale)], np.nan)
+    result_inv = result.copy()
     w = width // 2
     result[w : w + (len(r) * reduction_factor) : reduction_factor] = r
+    result_inv[w : w + (len(r_inv) * reduction_factor) : reduction_factor] = r_inv
     result = pd.Series(result)
+    result_inv = pd.Series(result_inv)
     if reduction_factor > 1:
         result = result.interpolate("linear", limit=reduction_factor)
+        result_inv = result_inv.interpolate("linear", limit=reduction_factor)
     # check where the scale has enough consecutive sign values to qualify for resambling the wavelet
     # bumb - qualify
-    return result, reduction_factor
+    return result, result_inv, reduction_factor
 
 
 def _edgeDetect(
@@ -217,35 +352,30 @@ def _edgeDetect(
     return to_finally_flag
 
 
-def stride_trickser(data, win_len, wave):
+def _stride_trickser(data, win_len, wave):
     stack_view = np.lib.stride_tricks.sliding_window_view(data, win_len, (0))
     samples = stack_view.shape[0]
-    m = stack_view.min(axis=1).reshape(samples, 1)
-    return (
-        np.abs(
-            (stack_view - m) / (stack_view.max(axis=1).reshape(samples, 1) - m) - wave
-        )
-    ).mean(axis=1)
+    mi = stack_view.min(axis=1).reshape(samples, 1)
+    ma = stack_view.max(axis=1).reshape(samples, 1)
+    mi_div_ma = ma - mi
+    range = stack_view - mi
+    range_inv = ma - stack_view
+    r1 = np.abs((range / mi_div_ma) - wave).mean(axis=1)
+    r2 = np.abs((range_inv / mi_div_ma) - wave).mean(axis=1)
+    return r1, r2
 
 
-def patternSearch(x, wv):
-    # pattern search: scales x to [0,1] and returns mean absolute error between x and wv (the wavelet)
-    x = x - x.min()
-    x = x / x.max()
-    return (np.abs(x - wv)).mean()
-
-
-def argminSer(x, order, max=100):
+def _argminSer(x, order, max=100):
     # function searches for local minima
     # get indices of local minima
-    idx = signal.argrelmin(x.values, order=order)[0]
+    idx = signal.argrelmin(x, order=order)[0]
     # only consider local minima that are small enough
     thresh_mask = x < max
     # make Series holding local minima
-    y = pd.Series(False, index=x.index)
-    y.iloc[idx] = True
+    y = np.zeros(len(x)).astype(bool)  # pd.Series(False, index=x.index)
+    y[idx] = True
     y = y & thresh_mask
-    return y.astype(bool)
+    return y
 
 
 def _similarityScoreReduction(
@@ -285,101 +415,46 @@ def offSetSearch(
     idx_map = np.arange(len(base_series))
     scales = signal.cwt(base_series.values, wavelet, scale_vals)
 
-    res = pd.DataFrame(
-        np.nan, index=base_series.index, columns=[f"score_{s}" for s in scale_vals]
-    )
-    reduction_factors = np.ones(len(scale_vals), dtype=int)
-    for s in enumerate(scale_vals):
-        # calculate and assign the comparison score series between wavelet and scale:
-        similarity_scores, reduction_factor = _waveSimilarityScoring(
-            scales[s[0]],
-            signal.ricker(s[1] * 10, s[1]),
-            base_series,
-            width_factor=width_factor,
-            opt_kwargs=opt_kwargs,
-        )
-        similarity_scores = _similarityScoreReduction(
-            result=similarity_scores,
-            scale=scales[s[0]],
-            width=s[1] * 10,
-            bumb_cond_factor=1.5,
-        )
-        similarity_scores = _variationCheck(
-            data=base_series,
-            score=similarity_scores,
-            width=s[1] * 10,
-            width_factor=width_factor,
-        )
-        res[f"score_{s[1]}"] = similarity_scores.values
-        reduction_factors[s[0]] = reduction_factor
+    qc_arr = np.zeros([len(base_series), len(scale_vals)]).astype(bool)
+    qc_arr_inv = qc_arr.copy()
+    scale_order = {s: n for n, s in enumerate(scale_vals)}
 
-    # generate a dataframe of scales from the scales array:
-    scales = scales.T
-
-    qc_frame = pd.DataFrame(False, index=res.index, columns=res.columns)
-    for score in zip(res.columns, reduction_factors):
-        sc = int(score[0].split("_")[-1])
-        d = argminSer(res[score[0]][:: score[1]], order=sc // score[1], max=thresh)
-        qc_frame.loc[d[d].index, score[0]] = True
-
-    critical = qc_frame.any(axis=1)
-    scales[~qc_frame.values] = np.nan
-
-    r_test_vals = scales.copy()
-    r_test_vals[~critical.values, :] = np.nan
-    idx_map = idx_map[critical.values]
-    idx_bool = critical.values
-    test_vals = scales[critical.values, :].copy()
-    # for later use, we also generate a dataframe that has the same size as the scales
-    # frame, but contains nan values everywhere, besides for the 'critical` timestamps
-    # r_test_vals = test_vals.reindex(scales.index)
-    # agged_vals = pd.DataFrame(0.0, columns=scales.columns, index=scales.index)
-    agged_vals = np.zeros(scales.shape)
-    # The maxima for every bumb will not be at exactly the same timestamp at every scale,
-    # (due to noise) -> this is why we broaden the maxima points with the rolling operation, so
-    # we tha can just look for the column minima to find the optimal
-    # scale for every anomaly (wich appears as bumb in the scales)
-    for v in range(r_test_vals.shape[1]):
-        width = scale_vals[v]
-        agged_vals[:, v] = (
-            pd.Series(r_test_vals[:, v])
-            .rolling(width, center=True, min_periods=0)
-            .max()
-            .values
-        )
-
-    # for every timestamp we count in how much scales it is a part of a bumb
-    agged_counts = (~np.isnan(agged_vals)).sum(axis=1)
-    # timestamps that only appear on one scale as part of a bumb, are suspiceaous and
-    # likely belong to noise
-    idx_bool = idx_bool & (agged_counts != 1)
-
-    # we remove those suspiceous indices from the test_values frame
-    test_vals = test_vals[idx_bool[idx_map]]
-    idx_map = idx_map[idx_bool[idx_map]]
-
-    critical_stamps, critical_scales_idx = _getCritical(
-        idx_map, agged_vals, agged_counts
-    )
-
-    critical_stamps, critical_scales_idx = _rmBounds(
-        critical_stamps,
-        critical_scales_idx,
-        (bound_scales, len(scale_vals - bound_scales)),
-    )
-    # ----------------------------------------------------------------
-    # Next part we mainly detect the exact starting and ending points of
-    # any anomaly with the help of the 'dynamic timewarping' (fastdtw) algorithm.
-    # ----------------------------------------------------------------
-    to_flag = _edgeDetect(
+    tasks = _makeTasks(scale_vals, min_tasks=10)
+    worker_func = functools.partial(
+        _mpTask,
+        scales=scales,
         base_series=base_series,
-        critical_stamps=critical_stamps,
-        critical_scales=scale_vals[critical_scales_idx],
         width_factor=width_factor,
-        test_vals=test_vals,
-        min_j=min_j,
-        scale_vals=scale_vals,
-        idx_map=idx_map,
+        opt_kwargs=opt_kwargs,
+        thresh=thresh,
+    )
+    result = _fullfillTasks(tasks, worker_func)
+
+    for task_return in result:
+        for r in task_return:
+            qc_arr[:, scale_order[r[1]]] = r[0]
+            qc_arr_inv[:, scale_order[r[1]]] = r[3]
+
+    scales = scales.T
+    to_flag = _evalScoredScales(
+        qc_arr,
+        scales.copy(),
+        base_series,
+        min_j,
+        idx_map,
+        scale_vals,
+        bound_scales,
+        width_factor,
+    )
+    to_flag = to_flag | _evalScoredScales(
+        qc_arr_inv,
+        -scales,
+        -base_series,
+        min_j,
+        idx_map,
+        scale_vals,
+        bound_scales,
+        width_factor,
     )
     return to_flag
 
@@ -523,15 +598,7 @@ class PatternMixin:
             bound_scales=bound_scales,
             opt_kwargs={"thresh": opt_thresh, "factor": opt_strategy or granularity},
         )
-        to_flag |= offSetSearch(
-            base_series=datcol.max() - datcol,
-            scale_vals=scale_vals,
-            wavelet=signal.ricker,
-            min_j=min_jump,
-            thresh=0.1,
-            bound_scales=bound_scales,
-            opt_kwargs={"thresh": opt_thresh, "factor": opt_strategy or granularity},
-        )
+
         self._flags[to_flag, field] = flag
         return self
 
