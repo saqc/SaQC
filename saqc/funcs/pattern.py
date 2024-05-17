@@ -33,14 +33,13 @@ def _fullfillTasks(tasks, F):
     return result
 
 
-def _makeTasks(scale_vals, min_tasks=50, max_cores=4):
+def _makeTasks(scale_vals, d_len, min_tasks=50):
     core_count = min(mp.cpu_count(), len(scale_vals) // min_tasks)
-    core_count = min(core_count, max_cores)
-    print(f"Making Tasks for {core_count} workers")
+    print(f"Making {core_count} tasks")
     enum = np.arange(len(scale_vals))
     return [
-        list(zip(enum[k::core_count], scale_vals[k::core_count]))
-        for k in range(core_count)
+        list(zip(enum[k::int(core_count)], scale_vals[k::int(core_count)]))
+        for k in range(int(core_count))
     ]
 
 
@@ -308,7 +307,7 @@ def _edgeDetect(
 
         if min_j is None:
             v = np.abs(np.diff(anomaly_ser))
-            min_jump = 3 * stats.median_abs_deviation(v, scale="normal")
+            min_jump = stats.median_abs_deviation(v, scale="normal")
             # min_jump = 2*np.median(np.abs(np.diff(anomaly_ser)))
         else:
             min_jump = min_j
@@ -412,7 +411,7 @@ def offSetSearch(
     qc_arr_inv = qc_arr.copy()
     scale_order = {s: n for n, s in enumerate(scale_vals)}
 
-    tasks = _makeTasks(scale_vals, min_tasks=10)
+    tasks = _makeTasks(scale_vals, len(base_series))
     print(f"every cpu assignment contains around {len(tasks[0])} tasks")
     worker_func = functools.partial(
         _mpTask,
@@ -533,10 +532,11 @@ class PatternMixin:
         field: str,
         min_length: int | str,
         max_length: int | str,
-        granularity: int | str = 5,
+        granularity: int | str = None,
         min_jump: float = None,
         opt_strategy: int = None,
-        opt_thresh: int = 500,
+        opt_thresh: int = None,
+        fill_strat: str = 'pad',
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -564,15 +564,19 @@ class PatternMixin:
         Minimum length of plateaus should be selected higher than 5 times the sampling rate.
         To search for shorter plateaus/anomalies, use :py:meth:~`saqc.SaQC.flagUniLOF` or :py:meth:~`saqc.SaQC.flagZScore`.
         """
+        opt_strategy = opt_strategy or [5, 10, 20, 50, 100, 1000]
+        opt_thresh = opt_thresh or [250, 500, 1000, 2500, 5000, 10000]
         bound_scales = 10
         datcol = self.data[field]
-        datcol = datcol.interpolate("time")
+        datcol = datcol.interpolate(fill_strat)
+        datcol = datcol.ffill().bfill()
         freq = getFreqDelta(datcol.index)
         if freq is None:
             raise ValueError("Not a unitary sampling rate")
         if isinstance(min_length, str):
             min_length = pd.Timedelta(min_length) // freq
             max_length = pd.Timedelta(max_length) // freq
+        granularity = granularity or 5
         if isinstance(granularity, str):
             granularity = pd.Timedelta(granularity) // freq
 
