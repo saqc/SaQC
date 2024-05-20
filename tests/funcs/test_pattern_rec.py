@@ -28,7 +28,7 @@ def field(data):
 
 def test_flagPlateau():
     path = os.path.join(
-        os.path.abspath("../.."), "docs/resources/data/turbidity_plateaus.csv"
+        os.path.abspath(".."), "docs/resources/data/turbidity_plateaus.csv"
     )
     dat = pd.read_csv(path, parse_dates=[0], index_col=0)
     dat = dat.interpolate("linear")
