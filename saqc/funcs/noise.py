@@ -13,16 +13,10 @@ from typing import TYPE_CHECKING, Callable, Literal
 
 import numpy as np
 import pandas as pd
-from scipy.stats import median_abs_deviation
 
 from saqc.constants import BAD
 from saqc.core.register import flagging
-from saqc.lib.checking import (
-    isCallable,
-    validateFuncSelection,
-    validateMinPeriods,
-    validateWindow,
-)
+from saqc.lib.checking import validateFuncSelection, validateMinPeriods, validateWindow
 from saqc.lib.tools import isunflagged, statPass
 from saqc.parsing.environ import ENV_OPERATORS
 
@@ -164,7 +158,7 @@ class NoiseMixin:
         if isinstance(func, str):
             func = ENV_OPERATORS[func]
 
-        stat_pass = statPass(
+        to_set = statPass(
             datcol=self._data[field],
             stat=func,
             winsz=pd.Timedelta(window),
@@ -174,7 +168,6 @@ class NoiseMixin:
             sub_thresh=sub_thresh or thresh,
             min_periods=min_periods or 0,
         )
-        to_set = stat_pass
         mask = isunflagged(self._flags[field], kwargs["dfilter"]) & to_set
         self._flags[mask, field] = flag
         return self
