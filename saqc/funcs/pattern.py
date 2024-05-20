@@ -7,11 +7,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import fastdtw
-
 from saqc import BAD
 from saqc.core import flagging
 from saqc.lib.rolling import removeRollingRamps
 from saqc.lib.tools import getFreqDelta
+from saqc.funcs.outliers import _stray
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -23,7 +23,48 @@ import numpy as np
 import pandas as pd
 from scipy import signal
 
+FACTOR_BASE = [5, 10, 20, 50, 100, 1000, 10000, 100000]
+CHUNK_LEN = 2*(10**5)
+SCALE_CHUNK_SIZE = 200
+MIN_TASKS_PER_CORE = 100
+OPT_FACTOR = 50
+BOUND_SCALES = 10
 
+def _searchChunks(datcol, scale_vals, min_jump, mi_ma, opt_kwargs):
+    overlap_increment = 20*scale_vals[-1]
+    task_big = (len(datcol)*(len(scale_vals) + 2*(BOUND_SCALES))) >= (SCALE_CHUNK_SIZE*CHUNK_LEN)
+    single_chunk = (mi_ma[1] > overlap_increment*.25) or (not task_big)
+    to_flag = np.zeros(len(datcol)).astype(bool)
+    e,k,sc_e,sc_k = 0,0,0,0
+    while e is not None:
+        s = max((CHUNK_LEN*k) - overlap_increment,0)
+        if ((CHUNK_LEN*(k+2))//len(datcol) > 0) or single_chunk:
+            e = None
+        else:
+            e = s + (CHUNK_LEN*(k+1))
+        while sc_e is not None:
+            sc_s = SCALE_CHUNK_SIZE*sc_k
+            if (SCALE_CHUNK_SIZE * (sc_k + 2) // len(scale_vals) > 0) or (not task_big):
+                sc_e = None
+            else:
+                sc_e = sc_s + SCALE_CHUNK_SIZE
+            sv = scale_vals[sc_s:sc_e]
+            lower_bound = np.arange(max(sv[0] - BOUND_SCALES, 1), sv[0])
+            upper_bound = np.arange(sv[-1] + 1, sv[-1] + 1 + BOUND_SCALES)
+            sv = np.concatenate([lower_bound, sv, upper_bound])
+            to_flag[s:e] |= offSetSearch(
+                base_series=datcol.iloc[s:e],
+                scale_vals=sv,
+                wavelet=signal.ricker,
+                min_j=min_jump,
+                thresh=0.1,
+                bound_scales=BOUND_SCALES,
+                mi_ma=mi_ma,
+                opt_kwargs=opt_kwargs,
+            )
+            sc_k += 1
+        k += 1
+    return to_flag
 def _fullfillTasks(tasks, F):
     if len(tasks) > 1:
         with mp.Pool(len(tasks)) as pool:
@@ -33,9 +74,8 @@ def _fullfillTasks(tasks, F):
     return result
 
 
-def _makeTasks(scale_vals, d_len, min_tasks=50):
-    core_count = min(mp.cpu_count(), len(scale_vals) // min_tasks)
-    print(f"Making {core_count} tasks")
+def _makeTasks(scale_vals):
+    core_count = min(mp.cpu_count(), (len(scale_vals) // MIN_TASKS_PER_CORE) + 1)
     enum = np.arange(len(scale_vals))
     return [
         list(zip(enum[k :: int(core_count)], scale_vals[k :: int(core_count)]))
@@ -85,7 +125,7 @@ def _evalScoredScales(
     critical_stamps, critical_scales_idx = _rmBounds(
         critical_stamps,
         critical_scales_idx,
-        (bound_scales, len(scale_vals - bound_scales)),
+        (min(bound_scales, scale_vals[0]), len(scale_vals - bound_scales)),
     )
     to_flag = _edgeDetect(
         base_series=base_series,
@@ -157,10 +197,12 @@ def _getAnomalyCenter(test_scale, idx_map, critical_stamp):
 
 
 def _getEdgeIdx(x, y, min_jump):
+    if len(y)==1:
+        return -1
     _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
     path = np.array(path)
     offset_start = path[:, 0].argmax()
-    if offset_start == (len(y) - 1):
+    if (offset_start == (len(y) - 1)):
         return -1
     start_jump = y[offset_start] - y[offset_start - 1]
 
@@ -175,12 +217,15 @@ def _getEdges(anomaly_ser, anomaly_range, m_start, m_end, min_jump, mi_ma):
         y=anomaly_ser[:anomaly_range],
         min_jump=min_jump,
     )
+    if offset_start < 0:
+        return -1,-1
     y_inv = anomaly_ser[anomaly_range:][::-1].copy()
     offset_end = _getEdgeIdx(
         x=np.array([anomaly_ser[-1], m_end]), y=y_inv, min_jump=min_jump
     )
-    if (offset_start < 0) or (offset_end < 0):
+    if offset_end < 0:
         return -1, -1
+
     offset_end = len(y_inv) - offset_end
     L = offset_end - offset_start
     if (L < mi_ma[0]) | (L > mi_ma[1]):
@@ -208,7 +253,7 @@ def _getCritical(idx_map, agged_vals, agged_counts):
 
 
 def _rmBounds(critical_stamps, critical_scales_idx, bounds):
-    bound_mask = (critical_scales_idx > bounds[0]) & (critical_scales_idx < (bounds[1]))
+    bound_mask = (critical_scales_idx >= (bounds[0]-1)) & (critical_scales_idx < (bounds[1]))
     return (critical_stamps[bound_mask], critical_scales_idx[bound_mask])
 
 
@@ -269,11 +314,12 @@ def _edgeDetect(
             idx, critical_widths[c[0]], base_series
         )
         inner_ser, inner_range = _getValueSlice(idx, critical_scales[c[0]], base_series)
-
-        if min_j is None:
-            min_jump = 2 * np.median(np.abs(np.diff(anomaly_ser)))
-        else:
-            min_jump = min_j
+        min_jump = min_j
+        if min_jump is None:
+            a_diffs = np.abs(np.diff(anomaly_ser))
+            if len(_stray(a_diffs,1, .5, .05))==0:
+                continue
+            min_jump = 2 * np.median(a_diffs)
 
         if len(inner_ser) == 1:
             m_start = m_end = inner_ser[0]
@@ -355,7 +401,7 @@ def offSetSearch(
     qc_arr_inv = qc_arr.copy()
     scale_order = {s: n for n, s in enumerate(scale_vals)}
 
-    tasks = _makeTasks(scale_vals, len(base_series))
+    tasks = _makeTasks(scale_vals)
 
     worker_func = functools.partial(
         _mpTask,
@@ -476,41 +522,43 @@ class PatternMixin:
         field: str,
         min_length: int | str,
         max_length: int | str,
-        granularity: int | str = None,
         min_jump: float = None,
-        opt_strategy: int = None,
-        opt_thresh: int = None,
+        granularity: int | str = None,
         fill_strat: str = "pad",
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
         """
-        Flag anomalous value plateaus discriminated by temporal extension.
+        Flag anomalous value plateaus.
 
         Parameters
         ----------
         min_length:
-            Minimum temporal extension of values to qualify as plateau
+            Minimum temporal extension of value course to qualify as plateau.
 
         max_length:
-            Maximum temporal extension of values to qualify as plateau (upper detection limit)
-
-        granularity:
-            Precision of search: The smaller the better, but also, the more numerically expensive.
+            Maximum temporal extension of value course to qualify as plateau (upper detection limit).
 
         min_jump:
             minimum margin anomalies/plateaus have to differ from directly preceding and succeeding periods.
             If not passed an explicit value (default), the minimum jump threshold will be derived automatically from the median
             of the local absolute difference between any two periods in the vicinity of any potential anomaly.
 
+        granularity:
+            Precision of search: The smaller the better, but also, the more numerically expensive.
+
+        fill_strat:
+            NaN values in the data have to be replaced by numerical data.
+            Select the interpolation/replacement strategy.
+
+
         Notes
         -----
-        Minimum length of plateaus should be selected higher than 5 times the sampling rate.
+        Minimum length of plateaus should be selected higher than ~2 times the sampling rate.
         To search for shorter plateaus/anomalies, use :py:meth:~`saqc.SaQC.flagUniLOF` or :py:meth:~`saqc.SaQC.flagZScore`.
+
         """
-        opt_strategy = opt_strategy or [5, 10, 20, 50, 100, 1000, 10000]
-        opt_thresh = opt_thresh or [250, 500, 1000, 2500, 5000, 50000, 500000]
-        bound_scales = 10
+        opt_thresh = [OPT_FACTOR*f for f in FACTOR_BASE]
         datcol = self.data[field]
         datcol = datcol.interpolate(fill_strat)
         datcol = datcol.ffill().bfill()
@@ -523,29 +571,11 @@ class PatternMixin:
         granularity = granularity or 5
         if isinstance(granularity, str):
             granularity = pd.Timedelta(granularity) // freq
+            if granularity == 0:
+                raise ValueError(f'Offset defined granularity lower than sampling rate! (got: sampling rate={freq})')
 
-        mi_ma = min_length, max_length
-        min_length = max(min_length // 2, 1)
-        max_length = max_length // 2
-
-        scale_vals = list(np.arange(min_length, max_length, granularity))
-        bounding = [
-            min_length - b for b in range(1, min(bound_scales, scale_vals[0]))
-        ] + [max_length + b for b in range(1, bound_scales)]
-
-        scale_vals = np.array(scale_vals + bounding)
-        scale_vals.sort(kind="stable")
-
-        to_flag = offSetSearch(
-            base_series=datcol,
-            scale_vals=scale_vals,
-            wavelet=signal.ricker,
-            min_j=min_jump,
-            thresh=0.1,
-            bound_scales=bound_scales,
-            mi_ma=mi_ma,
-            opt_kwargs={"thresh": opt_thresh, "factor": opt_strategy},
-        )
+        scale_vals = np.arange(max(min_length // 2, 1), max_length // 2, granularity)
+        to_flag = _searchChunks(datcol, scale_vals, min_jump, (min_length, max_length), {"thresh": opt_thresh, "factor": FACTOR_BASE})
         self._flags[to_flag, field] = flag
         return self
 

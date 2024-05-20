@@ -12,6 +12,7 @@ import pytest
 from saqc import BAD, UNFLAGGED, SaQC
 from saqc.core import DictOfSeries, initFlagsLike
 from tests.common import initData
+import os
 
 
 @pytest.fixture
@@ -23,7 +24,22 @@ def data():
 def field(data):
     return data.columns[0]
 
-
+def test_flagPlateau():
+    path = os.path.join(os.path.abspath('../..'), 'docs/resources/data/turbidity_plateaus.csv')
+    dat = pd.read_csv(path, parse_dates=[0],
+                      index_col=0)
+    dat = dat.interpolate('linear')
+    dat = dat.ffill().bfill()
+    qc = SaQC(dat)
+    qc = qc.flagPlateau('base3', min_length='10min', max_length='7d', min_jump=None, granularity="20min")
+    anomalies = ([(0,0), (5313, 5540), (10000, 10200), (15000, 15500), (17000, 17114), (17790,
+           17810)])
+    f = qc['base3'].flags.to_pandas().squeeze() > 0
+    for i in range(1,len(anomalies)):
+        a_slice = slice(anomalies[i][0],anomalies[i][1])
+        na_slice = slice(anomalies[i-1][1],anomalies[i][0])
+        assert f.iloc[a_slice].all()
+        assert not (f.iloc[na_slice].any())
 @pytest.mark.parametrize("plot", [True, False])
 @pytest.mark.parametrize("normalize", [True, False])
 def test_flagPattern_dtw(plot, normalize):
