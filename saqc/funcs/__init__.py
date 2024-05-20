@@ -6,6 +6,7 @@
 
 # -*- coding: utf-8 -*-
 
+from saqc.funcs.boolops import BoolOpsMixin
 from saqc.funcs.breaks import BreaksMixin
 from saqc.funcs.changepoints import ChangepointsMixin
 from saqc.funcs.constants import ConstantsMixin
@@ -43,5 +44,6 @@ class FunctionsMixin(
     ScoresMixin,
     ToolsMixin,
     TransformationMixin,
+    BoolOpsMixin,
 ):
     pass

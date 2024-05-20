@@ -17,6 +17,7 @@ from typing import Any, Hashable, Iterable
 import numpy as np
 import pandas as pd
 
+import saqc
 from saqc.core.flags import Flags, _HistAccess, initFlagsLike
 from saqc.core.frame import DictOfSeries
 from saqc.core.history import History
