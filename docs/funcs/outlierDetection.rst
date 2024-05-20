@@ -19,5 +19,5 @@ Univariate Outlier Detection
    ~SaQC.flagRange
    ~SaQC.flagLOF
    ~SaQC.flagZScore
-   ~SaQC.flagPlateaus
+   ~SaQC.flagPlateau
 
