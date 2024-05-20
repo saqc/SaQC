@@ -7,11 +7,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import fastdtw
+
 from saqc import BAD
 from saqc.core import flagging
+from saqc.funcs.outliers import _stray
 from saqc.lib.rolling import removeRollingRamps
 from saqc.lib.tools import getFreqDelta
-from saqc.funcs.outliers import _stray
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -24,26 +25,29 @@ import pandas as pd
 from scipy import signal
 
 FACTOR_BASE = [5, 10, 20, 50, 100, 1000, 10000, 100000]
-CHUNK_LEN = 2*(10**5)
+CHUNK_LEN = 2 * (10**5)
 SCALE_CHUNK_SIZE = 200
 MIN_TASKS_PER_CORE = 100
 OPT_FACTOR = 50
 BOUND_SCALES = 10
 
+
 def _searchChunks(datcol, scale_vals, min_jump, mi_ma, opt_kwargs):
-    overlap_increment = 20*scale_vals[-1]
-    task_big = (len(datcol)*(len(scale_vals) + 2*(BOUND_SCALES))) >= (SCALE_CHUNK_SIZE*CHUNK_LEN)
-    single_chunk = (mi_ma[1] > overlap_increment*.25) or (not task_big)
+    overlap_increment = 20 * scale_vals[-1]
+    task_big = (len(datcol) * (len(scale_vals) + 2 * (BOUND_SCALES))) >= (
+        SCALE_CHUNK_SIZE * CHUNK_LEN
+    )
+    single_chunk = (mi_ma[1] > overlap_increment * 0.25) or (not task_big)
     to_flag = np.zeros(len(datcol)).astype(bool)
-    e,k,sc_e,sc_k = 0,0,0,0
+    e, k, sc_e, sc_k = 0, 0, 0, 0
     while e is not None:
-        s = max((CHUNK_LEN*k) - overlap_increment,0)
-        if ((CHUNK_LEN*(k+2))//len(datcol) > 0) or single_chunk:
+        s = max((CHUNK_LEN * k) - overlap_increment, 0)
+        if ((CHUNK_LEN * (k + 2)) // len(datcol) > 0) or single_chunk:
             e = None
         else:
-            e = s + (CHUNK_LEN*(k+1))
+            e = s + (CHUNK_LEN * (k + 1))
         while sc_e is not None:
-            sc_s = SCALE_CHUNK_SIZE*sc_k
+            sc_s = SCALE_CHUNK_SIZE * sc_k
             if (SCALE_CHUNK_SIZE * (sc_k + 2) // len(scale_vals) > 0) or (not task_big):
                 sc_e = None
             else:
@@ -65,6 +69,8 @@ def _searchChunks(datcol, scale_vals, min_jump, mi_ma, opt_kwargs):
             sc_k += 1
         k += 1
     return to_flag
+
+
 def _fullfillTasks(tasks, F):
     if len(tasks) > 1:
         with mp.Pool(len(tasks)) as pool:
@@ -197,12 +203,12 @@ def _getAnomalyCenter(test_scale, idx_map, critical_stamp):
 
 
 def _getEdgeIdx(x, y, min_jump):
-    if len(y)==1:
+    if len(y) == 1:
         return -1
     _, path = fastdtw.fastdtw(x, y, radius=int(len(y)))
     path = np.array(path)
     offset_start = path[:, 0].argmax()
-    if (offset_start == (len(y) - 1)):
+    if offset_start == (len(y) - 1):
         return -1
     start_jump = y[offset_start] - y[offset_start - 1]
 
@@ -218,7 +224,7 @@ def _getEdges(anomaly_ser, anomaly_range, m_start, m_end, min_jump, mi_ma):
         min_jump=min_jump,
     )
     if offset_start < 0:
-        return -1,-1
+        return -1, -1
     y_inv = anomaly_ser[anomaly_range:][::-1].copy()
     offset_end = _getEdgeIdx(
         x=np.array([anomaly_ser[-1], m_end]), y=y_inv, min_jump=min_jump
@@ -253,7 +259,9 @@ def _getCritical(idx_map, agged_vals, agged_counts):
 
 
 def _rmBounds(critical_stamps, critical_scales_idx, bounds):
-    bound_mask = (critical_scales_idx >= (bounds[0]-1)) & (critical_scales_idx < (bounds[1]))
+    bound_mask = (critical_scales_idx >= (bounds[0] - 1)) & (
+        critical_scales_idx < (bounds[1])
+    )
     return (critical_stamps[bound_mask], critical_scales_idx[bound_mask])
 
 
@@ -317,7 +325,7 @@ def _edgeDetect(
         min_jump = min_j
         if min_jump is None:
             a_diffs = np.abs(np.diff(anomaly_ser))
-            if len(_stray(a_diffs,1, .5, .05))==0:
+            if len(_stray(a_diffs, 1, 0.5, 0.05)) == 0:
                 continue
             min_jump = 2 * np.median(a_diffs)
 
@@ -557,7 +565,7 @@ class PatternMixin:
         To search for shorter plateaus/anomalies, use :py:meth:~`saqc.SaQC.flagUniLOF` or :py:meth:~`saqc.SaQC.flagZScore`.
 
         """
-        opt_thresh = [OPT_FACTOR*f for f in FACTOR_BASE]
+        opt_thresh = [OPT_FACTOR * f for f in FACTOR_BASE]
         datcol = self.data[field]
         datcol = datcol.interpolate(fill_strat)
         datcol = datcol.ffill().bfill()
@@ -571,10 +579,18 @@ class PatternMixin:
         if isinstance(granularity, str):
             granularity = pd.Timedelta(granularity) // freq
             if granularity == 0:
-                raise ValueError(f'Offset defined granularity lower than sampling rate! (got: sampling rate={freq})')
+                raise ValueError(
+                    f"Offset defined granularity lower than sampling rate! (got: sampling rate={freq})"
+                )
 
         scale_vals = np.arange(max(min_length // 2, 1), max_length // 2, granularity)
-        to_flag = _searchChunks(datcol, scale_vals, min_jump, (min_length, max_length), {"thresh": opt_thresh, "factor": FACTOR_BASE})
+        to_flag = _searchChunks(
+            datcol,
+            scale_vals,
+            min_jump,
+            (min_length, max_length),
+            {"thresh": opt_thresh, "factor": FACTOR_BASE},
+        )
         self._flags[to_flag, field] = flag
         return self
 

@@ -39,10 +39,11 @@ from saqc.lib.tools import getFreqDelta, isflagged, toSequence
 if TYPE_CHECKING:
     from saqc import SaQC
 
+
 def _stray(partition, min_periods, iter_start, alpha):
     sample_size = len(partition)
     flag_index = pd.Index([])
-    if (len(partition)==0) or (sample_size < min_periods):
+    if (len(partition) == 0) or (sample_size < min_periods):
         return flag_index
     if isinstance(partition, np.ndarray):
         idx = np.arange(len(partition))
@@ -60,9 +61,7 @@ def _stray(partition, min_periods, iter_start, alpha):
     ghat = np.array([np.nan] * sample_size)
 
     for i in range(i_start - 1, sample_size):
-        ghat[i] = sum(
-            (tail_indices / (tail_size - 1)) * gaps[i - tail_indices + 1]
-        )
+        ghat[i] = sum((tail_indices / (tail_size - 1)) * gaps[i - tail_indices + 1])
 
     log_alpha = np.log(1 / alpha)
     for iter_index in range(i_start - 1, sample_size):
@@ -70,6 +69,8 @@ def _stray(partition, min_periods, iter_start, alpha):
             flag_index = idx[sorted_i[iter_index:]]
             break
     return flag_index
+
+
 class OutliersMixin:
     @staticmethod
     def _validateLOF(algorithm, n, p, density):
