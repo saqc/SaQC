@@ -26,7 +26,7 @@ def field(data):
     return data.columns[0]
 
 
-@pytest.mark.filterwarnings("ignore:DeprecationWarning")
+@pytest.mark.filterwarnings("ignore::DeprecationWarning")
 def test_flagPlateau():
     path = os.path.join(
         os.path.abspath(""), "docs/resources/data/turbidity_plateaus.csv"
