@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Sequence, Tuple
 
 import numpy as np
 import numpy.polynomial.polynomial as poly
@@ -27,7 +27,6 @@ from saqc.lib.checking import (
     validateChoice,
     validateFraction,
     validateFrequency,
-    validateFuncSelection,
     validateMinPeriods,
     validateValueBounds,
     validateWindow,
@@ -402,15 +401,7 @@ class OutliersMixin:
             down_slopes = (max_vals - eps <= last_vals.shift(1)) & (
                 min_vals + eps >= first_vals.shift(-1)
             )
-            slopes = up_slopes | down_slopes
-            odd_return_pred = (max_vals > last_vals.shift(1)) & (
-                min_vals < last_vals.shift(1)
-            )
-            odd_return_succ = (max_vals > first_vals.shift(-1)) & (
-                min_vals < first_vals.shift(-1)
-            )
-            returns = odd_return_succ | odd_return_pred
-            corrections = returns | slopes
+            corrections = up_slopes | down_slopes
             for s_id in corrections[corrections].index:
                 correct_idx = od_groups.get_group(s_id).index
                 s_mask[correct_idx] = False
@@ -579,6 +570,9 @@ class OutliersMixin:
         hydrological data. See the notes section for an overview over the algorithms
         basic steps.
 
+            .. deprecated:: 2.6.0
+               Deprecated Function. Please refer to :py:meth:`~saqc.SaQC.flagByStray`.
+
         Parameters
         ----------
         trafo :
@@ -725,9 +719,9 @@ class OutliersMixin:
 
         warnings.warn(
             """
-                FlagMVScores is deprecated and will be removed with Version 2.8.
-                To replicate the function, transform the different fields involved 
-                via explicit applications of some transformations, than calculate the 
+                flagMVScores is deprecated and will be removed with Version 2.8.
+                To replicate the function, transform the different fields involved
+                via explicit applications of some transformations, than calculate the
                 kNN scores via `saqc.SaQC.assignkNScores` and finally assign the STRAY
                 algorithm via `saqc.SaQC.flagByStray`.
                 """,
@@ -861,10 +855,10 @@ class OutliersMixin:
 
         warnings.warn(
             "The function flagRaise is deprecated with no 100% exact replacement function."
-            "When looking for changes in the value course, the use of flagraise can be replicated and more easily aimed "
-            "for, via the method flagJump.\n"
+            "When looking for changes in the value course, the use of flagRaise can be replicated and more "
+            "easily aimed for, via the method flagJump.\n"
             "When looking for raises to outliers or plateaus, use one of: "
-            "flagZScore(outliers), flagUniLOF (outliers and small plateaus) or flagOffset(Plateaus)",
+            "flagZScore (outliers), flagUniLOF (outliers and small plateaus) or flagOffset (plateaus)",
             DeprecationWarning,
         )
 
@@ -970,6 +964,10 @@ class OutliersMixin:
         Flag outiers using the modified Z-score outlier detection method.
 
         See references [1] for more details on the algorithm.
+
+            .. deprecated:: 2.6.0
+               Deprecated Function. Please refer to :py:meth:`~saqc.SaQC.flagZScore`.
+
 
         Note
         ----
@@ -1082,7 +1080,7 @@ class OutliersMixin:
            import matplotlib
            import saqc
            import pandas as pd
-           data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1H', periods=12))
+           data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1h', periods=12))
 
 
         Lets generate a simple, regularly sampled timeseries with an hourly sampling rate and generate an
@@ -1091,7 +1089,7 @@ class OutliersMixin:
         .. doctest:: flagOffsetExample
 
            >>> import saqc
-           >>> data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1H', periods=12))
+           >>> data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1h', periods=12))
            >>> data
                                 data
            2000-01-01 00:00:00     5
@@ -1115,7 +1113,7 @@ class OutliersMixin:
 
         .. doctest:: flagOffsetExample
 
-           >>> qc = qc.flagOffset("data", thresh=2, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, tolerance=1.5, window='6h')
            >>> qc.plot('data')  # doctest: +SKIP
 
         .. plot::
@@ -1123,7 +1121,7 @@ class OutliersMixin:
            :include-source: False
 
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.flagOffset("data", thresh=2, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, tolerance=1.5, window='6h')
            >>> qc.plot('data')  # doctest: +SKIP
 
         Note, that both, negative and positive jumps are considered starting points of negative or positive
@@ -1132,7 +1130,7 @@ class OutliersMixin:
 
         .. doctest:: flagOffsetExample
 
-           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=.9, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=.9, tolerance=1.5, window='6h')
            >>> qc.plot('data') # doctest:+SKIP
 
         .. plot::
@@ -1140,7 +1138,7 @@ class OutliersMixin:
            :include-source: False
 
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=.9, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=.9, tolerance=1.5, window='6h')
            >>> qc.plot('data')  # doctest: +SKIP
 
         Now, only positive jumps, that exceed a value gain of +90%* are considered starting points of offsets.
@@ -1151,7 +1149,7 @@ class OutliersMixin:
 
         .. doctest:: flagOffsetExample
 
-           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=-.5, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=-.5, tolerance=1.5, window='6h')
            >>> qc.plot('data') # doctest:+SKIP
 
         .. plot::
@@ -1159,7 +1157,7 @@ class OutliersMixin:
            :include-source: False
 
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=-.5, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=-.5, tolerance=1.5, window='6h')
            >>> qc.plot('data')  # doctest: +SKIP
         """
         validateWindow(window)
@@ -1262,8 +1260,8 @@ class OutliersMixin:
         """
 
         warnings.warn(
-            "The function flagGrubbs is deprecated due to its inferior performance, with no 100% exact replacement function."
-            "When looking for outliers use one of: "
+            "The function flagByGrubbs is deprecated due to its inferior performance, with "
+            "no 100% exact replacement function. When looking for outliers use one of: "
             "flagZScore, flagUniLOF",
             DeprecationWarning,
         )
@@ -1324,85 +1322,6 @@ class OutliersMixin:
 
         self._flags[to_flag, field] = flag
         return self
-
-    @register(
-        mask=["field"],
-        demask=["field"],
-        squeeze=["field"],
-        multivariate=True,
-        handles_target=False,
-        docstring={"field": DOC_TEMPLATES["field"]},
-    )
-    def flagCrossStatistics(
-        self: "SaQC",
-        field: Sequence[str],
-        thresh: float,
-        method: Literal["modZscore", "Zscore"] = "modZscore",
-        flag: float = BAD,
-        **kwargs,
-    ) -> "SaQC":
-        """
-        Function checks for outliers relatively to the "horizontal" input data axis.
-
-        Notes
-        -----
-        The input variables dont necessarily have to be aligned. If the variables are unaligned, scoring
-        and flagging will only be performed on the subset of indices shared among all input variables.
-
-        For :py:attr:`field` :math:`=[f_1,f_2,...,f_N]` and timestamps :math:`[t_1,t_2,...,t_K]`,
-        the following steps are taken for outlier detection:
-
-        1. All timestamps :math:`t_i`, where there is one :math:`f_k`, with :math:`data[f_K]` having no
-           entry at :math:`t_i`, are excluded from the following process (inner join of the :math:`f_i` fields.)
-        2. for every :math:`0 <= i <= K`, the value
-           :math:`m_j = median(\\{data[f_1][t_i], data[f_2][t_i], ..., data[f_N][t_i]\\})` is calculated
-        3. for every :math:`0 <= i <= K`, the set
-           :math:`\\{data[f_1][t_i] - m_j, data[f_2][t_i] - m_j, ..., data[f_N][t_i] - m_j\\}` is tested for
-           outliers with the specified algorithm (:py:attr:`method` parameter).
-
-        Parameters
-        ----------
-        thresh :
-            Threshold which the outlier score of an value must exceed, for being flagged an outlier.
-
-        method :
-            Method used for calculating the outlier scores.
-
-            * ``'modZscore'``: Median based "sigma"-ish approach. See References [1].
-            * ``'Zscore'``: Score values by how many times the standard deviation they differ from the
-              median. See References [1].
-
-
-        References
-        ----------
-        [1] https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm
-        """
-        new_method_string = {
-            "modZscore": "modified",
-            "Zscore": "standard",
-            np.mean: "standard",
-            np.median: "modified",
-        }
-        call = (
-            f"qc.flagZScore(field={field}, window=1, "
-            f"method={new_method_string[method]}, "
-            f"thresh={thresh}, axis=1)"
-        )
-        warnings.warn(
-            f"The method `flagCrossStatistics` is deprecated and will "
-            f"be removed in verion 2.7 of saqc. To achieve the same behavior "
-            f"use:`{call}`",
-            DeprecationWarning,
-        )
-
-        return self.flagZScore(
-            field=field,
-            window=1,
-            method=new_method_string[method],
-            thresh=thresh,
-            axis=1,
-            flag=flag,
-        )
 
     @register(
         mask=["field"],

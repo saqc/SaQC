@@ -7,11 +7,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import re
 import typing
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Callable, Union
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 import pandas as pd
@@ -21,10 +20,9 @@ import saqc.constants
 from saqc.constants import UNFLAGGED
 from saqc.core import register
 from saqc.core.history import History
-from saqc.funcs.interpolation import DATA_REINDEXER
 from saqc.lib.checking import validateChoice, validateFuncSelection
 from saqc.lib.docs import DOC_TEMPLATES
-from saqc.lib.tools import filterKwargs, getFreqDelta
+from saqc.lib.tools import getFreqDelta
 from saqc.lib.ts_operators import isValid
 
 if TYPE_CHECKING:
@@ -288,10 +286,10 @@ class ResamplingMixin:
                 done = True
 
         if len(stack) == 0:
-            raise ValueError(f"Could not find no last reindexing to invert")
+            raise ValueError("Could not find no last reindexing to invert")
 
         reindex_method = METHODINVERTS.get(stack[-1], False)
-        if reindex_method == False:
+        if reindex_method is False:
             raise ValueError(f"cant invert {stack[-1]}")
         return reindex_method
 
@@ -320,89 +318,6 @@ class ResamplingMixin:
                         f"cant make an index out of parameter 'idx's value: {idx}"
                     )
         return idx, idx_source, datcol
-
-    @register(mask=["field"], demask=[], squeeze=[])
-    def linear(
-        self: "SaQC",
-        field: str,
-        freq: str,
-        **kwargs,
-    ) -> "SaQC":
-        """
-        A method to align data by interpolating linearly to another timestamp
-
-            .. deprecated:: 2.4.0
-               Use :py:meth:`~saqc.SaQC.align` with ``method="linear"``
-               instead.
-
-        A series of data is considered "regular", if it is sampled regularly
-        (= having uniform sampling rate). Interpolated values will get
-        assigned the worst flag within freq-range. Note, that the data
-        only gets interpolated at those (regular) timestamps, that have
-        a valid (existing and not-na) datapoint preceeding them and one
-        succeeding them within freq range. Regular timestamp that do
-        not suffice this condition get nan assigned AND The associated
-        flag will be of value ``UNFLAGGED``.
-
-        Parameters
-        ----------
-        freq :
-            An offset string. The frequency of the grid you want to interpolate
-            your data at.
-        """
-        warnings.warn(
-            f"""
-            The method `shift` is deprecated and will be removed with version 2.6 of saqc.
-            To achieve the same behavior please use:
-            `qc.align(field={field}, freq={freq}. method="linear")`
-            """,
-            DeprecationWarning,
-        )
-        reserved = ["method", "order", "limit", "downgrade"]
-        kwargs = filterKwargs(kwargs, reserved)
-        return self.interpolateIndex(field, freq, "time", **kwargs)
-
-    @register(mask=["field"], demask=[], squeeze=[])
-    def shift(
-        self: "SaQC",
-        field: str,
-        freq: str,
-        method: Literal["fshift", "bshift", "nshift"] = "nshift",
-        **kwargs,
-    ) -> "SaQC":
-        """
-        Shift data points and flags to a regular frequency grid.
-
-            .. deprecated:: 2.4.0
-               Use :py:meth:`~saqc.SaQC.align` instead.
-
-        Parameters
-        ----------
-        freq :
-            Offset string. Sampling rate of the target frequency.
-
-        method :
-            Method to propagate values:
-
-            * 'nshift' : shift grid points to the nearest time stamp in the range = +/- 0.5 * ``freq``
-            * 'bshift' : shift grid points to the first succeeding time stamp (if any)
-            * 'fshift' : shift grid points to the last preceeding time stamp (if any)
-        """
-        warnings.warn(
-            f"""
-            The method `shift` is deprecated and will be removed with version 2.6 of saqc.
-            To achieve the same behavior please use: `qc.align(field={field}, freq={freq}. method={method})`
-            """,
-            DeprecationWarning,
-        )
-        validateChoice(method, "method", ["fshift", "bshift", "nshift"])
-        return self.reindex(
-            field=field,
-            index=freq,
-            method=method,
-            data_aggregation=DATA_REINDEXER[method],
-            **kwargs,
-        )
 
     @register(mask=["field"], demask=[], squeeze=[])
     def resample(
@@ -983,7 +898,7 @@ class ResamplingMixin:
         if method.split("_")[0] == "inverse":
             warnings.warn(
                 f""" Referring to a method that would invert a method 'A` via 'inverse_A' is deprecated and will
-                be removed in a future release. Please use method={method.split('_')[-1]} together 
+                be removed in version 2.7. Please use method={method.split('_')[-1]} together
                 with invert=True.
                 """,
                 DeprecationWarning,
@@ -994,7 +909,7 @@ class ResamplingMixin:
         if method == "match":
             warnings.warn(
                 f"The method 'match' is deprecated and will be removed "
-                f"in version 2.8 of SaQC. Please use `SaQC.transferFlags(field={field}, "
+                f"in version 2.7 of SaQC. Please use `SaQC.transferFlags(field={field}, "
                 f"target={target}, squeeze={squeeze}, overwrite={override})` instead",
                 DeprecationWarning,
             )

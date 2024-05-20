@@ -12,7 +12,7 @@ import warnings
 from copy import copy as shallowcopy
 from copy import deepcopy
 from functools import partial
-from typing import Any, Hashable, Iterable, MutableMapping
+from typing import Any, Hashable, Iterable
 
 import numpy as np
 import pandas as pd
@@ -22,6 +22,7 @@ from saqc.core.frame import DictOfSeries
 from saqc.core.history import History
 from saqc.core.register import FUNC_MAP
 from saqc.core.translation import (
+    AnnotatedFloatScheme,
     DmpScheme,
     FloatScheme,
     PositionalScheme,
@@ -41,6 +42,7 @@ TRANSLATION_SCHEMES = {
     "float": FloatScheme,
     "dmp": DmpScheme,
     "positional": PositionalScheme,
+    "annotated-float": AnnotatedFloatScheme,
 }
 
 
@@ -118,13 +120,13 @@ class SaQC(FunctionsMixin):
         self._attrs = dict(value)
 
     @property
-    def data(self) -> MutableMapping[str, pd.Series]:
+    def data(self) -> DictOfSeries:
         data = self._data
         data.attrs = self._attrs.copy()
         return data
 
     @property
-    def flags(self) -> MutableMapping[str, pd.Series]:
+    def flags(self) -> DictOfSeries:
         flags = self._scheme.toExternal(self._flags, attrs=self._attrs)
         flags.attrs = self._attrs.copy()
         return flags
@@ -330,7 +332,7 @@ class SaQC(FunctionsMixin):
     def _castData(self, data) -> DictOfSeries:
         if isinstance(data, pd.Series):
             if not isinstance(data.name, str):
-                raise ValueError(f"Cannot init from unnamed pd.Series")
+                raise ValueError("Cannot init from unnamed pd.Series")
             data = data.to_frame()
         if isinstance(data, pd.DataFrame):
             for idx in [data.index, data.columns]:

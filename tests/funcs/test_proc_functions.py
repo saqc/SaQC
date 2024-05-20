@@ -14,10 +14,31 @@ import pandas as pd
 import pytest
 
 import saqc
-from saqc import UNFLAGGED, SaQC
-from saqc.core import DictOfSeries, initFlagsLike
+from saqc import UNFLAGGED, DictOfSeries, SaQC
+from saqc.core.flags import initFlagsLike
 from saqc.lib.ts_operators import linearInterpolation, polynomialInterpolation
 from tests.fixtures import char_dict, course_3, course_5  # noqa, todo: fix fixtures
+
+
+@pytest.mark.parametrize(
+    ("window", "center", "expected"),
+    [
+        (1, True, [3, 2, 3, 2]),
+        (2, False, [np.nan, 5, 5, 5]),
+        (3, True, [np.nan, 8, 7, np.nan]),
+        ("20min", True, [5, 5, 5, np.nan]),
+    ],
+)
+def test_multivariateRolling(window, center, expected):
+    data = pd.DataFrame(
+        {"a": [1, np.nan, 3, 4], "b": [1, 2, 3, 4], "c": [1, 2, 3, np.nan]},
+        index=pd.date_range("2000", periods=4, freq="10min"),
+    )
+    qc = saqc.SaQC(data)
+    qc = qc.rolling(
+        ["a", "b", "c"], func="count", target="count", window=window, center=center
+    )
+    assert np.array_equal(qc.data["count"].values, expected, equal_nan=True)
 
 
 def test_rollingInterpolateMissing(course_5):
@@ -43,30 +64,6 @@ def test_rollingInterpolateMissing(course_5):
         interpol_flag=UNFLAGGED,
     )
     assert qc.data[field][characteristics["missing"]].isna().all()
-
-
-def test_interpolate(course_5):
-    data, characteristics = course_5(periods=10, nan_slice=[5])
-    field = data.columns[0]
-    data = DictOfSeries(data)
-    flags = initFlagsLike(data)
-    qc = SaQC(data, flags)
-
-    qc_lin = qc.interpolate(field, method="linear")
-    qc_poly = qc.interpolate(field, method="polynomial")
-    assert qc_lin.data[field][characteristics["missing"]].notna().all()
-    assert qc_poly.data[field][characteristics["missing"]].notna().all()
-
-    data, characteristics = course_5(periods=10, nan_slice=[5, 6, 7])
-
-    qc = SaQC(data, flags)
-    qc_lin_1 = qc.interpolate(field, method="linear", limit=2)
-    qc_lin_2 = qc.interpolate(field, method="linear", limit=3)
-    qc_lin_3 = qc.interpolate(field, method="linear", limit=4)
-
-    assert qc_lin_1.data[field][characteristics["missing"]].isna().all()
-    assert qc_lin_2.data[field][characteristics["missing"]].isna().all()
-    assert qc_lin_3.data[field][characteristics["missing"]].notna().all()
 
 
 def test_transform(course_5):

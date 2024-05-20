@@ -7,14 +7,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import LocalOutlierFactor
 from typing_extensions import Literal
 
-from saqc import UNFLAGGED
 from saqc.core import register
 from saqc.lib.checking import (
     validateChoice,
@@ -25,7 +24,7 @@ from saqc.lib.checking import (
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.tools import getApply, toSequence
 from saqc.lib.ts_operators import kNN
-from saqc.parsing.environ import ENV_OPERATORS, ENV_TRAFOS
+from saqc.parsing.environ import ENV_OPERATORS
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -521,20 +520,20 @@ class ScoresMixin:
         na_idx = na_bool_ser.index[na_bool_ser.values]
         # notna_bool = vals.notna()
         val_no = (~na_bool_ser).sum()
-        if 1 < val_no < n:
-            n = val_no
-        elif val_no <= 1:
+        if 2 < val_no <= n:
+            n = val_no - 2
+        elif val_no <= 2:
             return self
 
         d_var = d_var.drop(na_idx, axis=0).values
         vals = vals.drop(na_idx, axis=0).values
-        vals_extended = np.array(
-            list(vals[::-1][-n:]) + list(vals) + list(vals[::-1][:n])
-        )
-        d_extended = np.array(
-            list(d_var[:n] + (d_var[0] - d_var[n + 1]))
-            + list(d_var)
-            + list(d_var[-n:] + (d_var[-1] - d_var[-n - 1]))
+        vals_extended = np.pad(vals, n, mode="reflect")
+        d_extension = n * density
+        d_extended = np.pad(
+            d_var,
+            n,
+            mode="linear_ramp",
+            end_values=(d_var[0] - d_extension, d_var[-1] + d_extension),
         )
 
         LOF_vars = np.array([vals_extended, d_extended]).T
