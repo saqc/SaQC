@@ -35,7 +35,7 @@ def test_flagPlateau():
     dat = dat.ffill().bfill()
     qc = SaQC(dat)
     qc = qc.flagPlateau(
-        "base3", min_length="10min", max_length="7d", min_jump=None, granularity="20min"
+        "base3", min_length="10min", max_length="7d", granularity="20min"
     )
     anomalies = [
         (0, 0),

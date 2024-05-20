@@ -531,7 +531,6 @@ class PatternMixin:
         max_length: int | str,
         min_jump: float = None,
         granularity: int | str = None,
-        fill_strat: str = "pad",
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -567,7 +566,6 @@ class PatternMixin:
         """
         opt_thresh = [OPT_FACTOR * f for f in FACTOR_BASE]
         datcol = self.data[field]
-        datcol = datcol.interpolate(fill_strat)
         datcol = datcol.ffill().bfill()
         freq = getFreqDelta(datcol.index)
         if freq is None:
