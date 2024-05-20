@@ -52,7 +52,7 @@ def _searchChunks(datcol, scale_vals, min_jump, mi_ma, opt_kwargs):
             lower_bound = np.arange(max(sv[0] - BOUND_SCALES, 1), sv[0])
             upper_bound = np.arange(sv[-1] + 1, sv[-1] + 1 + BOUND_SCALES)
             sv = np.concatenate([lower_bound, sv, upper_bound])
-            to_flag[s:e] |= offSetSearch(
+            to_flag[s:e] |= _offSetSearch(
                 base_series=datcol.iloc[s:e],
                 scale_vals=sv,
                 wavelet=signal.ricker,
@@ -383,7 +383,7 @@ def _similarityScoreReduction(
     return out
 
 
-def offSetSearch(
+def _offSetSearch(
     base_series,
     scale_vals,
     wavelet,
@@ -515,7 +515,6 @@ def calculateDistanceByDTW(
 
 
 class PatternMixin:
-    # todo should we mask `reference` even if the func fail if reference has NaNs
     @flagging()
     def flagPlateau(
         self: "SaQC",

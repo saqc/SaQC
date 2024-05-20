@@ -28,6 +28,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `flagUniLOF`: added parameter `slope_correct` to correct for overflagging at relatively steep data value slopes
 - `History`: added option to change aggregation behavior
 - Translation scheme `AnnotatedFloatScheme`
+- `flagPlateaus`: added function to search and flag outlierish value plateaus of certain temporal extension
 ### Changed
 - `SaQC.flags` always returns a `DictOfSeries`
 ### Removed
