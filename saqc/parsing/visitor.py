@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 # -*- coding: utf-8 -*-
+from __future__ import annotations
 
 import ast
 import importlib
@@ -80,6 +81,15 @@ class ConfigExpressionParser(ast.NodeVisitor):
         return super().generic_visit(node)
 
 
+def _getName(node: ast.Name | ast.Constant) -> str | None:
+    if isinstance(node, ast.Name):
+        return node.id
+    elif isinstance(node, ast.Constant):
+        return node.value
+    else:
+        return None
+
+
 class ConfigFunctionParser(ast.NodeVisitor):
     SUPPORTED_NODES = (
         ast.Call,
@@ -127,12 +137,12 @@ class ConfigFunctionParser(ast.NodeVisitor):
 
         imports = {}
         if key == "func":
-            if (isinstance(value, ast.Name) and value.id in ENVIRONMENT) or (
-                isinstance(value, ast.Constant) and value.value in ENVIRONMENT
-            ):
-                func = ENVIRONMENT[
-                    value.id if isinstance(value, ast.Name) else value.value
-                ]
+            # allow to pandas functions
+            imports["pd"] = importlib.import_module("pandas")
+            name = _getName(value)
+            if name in ENVIRONMENT:
+                # import handling to make the ENVIRONMENT functions work
+                func = ENVIRONMENT[name]
                 # handle the missing attribute for numpy.ufunc
                 module = getattr(func, "__module__", "numpy")
                 if module.startswith("saqc"):

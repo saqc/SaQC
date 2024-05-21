@@ -8,6 +8,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 ## Unreleased
 [List of commits](https://git.ufz.de/rdm-software/saqc/-/compare/v2.6.0...develop)
 ### Added
+- support pandas function in text configuration
 ### Changed
 ### Removed
 ### Fixed
