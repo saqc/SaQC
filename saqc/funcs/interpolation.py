@@ -216,11 +216,9 @@ class InterpolationMixin:
         else:
             data_agg_func = DATA_REINDEXER.get(method, None)
 
-        try:
-            pd.to_timedelta(freq)
+        tol = None
+        if isinstance(freq, str) and (freq not in self.data.columns):
             tol = freq
-        except ValueError:
-            tol = None
 
         self = self.reindex(
             field,
