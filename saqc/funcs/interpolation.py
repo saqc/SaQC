@@ -23,7 +23,7 @@ from saqc.lib.checking import (
     validateValueBounds,
     validateWindow,
 )
-from saqc.lib.tools import isflagged
+from saqc.lib.tools import getFreqDelta, isflagged
 from saqc.lib.ts_operators import interpolateNANs
 from saqc.parsing.environ import ENV_OPERATORS
 
@@ -165,13 +165,13 @@ class InterpolationMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        Convert time series to specified frequency. Values affected by
-        frequency changes will be inteprolated using the given method.
+        Convert time series to specified index. Values affected by
+        frequency changes will be interpolated using the given method.
 
         Parameters
         ----------
         freq :
-            Target frequency.
+            Either a target frequency (offset String), or a target index or a target field name.
 
         method :
             Interpolation technique to use. One of:
@@ -203,19 +203,10 @@ class InterpolationMixin:
             Order of the interpolation method, ignored if not supported
             by the chosen ``method``.
 
-        extrapolate :
-            Use parameter to perform extrapolation instead of interpolation
-            onto the trailing and/or leading chunks of NaN values in data series.
-
-            * ``None`` (default) - perform interpolation
-            * ``'forward'``/``'backward'`` - perform forward/backward extrapolation
-            * ``'both'`` - perform forward and backward extrapolation
-
         overwrite :
            If set to `True`, existing flags will be cleared.
         """
 
-        validateWindow(freq, "freq", allow_int=False)
         validateValueBounds(order, "order", left=0, strict_int=True)
 
         method = "fshift" if method == "pad" else method
@@ -225,10 +216,14 @@ class InterpolationMixin:
         else:
             data_agg_func = DATA_REINDEXER.get(method, None)
 
+        tol = None
+        if isinstance(freq, str) and (freq not in self.data.columns):
+            tol = freq
+
         self = self.reindex(
             field,
             index=freq,
-            tolerance=freq,
+            tolerance=tol,
             method=method,
             override=overwrite,
             data_aggregation=data_agg_func,
