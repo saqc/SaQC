@@ -573,13 +573,14 @@ class PatternMixin:
         if isinstance(min_length, str):
             min_length = pd.Timedelta(min_length) // freq
             max_length = pd.Timedelta(max_length) // freq
-        granularity = granularity or 5
+        if granularity is None:
+            granularity = 5
         if isinstance(granularity, str):
             granularity = pd.Timedelta(granularity) // freq
-            if granularity == 0:
-                raise ValueError(
-                    f"Offset defined granularity lower than sampling rate! (got: sampling rate={freq})"
-                )
+        if granularity == 0:
+            raise ValueError(
+                f"granularity lower than sampling rate! (got: sampling rate={freq})"
+            )
 
         scale_vals = np.arange(max(min_length // 2, 1), max_length // 2, granularity)
         to_flag = _searchChunks(
