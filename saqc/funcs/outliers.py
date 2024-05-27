@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 def _stray(partition, min_periods, iter_start, alpha):
     sample_size = len(partition)
     flag_index = pd.Index([])
-    if (len(partition) == 0) or (sample_size < min_periods):
+    if len(partition) == 0 or sample_size < min_periods:
         return flag_index
     if isinstance(partition, np.ndarray):
         idx = np.arange(len(partition))
