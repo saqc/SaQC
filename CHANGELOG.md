@@ -29,6 +29,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 - `History`: added option to change aggregation behavior
 - "horizontal" axis / multivariate mode for `rolling`
 - Translation scheme `AnnotatedFloatScheme`
+- `flagPlateaus`: added function to search and flag outlierish value plateaus of certain temporal extension
 ### Changed
 - `SaQC.flags` always returns a `DictOfSeries`
 ### Removed
