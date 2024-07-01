@@ -7,14 +7,13 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Optional, Sequence, Tuple
 
 import numpy as np
 import pandas as pd
 from sklearn.neighbors import LocalOutlierFactor
 from typing_extensions import Literal
 
-from saqc import UNFLAGGED
 from saqc.core import register
 from saqc.lib.checking import (
     validateChoice,
@@ -25,7 +24,7 @@ from saqc.lib.checking import (
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.tools import getApply, toSequence
 from saqc.lib.ts_operators import kNN
-from saqc.parsing.environ import ENV_OPERATORS, ENV_TRAFOS
+from saqc.parsing.environ import ENV_OPERATORS
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -180,7 +179,7 @@ class ScoresMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        Score datapoints by an aggregation of the dictances to their k nearest neighbors.
+        Score datapoints by an aggregation of the distances to their `k` nearest neighbors.
 
         The function is a wrapper around the NearestNeighbors method from pythons sklearn library (See reference [1]).
 
@@ -300,10 +299,10 @@ class ScoresMixin:
         Parameters
         ----------
         window :
-            Size of the window. Either determined via an Offset String, denoting the windows temporal extension or
-            by an integer, denoting the windows number of periods.
-            `NaN` measurements also count as periods.
-            If `None` is passed, All data points share the same scoring window, which than equals the whole
+            Size of the window. can be determined as:
+            * Offset String, denoting the windows temporal extension
+            * Integer, denoting the windows number of periods.
+            * `None` (default), All data points share the same scoring window, which than equals the whole
             data.
         model_func : default std
             Function to calculate the center moment in every window.
@@ -323,9 +322,9 @@ class ScoresMixin:
         containing the value :math:`y_{K}` wich is to be checked.
         (The index of :math:`K` depends on the selection of the parameter `center`.)
 
-        2. The "moment" :math:`M` for the window gets calculated via :math:`M=` `model_func(:math:`W`)
+        2. The "moment" :math:`M` for the window gets calculated via :math:`M=` model_func(:math:`W`)
 
-        3. The "scaling" :math:`N` for the window gets calculated via :math:`N=` `norm_func(:math:`W`)
+        3. The "scaling" :math:`N` for the window gets calculated via :math:`N=` norm_func(:math:`W`)
 
         4. The "score" :math:`S` for the point :math:`x_{k}`gets calculated via :math:`S=(x_{k} - M) / N`
         """
@@ -371,13 +370,6 @@ class ScoresMixin:
         n :
             Number of periods to be included into the LOF calculation. Defaults to `20`, which is a value found to be
             suitable in the literature.
-
-            * `n` determines the "locality" of an observation (its `n` nearest neighbors) and sets the upper limit of
-              values of an outlier clusters (i.e. consecutive outliers). Outlier clusters of size greater than `n/2`
-              may not be detected reliably.
-            * The larger `n`, the lesser the algorithm's sensitivity to local outliers and small or singleton outliers
-              points. Higher values greatly increase numerical costs.
-
         freq :
             Determines the segmentation of the data into partitions, the kNN algorithm is
             applied onto individually.
@@ -386,8 +378,18 @@ class ScoresMixin:
         p :
             Degree of the metric ("Minkowski"), according to wich distance to neighbors is determined.
             Most important values are:
+
             * `1` - Manhatten Metric
             * `2` - Euclidian Metric
+
+        Notes
+        -----
+
+        * `n` determines the "locality" of an observation (its `n` nearest neighbors) and sets the upper limit of
+          values of an outlier clusters (i.e. consecutive outliers). Outlier clusters of size greater than `n/2`
+          may not be detected reliably.
+        * The larger `n`, the lesser the algorithm's sensitivity to local outliers and small or singleton outliers
+          points. Higher values greatly increase numerical costs.
         """
         from saqc.funcs.outliers import OutliersMixin
 
@@ -464,6 +466,7 @@ class ScoresMixin:
         p :
             Degree of the metric ("Minkowski"), according to wich distance to neighbors is determined.
             Most important values are:
+
             * `1` - Manhatten Metric
             * `2` - Euclidian Metric
 
@@ -481,7 +484,7 @@ class ScoresMixin:
         -----
         Algorithm steps for uniLOF flagging of variable `x`:
 
-        1. The temporal density `dt(x)` is calculated according o the `density` parameter.
+        1. The temporal density `dt(x)` is calculated according to the `density` parameter.
         2. LOF scores `LOF(x)` are calculated for the concatenation [`x`, `dt(x)`]
         3. `x` is flagged where `LOF(x)` exceeds the threshold determined by the parameter `thresh`.
 
@@ -503,9 +506,10 @@ class ScoresMixin:
             filled = pd.Series(False, index=vals.index)
 
         if density == "auto":
-            density = vals.diff().abs().median()
+            v_diff = vals.diff()
+            density = v_diff.abs().median()
             if density == 0:
-                density = vals.diff().abs().mean()
+                density = v_diff[v_diff != 0].abs().median()
         elif isinstance(density, Callable):
             density = density(vals)
         if isinstance(density, pd.Series):
@@ -516,20 +520,20 @@ class ScoresMixin:
         na_idx = na_bool_ser.index[na_bool_ser.values]
         # notna_bool = vals.notna()
         val_no = (~na_bool_ser).sum()
-        if 1 < val_no < n:
-            n = val_no
-        elif val_no <= 1:
+        if 2 < val_no <= n:
+            n = val_no - 2
+        elif val_no <= 2:
             return self
 
         d_var = d_var.drop(na_idx, axis=0).values
         vals = vals.drop(na_idx, axis=0).values
-        vals_extended = np.array(
-            list(vals[::-1][-n:]) + list(vals) + list(vals[::-1][:n])
-        )
-        d_extended = np.array(
-            list(d_var[:n] + (d_var[0] - d_var[n + 1]))
-            + list(d_var)
-            + list(d_var[-n:] + (d_var[-1] - d_var[-n - 1]))
+        vals_extended = np.pad(vals, n, mode="reflect")
+        d_extension = n * density
+        d_extended = np.pad(
+            d_var,
+            n,
+            mode="linear_ramp",
+            end_values=(d_var[0] - d_extension, d_var[-1] + d_extension),
         )
 
         LOF_vars = np.array([vals_extended, d_extended]).T

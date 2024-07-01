@@ -13,16 +13,10 @@ from typing import TYPE_CHECKING, Callable, Literal
 
 import numpy as np
 import pandas as pd
-from scipy.stats import median_abs_deviation
 
 from saqc.constants import BAD
 from saqc.core.register import flagging
-from saqc.lib.checking import (
-    isCallable,
-    validateFuncSelection,
-    validateMinPeriods,
-    validateWindow,
-)
+from saqc.lib.checking import validateFuncSelection, validateMinPeriods, validateWindow
 from saqc.lib.tools import isunflagged, statPass
 from saqc.parsing.environ import ENV_OPERATORS
 
@@ -35,8 +29,9 @@ class NoiseMixin:
         self: "SaQC",
         window: str | pd.Timedelta,
         thresh: float,
-        func: Literal["std", "var", "mad"]
-        | Callable[[np.ndarray, pd.Series], float] = "std",
+        func: (
+            Literal["std", "var", "mad"] | Callable[[np.ndarray, pd.Series], float]
+        ) = "std",
         sub_window: str | pd.Timedelta | None = None,
         sub_thresh: float | None = None,
         min_periods: int | None = None,
@@ -53,13 +48,18 @@ class NoiseMixin:
         2. all (maybe overlapping) sub-chunks of the data chunks with length ``sub_window``,
            exceed ``sub_thresh`` with regard to ``func``
 
+            .. deprecated:: 2.5.0
+               Deprecated Function. See :py:meth:`~saqc.SaQC.flagByScatterLowpass`.
+
         Parameters
         ----------
         func :
             Either a String value, determining the aggregation function applied on every chunk.
+
             * 'std': standard deviation
             * 'var': variance
             * 'mad': median absolute deviation
+
             Or a Callable function mapping 1 dimensional arraylikes onto scalars.
 
         window :
@@ -101,8 +101,9 @@ class NoiseMixin:
         self: "SaQC",
         window: str | pd.Timedelta,
         thresh: float,
-        func: Literal["std", "var", "mad"]
-        | Callable[[np.ndarray, pd.Series], float] = "std",
+        func: (
+            Literal["std", "var", "mad"] | Callable[[np.ndarray, pd.Series], float]
+        ) = "std",
         sub_window: str | pd.Timedelta | None = None,
         sub_thresh: float | None = None,
         min_periods: int | None = None,
@@ -122,10 +123,12 @@ class NoiseMixin:
         Parameters
         ----------
         func :
-            Either a string, determining the aggregation function applied on every chunk
+            Either a string, determining the aggregation function applied on every chunk:
+
             * 'std': standard deviation
             * 'var': variance
             * 'mad': median absolute deviation
+
             Or a Callable, mapping 1 dimensional array likes onto scalars.
 
         window :

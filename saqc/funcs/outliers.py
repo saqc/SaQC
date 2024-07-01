@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import uuid
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Tuple
+from typing import TYPE_CHECKING, Callable, Sequence, Tuple
 
 import numpy as np
 import numpy.polynomial.polynomial as poly
@@ -27,7 +27,6 @@ from saqc.lib.checking import (
     validateChoice,
     validateFraction,
     validateFrequency,
-    validateFuncSelection,
     validateMinPeriods,
     validateValueBounds,
     validateWindow,
@@ -98,9 +97,7 @@ class OutliersMixin:
             * The "automatic" threshing introduced with the publication
               of the algorithm defaults to ``1.5``.
             * In this implementation, :py:attr:`thresh` defaults (``'auto'``)
-              to flagging the scores with a modified 3-sigma rule, resulting
-              in a :py:attr:`thresh` `` > 1.5`` which usually mitigates
-              over-flagging compared to the literature recommendation.
+              to flagging the scores with a modified 3-sigma rule.
 
         algorithm :
             Algorithm used for calculating the :py:attr:`n`-nearest neighbors.
@@ -178,6 +175,8 @@ class OutliersMixin:
         p: int = 1,
         density: Literal["auto"] | float = "auto",
         fill_na: bool = True,
+        slope_correct: bool = True,
+        min_offset: float = None,
         field: str | None = None,
         flag: float = BAD,
         **kwargs,
@@ -232,6 +231,7 @@ class OutliersMixin:
         p :
             Degree of the metric ("Minkowski"), according to which distance
             to neighbors is determined. Most important values are:
+
             * ``1`` - Manhatten Metric
             * ``2`` - Euclidian Metric
 
@@ -247,10 +247,14 @@ class OutliersMixin:
         fill_na :
             If True, NaNs in the data are filled with a linear interpolation.
 
-        See Also
-        --------
-        :ref:`introduction to outlier detection with
-            saqc <cookbooks/OutlierDetection:Outlier Detection>`
+        slope_correct :
+            if True, a correction is applied, that removes outlier cluster that actually
+            just seem to be steep slopes
+
+        min_offset :
+            If set, only those outlier cluster will be flagged, that are preceeded and succeeeded
+            by sufficiently large value "jumps". Defaults to estimating the sufficient value jumps from
+            the median over the absolute step sizes between data points.
 
         Notes
         -----
@@ -345,6 +349,9 @@ class OutliersMixin:
            qc = qc.flagUniLOF('sac254_raw')
            qc.plot('sac254_raw')
 
+        See also
+        --------
+        :ref:`introduction to outlier detection with saqc <cookbooks/OutlierDetection:Outlier Detection>`
         """
         self._validateLOF(algorithm, n, p, density)
         if thresh != "auto" and not isFloatLike(thresh):
@@ -366,8 +373,39 @@ class OutliersMixin:
             s_mask = ((_s - _s.mean()) / _s.std()).iloc[: int(s.shape[0])].abs() > 3
         else:
             s_mask = s < -abs(thresh)
-
         s_mask = ~isflagged(qc._flags[field], kwargs["dfilter"]) & s_mask
+
+        if slope_correct:
+            g_mask = s_mask.diff()
+            g_mask = g_mask.cumsum()
+            dat = self._data[field]
+            od_groups = dat.interpolate("linear").groupby(by=g_mask)
+            first_vals = od_groups.first()
+            last_vals = od_groups.last()
+            max_vals = od_groups.max()
+            min_vals = od_groups.min()
+            if min_offset is None:
+                if density == "auto":
+                    d_diff = dat.diff()
+                    eps = d_diff.abs().median()
+                    if eps == 0:
+                        eps = d_diff[d_diff != 0].abs().median()
+                else:
+                    eps = density
+                eps = 3 * eps
+            else:
+                eps = min_offset
+            up_slopes = (min_vals + eps >= last_vals.shift(1)) & (
+                max_vals - eps <= first_vals.shift(-1)
+            )
+            down_slopes = (max_vals - eps <= last_vals.shift(1)) & (
+                min_vals + eps >= first_vals.shift(-1)
+            )
+            corrections = up_slopes | down_slopes
+            for s_id in corrections[corrections].index:
+                correct_idx = od_groups.get_group(s_id).index
+                s_mask[correct_idx] = False
+
         qc._flags[s_mask, field] = flag
         qc = qc.dropField(tmp_field)
         return qc
@@ -532,6 +570,9 @@ class OutliersMixin:
         hydrological data. See the notes section for an overview over the algorithms
         basic steps.
 
+            .. deprecated:: 2.6.0
+               Deprecated Function. Please refer to :py:meth:`~saqc.SaQC.flagByStray`.
+
         Parameters
         ----------
         trafo :
@@ -676,6 +717,17 @@ class OutliersMixin:
                 DeprecationWarning,
             )
 
+        warnings.warn(
+            """
+                flagMVScores is deprecated and will be removed with Version 2.8.
+                To replicate the function, transform the different fields involved
+                via explicit applications of some transformations, than calculate the
+                kNN scores via `saqc.SaQC.assignkNScores` and finally assign the STRAY
+                algorithm via `saqc.SaQC.flagByStray`.
+                """,
+            DeprecationWarning,
+        )
+
         # Hint: checking is delegated to the called functions
 
         fields = toSequence(field)
@@ -741,36 +793,10 @@ class OutliersMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        The function flags raises and drops in value courses, that exceed a certain
-        threshold within a certain timespan.
+        The function flags raises and drops in value courses, that exceed a certain threshold within a certain timespan.
 
-        The parameter variety of the function is owned to the intriguing case of
-        values, that "return" from outlierish or anomalious value levels and thus
-        exceed the threshold, while actually being usual values.
-
-        Notes
-        -----
-        The dataset is NOT supposed to be harmonized to a time series with an
-        equidistant requency grid.
-
-        The value :math:`x_{k}` of a time series :math:`x` with associated
-        timestamps :math:`t_i`, is flagged a raise, if:
-
-        1. There is any value :math:`x_{s}`, preceeding :math:`x_{k}` within
-           :py:attr:`raise_window` range, so that
-           :math:`M = |x_k - x_s | >`  :py:attr:`thresh` :math:`> 0`
-
-        2. The weighted average :math:`\\mu^{*}` of the values, preceding
-           :math:`x_{k}` within :py:attr:`average_window` range indicates,
-           that :math:`x_{k}` does not return from an "outlierish" value
-           course, meaning that
-           :math:`x_k > \\mu^* + ( M` / :py:attr:`raise_factor` :math:`)`
-
-        3. Additionally, if :py:attr:`slope` is not ``None``, :math:`x_{k}`
-           is checked or being sufficiently divergent from its very predecessor
-           :math:`x_{k-1}`, meaning that, it is additionally checked if:
-           * :math:`x_k - x_{k-1} >` :py:attr:`slope`
-           * :math:`t_k - t_{k-1} >` :py:attr:`weight` :math:`\\times` :py:attr:`freq`
+        .. deprecated:: 2.6.0
+           Function is deprecated since its not humanly parameterisable. Also more suitable alternatives are available. Depending on use case, use: :py:meth:`~saqc.SaQC.flagUniLOF`, :py:meth:`~saqc.SaQC.flagZScore`, :py:meth:`~saqc.SaQC.flagJumps` instead.
 
         Parameters
         ----------
@@ -801,7 +827,41 @@ class OutliersMixin:
 
         weight :
             See condition (3).
+
+        Notes
+        -----
+        The dataset is NOT supposed to be harmonized to a time series with an
+        equidistant requency grid.
+
+        The value :math:`x_{k}` of a time series :math:`x` with associated
+        timestamps :math:`t_i`, is flagged a raise, if:
+
+        1. There is any value :math:`x_{s}`, preceeding :math:`x_{k}` within
+           :py:attr:`raise_window` range, so that
+           :math:`M = |x_k - x_s | >`  :py:attr:`thresh` :math:`> 0`
+
+        2. The weighted average :math:`\\mu^{*}` of the values, preceding
+           :math:`x_{k}` within :py:attr:`average_window` range indicates,
+           that :math:`x_{k}` does not return from an "outlierish" value
+           course, meaning that
+           :math:`x_k > \\mu^* + ( M` / :py:attr:`raise_factor` :math:`)`
+
+        3. Additionally, if :py:attr:`slope` is not ``None``, :math:`x_{k}`
+           is checked or being sufficiently divergent from its very predecessor
+           :math:`x_{k-1}`, meaning that, it is additionally checked if:
+           * :math:`x_k - x_{k-1} >` :py:attr:`slope`
+           * :math:`t_k - t_{k-1} >` :py:attr:`weight` :math:`\\times` :py:attr:`freq`
         """
+
+        warnings.warn(
+            "The function flagRaise is deprecated with no 100% exact replacement function."
+            "When looking for changes in the value course, the use of flagRaise can be replicated and more "
+            "easily aimed for, via the method flagJump.\n"
+            "When looking for raises to outliers or plateaus, use one of: "
+            "flagZScore (outliers), flagUniLOF (outliers and small plateaus) or flagOffset (plateaus)",
+            DeprecationWarning,
+        )
+
         validateWindow(raise_window, "raise_window", allow_int=False)
         validateWindow(freq, "freq", allow_int=False)
         validateWindow(average_window, "average_window", allow_int=False, optional=True)
@@ -905,6 +965,10 @@ class OutliersMixin:
 
         See references [1] for more details on the algorithm.
 
+            .. deprecated:: 2.6.0
+               Deprecated Function. Please refer to :py:meth:`~saqc.SaQC.flagZScore`.
+
+
         Note
         ----
         Data needs to be sampled at a regular equidistant time grid.
@@ -972,6 +1036,7 @@ class OutliersMixin:
 
         Values :math:`x_n, x_{n+1}, .... , x_{n+k}` of a timeseries :math:`x` with
         associated timestamps :math:`t_n, t_{n+1}, .... , t_{n+k}` are considered spikes, if:
+
         1. :math:`|x_{n-1} - x_{n + s}| >` :py:attr:`thresh`, for all :math:`s \\in [0,1,2,...,k]`
         2. if :py:attr:`thresh_relative` > 0, :math:`x_{n + s} > x_{n - 1}*(1+` :py:attr:`thresh_relative` :math:`)`
         3. if :py:attr:`thresh_relative` < 0, :math:`x_{n + s} < x_{n - 1}*(1+` :py:attr:`thresh_relative` :math:`)`
@@ -1015,7 +1080,7 @@ class OutliersMixin:
            import matplotlib
            import saqc
            import pandas as pd
-           data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1H', periods=12))
+           data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1h', periods=12))
 
 
         Lets generate a simple, regularly sampled timeseries with an hourly sampling rate and generate an
@@ -1024,7 +1089,7 @@ class OutliersMixin:
         .. doctest:: flagOffsetExample
 
            >>> import saqc
-           >>> data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1H', periods=12))
+           >>> data = pd.DataFrame({'data':np.array([5,5,8,16,17,7,4,4,4,1,1,4])}, index=pd.date_range('2000',freq='1h', periods=12))
            >>> data
                                 data
            2000-01-01 00:00:00     5
@@ -1048,7 +1113,7 @@ class OutliersMixin:
 
         .. doctest:: flagOffsetExample
 
-           >>> qc = qc.flagOffset("data", thresh=2, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, tolerance=1.5, window='6h')
            >>> qc.plot('data')  # doctest: +SKIP
 
         .. plot::
@@ -1056,7 +1121,7 @@ class OutliersMixin:
            :include-source: False
 
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.flagOffset("data", thresh=2, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, tolerance=1.5, window='6h')
            >>> qc.plot('data')  # doctest: +SKIP
 
         Note, that both, negative and positive jumps are considered starting points of negative or positive
@@ -1065,7 +1130,7 @@ class OutliersMixin:
 
         .. doctest:: flagOffsetExample
 
-           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=.9, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=.9, tolerance=1.5, window='6h')
            >>> qc.plot('data') # doctest:+SKIP
 
         .. plot::
@@ -1073,7 +1138,7 @@ class OutliersMixin:
            :include-source: False
 
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=.9, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=.9, tolerance=1.5, window='6h')
            >>> qc.plot('data')  # doctest: +SKIP
 
         Now, only positive jumps, that exceed a value gain of +90%* are considered starting points of offsets.
@@ -1084,7 +1149,7 @@ class OutliersMixin:
 
         .. doctest:: flagOffsetExample
 
-           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=-.5, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=-.5, tolerance=1.5, window='6h')
            >>> qc.plot('data') # doctest:+SKIP
 
         .. plot::
@@ -1092,7 +1157,7 @@ class OutliersMixin:
            :include-source: False
 
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=-.5, tolerance=1.5, window='6H')
+           >>> qc = qc.flagOffset("data", thresh=2, thresh_relative=-.5, tolerance=1.5, window='6h')
            >>> qc.plot('data')  # doctest: +SKIP
         """
         validateWindow(window)
@@ -1165,21 +1230,11 @@ class OutliersMixin:
         """
         Flag outliers using the Grubbs algorithm.
 
-        See [1] for more information on the grubbs tests definition.
-
-        The (two-sided) test gets applied to data chunks of size :py:attr:`window`. The
-        tests will be iterated chunkwise until no more outliers are detected.
-
-        Note
-        ----
-        * The data is expected to be normally distributed!
-        * The test performs poorly for small data chunks, resulting in considerable
-          overflagging. Select :py:attr:`window` such that every data chunk contains at
-          least 8 values and also adjust the :py:attr:`min_periods` values accordingly.
+        .. deprecated:: 2.6.0
+           Use :py:meth:`~saqc.SaQC.flagUniLOF` or :py:meth:`~saqc.SaQC.flagZScore` instead.
 
         Parameters
         ----------
-
         window :
             Size of the testing window.
             If an integer, the fixed number of observations used for each window.
@@ -1203,6 +1258,14 @@ class OutliersMixin:
 
         [1] https://en.wikipedia.org/wiki/Grubbs%27s_test_for_outliers
         """
+
+        warnings.warn(
+            "The function flagByGrubbs is deprecated due to its inferior performance, with "
+            "no 100% exact replacement function. When looking for outliers use one of: "
+            "flagZScore, flagUniLOF",
+            DeprecationWarning,
+        )
+
         validateWindow(window)
         validateFraction(alpha, "alpha")
         validateMinPeriods(min_periods, optional=False)
@@ -1259,85 +1322,6 @@ class OutliersMixin:
 
         self._flags[to_flag, field] = flag
         return self
-
-    @register(
-        mask=["field"],
-        demask=["field"],
-        squeeze=["field"],
-        multivariate=True,
-        handles_target=False,
-        docstring={"field": DOC_TEMPLATES["field"]},
-    )
-    def flagCrossStatistics(
-        self: "SaQC",
-        thresh: float,
-        method: Literal["modZscore", "Zscore"] = "modZscore",
-        field: Sequence[str] | None = None,
-        flag: float = BAD,
-        **kwargs,
-    ) -> "SaQC":
-        """
-        Function checks for outliers relatively to the "horizontal" input data axis.
-
-        Notes
-        -----
-        The input variables dont necessarily have to be aligned. If the variables are unaligned, scoring
-        and flagging will only be performed on the subset of indices shared among all input variables.
-
-        For :py:attr:`field` :math:`=[f_1,f_2,...,f_N]` and timestamps :math:`[t_1,t_2,...,t_K]`,
-        the following steps are taken for outlier detection:
-
-        1. All timestamps :math:`t_i`, where there is one :math:`f_k`, with :math:`data[f_K]` having no
-           entry at :math:`t_i`, are excluded from the following process (inner join of the :math:`f_i` fields.)
-        2. for every :math:`0 <= i <= K`, the value
-           :math:`m_j = median(\\{data[f_1][t_i], data[f_2][t_i], ..., data[f_N][t_i]\\})` is calculated
-        3. for every :math:`0 <= i <= K`, the set
-           :math:`\\{data[f_1][t_i] - m_j, data[f_2][t_i] - m_j, ..., data[f_N][t_i] - m_j\\}` is tested for
-           outliers with the specified algorithm (:py:attr:`method` parameter).
-
-        Parameters
-        ----------
-        thresh :
-            Threshold which the outlier score of an value must exceed, for being flagged an outlier.
-
-        method :
-            Method used for calculating the outlier scores.
-
-            * ``'modZscore'``: Median based "sigma"-ish approach. See References [1].
-            * ``'Zscore'``: Score values by how many times the standard deviation they differ from the
-              median. See References [1].
-
-
-        References
-        ----------
-        [1] https://www.itl.nist.gov/div898/handbook/eda/section3/eda35h.htm
-        """
-        new_method_string = {
-            "modZscore": "modified",
-            "Zscore": "standard",
-            np.mean: "standard",
-            np.median: "modified",
-        }
-        call = (
-            f"qc.flagZScore(field={field}, window=1, "
-            f"method={new_method_string[method]}, "
-            f"thresh={thresh}, axis=1)"
-        )
-        warnings.warn(
-            f"The method `flagCrossStatistics` is deprecated and will "
-            f"be removed in verion 2.7 of saqc. To achieve the same behavior "
-            f"use:`{call}`",
-            DeprecationWarning,
-        )
-
-        return self.flagZScore(
-            field=field,
-            window=1,
-            method=new_method_string[method],
-            thresh=thresh,
-            axis=1,
-            flag=flag,
-        )
 
     @register(
         mask=["field"],

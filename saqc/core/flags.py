@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import typing
-import warnings
 from typing import DefaultDict, Dict, Iterable, Mapping, Tuple, Type, Union, overload
 
 import numpy as np
@@ -66,7 +65,7 @@ class Flags:
         once was set in this object, but in the most cases this is irrelevant. For simplicity one can safely assume,
         that this class works just stores the flag-series one sets.
 
-    See Also
+    See also
     --------
     initFlagsLike : create a Flags instance, with same dimensions as a reference object.
     History : class that actually store the flags
@@ -243,7 +242,7 @@ class Flags:
         if history.empty:
             return history
 
-        errm = f"History "
+        errm = "History "
         if colname:
             errm += f"of column {colname} "
 
@@ -323,12 +322,10 @@ class Flags:
     # item access
 
     @overload
-    def __getitem__(self, key: str) -> pd.Series:
-        ...
+    def __getitem__(self, key: str) -> pd.Series: ...
 
     @overload
-    def __getitem__(self, key: list | pd.Index) -> Flags:
-        ...
+    def __getitem__(self, key: list | pd.Index) -> Flags: ...
 
     def __getitem__(self, key: str | list | pd.Index) -> pd.Series | Flags:
         if isinstance(key, str):
@@ -435,7 +432,7 @@ class Flags:
         history : History
             Accessor for the flags history
 
-        See Also
+        See also
         --------
         saqc.core.History : History storage class.
         """
@@ -476,24 +473,6 @@ class Flags:
 
     # ----------------------------------------------------------------------
     # transformation and representation
-
-    def toDios(self) -> DictOfSeries:
-        """
-        Transform the flags container to a ``DictOfSeries``.
-
-        .. deprecated:: 2.4
-           use `saqc.DictOfSeries(obj)` instead.
-
-        Returns
-        -------
-        DictOfSeries
-        """
-        warnings.warn(
-            "toDios is deprecated, use `saqc.DictOfSeries(obj)` instead.",
-            category=DeprecationWarning,
-        )
-        return DictOfSeries(self).copy()
-
     def toFrame(self) -> pd.DataFrame:
         """
         Transform the flags container to a ``pd.DataFrame``.

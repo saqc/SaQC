@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+import saqc
 from saqc import BAD as B
 from saqc import UNFLAGGED as U
 from saqc import SaQC
@@ -175,3 +176,125 @@ def test__groupOperation(field, target, expected, copy):
         fields = toSequence(itertools.chain.from_iterable(field))
         for f, t in zip(fields, targets):
             assert (result._data[f] == result._data[t]).all(axis=None)
+
+
+def test_transferFlags():
+    qc = SaQC(
+        data=pd.DataFrame(
+            {"x": [0, 1, 2, 3], "y": [0, 11, 22, 33], "z": [0, 111, 222, 333]}
+        ),
+        flags=pd.DataFrame({"x": [B, U, U, B], "y": [B, B, U, U], "z": [B, B, U, B]}),
+    )
+
+    # no squueze
+    qc1 = qc.transferFlags("x", target="a")
+    assert qc1._history["a"].hist.iloc[:, :-1].equals(qc1._history["x"].hist)
+    assert qc1._history["a"].hist.iloc[:, -1].isna().all()
+
+    qc2 = qc.transferFlags(["x", "y"], target=["a", "b"])
+    assert qc2._history["a"].hist.iloc[:, :-1].equals(qc2._history["x"].hist)
+    assert qc2._history["a"].hist.iloc[:, -1].isna().all()
+    assert qc2._history["b"].hist.iloc[:, :-1].equals(qc2._history["y"].hist)
+    assert qc2._history["b"].hist.iloc[:, -1].isna().all()
+
+    # we use the overwrite option here for easy checking against the origin
+    # flags, because otherwise we would need to respect the inserted nan
+    qc3 = qc.transferFlags(["x", "y", "z"], target="a", overwrite=True)
+    assert qc3._history["a"].hist.iloc[:, 0].equals(qc3._history["x"].hist.squeeze())
+    assert qc3._history["a"].hist.iloc[:, 1].equals(qc3._history["y"].hist.squeeze())
+    assert qc3._history["a"].hist.iloc[:, 2].equals(qc3._history["z"].hist.squeeze())
+    assert qc3._history["a"].hist.iloc[:, -1].isna().all()
+
+    # squueze
+    qc1 = qc.transferFlags("x", target="a", squeeze=True)
+    assert qc1._history["a"].hist.equals(qc1._history["x"].hist)
+
+    qc2 = qc.transferFlags(["x", "y"], target=["a", "b"], squeeze=True)
+    assert qc2._history["a"].hist.equals(qc2._history["x"].hist)
+    assert qc2._history["b"].hist.equals(qc2._history["y"].hist)
+
+    # we use the overwrite option here for easy checking against the origin
+    # flags, because otherwise we would need to respect the inserted nan
+    qc3 = qc.transferFlags(["x", "y", "z"], target="a", overwrite=True, squeeze=True)
+    assert qc3._history["a"].hist.iloc[:, 0].equals(qc3._history["x"].hist.squeeze())
+    assert qc3._history["a"].hist.iloc[:, 1].equals(qc3._history["y"].hist.squeeze())
+    assert qc3._history["a"].hist.iloc[:, 2].equals(qc3._history["z"].hist.squeeze())
+
+
+@pytest.mark.parametrize(
+    "f_data",
+    [
+        (
+            pd.Series(
+                ["2000-01-01T00:30:00", "2000-01-01T01:30:00"],
+                index=["2000-01-01T00:00:00", "2000-01-01T01:00:00"],
+            )
+        ),
+        (
+            np.array(
+                [
+                    ("2000-01-01T00:00:00", "2000-01-01T00:30:00"),
+                    ("2000-01-01T01:00:00", "2000-01-01T01:30:00"),
+                ]
+            )
+        ),
+        (
+            [
+                ("2000-01-01T00:00:00", "2000-01-01T00:30:00"),
+                ("2000-01-01T01:00:00", "2000-01-01T01:30:00"),
+            ]
+        ),
+        ("maint"),
+    ],
+)
+def test_setFlags_intervals(f_data):
+    start = ["2000-01-01T00:00:00", "2000-01-01T01:00:00"]
+    end = ["2000-01-01T00:30:00", "2000-01-01T01:30:00"]
+    maint_data = pd.Series(data=end, index=pd.DatetimeIndex(start), name="maint")
+    data = pd.Series(
+        np.arange(30),
+        index=pd.date_range("2000", freq="11min", periods=30),
+        name="data",
+    )
+    qc = saqc.SaQC([data, maint_data])
+    qc = qc.setFlags("data", data=f_data)
+    assert (qc.flags["data"].iloc[np.r_[0:3, 6:9]] > 0).all()
+    assert (qc.flags["data"].iloc[np.r_[4:6, 10:30]] < 0).all()
+
+
+@pytest.mark.parametrize(
+    "f_data",
+    [
+        (
+            np.array(
+                [
+                    "2000-01-01T00:00:00",
+                    "2000-01-01T00:30:00",
+                    "2000-01-01T01:00:00",
+                    "2000-01-01T01:30:00",
+                ]
+            )
+        ),
+        (
+            [
+                "2000-01-01T00:00:00",
+                "2000-01-01T00:30:00",
+                "2000-01-01T01:00:00",
+                "2000-01-01T01:30:00",
+            ]
+        ),
+    ],
+)
+def test_setFlags_ontime(f_data):
+    start = ["2000-01-01T00:00:00", "2000-01-01T01:00:00"]
+    end = ["2000-01-01T00:30:00", "2000-01-01T01:30:00"]
+    maint_data = pd.Series(data=end, index=pd.DatetimeIndex(start), name="maint")
+    data = pd.Series(
+        np.arange(30),
+        index=pd.date_range("2000", freq="11min", periods=30),
+        name="data",
+    )
+    qc = saqc.SaQC([data, maint_data])
+    qc = qc.setFlags("data", data=f_data)
+    assert qc.flags["data"].iloc[0] > 0
+    assert (qc.flags["data"].iloc[1:] < 0).all()

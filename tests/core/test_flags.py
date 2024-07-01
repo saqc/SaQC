@@ -122,7 +122,7 @@ def test_copy(data: Union[pd.DataFrame, DictOfSeries, Dict[str, pd.Series]]):
 
     # the underling series data is the same
     for c in shallow.columns:
-        assert shallow._data[c].index is flags._data[c].index
+        assert shallow._data[c].index.equals(flags._data[c].index)
 
     # the underling series data was copied
     for c in deep.columns:
@@ -293,15 +293,6 @@ def _validate_flags_equals_frame(flags, df):
     for c in flags.columns:
         assert df[c].index.equals(flags[c].index)
         assert df[c].equals(flags[c])  # respects nan's
-
-
-@pytest.mark.parametrize("data", testdata)
-def test_to_dios(data: Union[pd.DataFrame, DictOfSeries, Dict[str, pd.Series]]):
-    flags = Flags(data)
-    with pytest.deprecated_call():
-        result = flags.toDios()
-        assert isinstance(result, DictOfSeries)
-        _validate_flags_equals_frame(flags, result)
 
 
 @pytest.mark.parametrize("data", testdata)

@@ -15,6 +15,13 @@ from pandas.api.types import is_float_dtype
 
 from saqc import UNFLAGGED
 
+AGGRGEGATIONS = {
+    "last": lambda x: x.ffill(axis=1).iloc[:, -1],
+    "max": lambda x: x.max(axis=1),
+    "min": lambda x: x.min(axis=1),
+}
+AGGREGATION = "last"
+
 
 class History:
     """
@@ -38,7 +45,7 @@ class History:
     index: pd.Index
         A index that fit the flags to be insert.
 
-    See Also
+    See also
     --------
     createHistoryFromData: function to create History from existing data
     """
@@ -46,6 +53,16 @@ class History:
     def __init__(self, index: pd.Index | None):
         self._hist = pd.DataFrame(index=index)
         self._meta = []
+
+    def __getitem__(self, key) -> History:
+        if not isinstance(key, tuple):
+            # we got a single indexer like hist[3:-4]
+            key = (key, slice(None))
+        rows, cols = key
+        out = History(index=None)
+        out._hist = self._hist.iloc[rows, cols]
+        out._meta = self._meta[cols]
+        return out
 
     @property
     def hist(self):
@@ -306,7 +323,7 @@ class History:
         if hist.empty:
             result = pd.Series(data=np.nan, index=self._hist.index, dtype=float)
         else:
-            result = hist.ffill(axis=1).iloc[:, -1]
+            result = AGGRGEGATIONS[AGGREGATION](hist)
         if not raw:
             result = result.fillna(UNFLAGGED)
         result.name = None

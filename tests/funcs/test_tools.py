@@ -32,10 +32,25 @@ def test_makeFig(tmp_path):
     outfile = str(Path(tmp_path, "test.png"))  # the filesystem's temp dir
 
     d_saqc = d_saqc.plot(field="data", path=outfile)
-    d_saqc = d_saqc.plot(field="data", path=outfile, history="valid", stats=True)
-    with pytest.deprecated_call():
-        d_saqc = d_saqc.plot(field="data", path=outfile, history="complete")
+    d_saqc = d_saqc.plot(
+        field="data", path=outfile, history="valid", yscope=[(-50, 1000)]
+    )
 
     d_saqc = d_saqc.plot(
-        field="data", path=outfile, ax_kwargs={"ylabel": "data is data"}, stats=True
+        field="data",
+        path=outfile,
+        ax_kwargs={"ylabel": "data is data"},
+        yscope=(100, 150),
     )
+
+
+@pytest.mark.filterwarnings("ignore::UserWarning")
+def test_flagByClick():
+    saqc.funcs.tools._TEST_MODE = True
+    data = pd.DataFrame(
+        {f"d{k}": np.random.randint(0, 100, 100) for k in range(10)},
+        index=pd.date_range("2000", freq="1d", periods=100),
+    )
+    qc = saqc.SaQC(data)
+    qc = qc.flagByClick(data.columns, gui_mode="overlay")
+    qc = qc.flagByClick(data.columns)

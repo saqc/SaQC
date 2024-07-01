@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import dtw
+import fastdtw
 import pandas as pd
 
 from saqc import BAD
@@ -27,7 +27,7 @@ def calculateDistanceByDTW(
     The size of the rolling window is determined by the timespan defined
     by the first and last timestamp of the reference data's datetime index.
 
-    For details see the linked functions in the `See Also` section.
+    For details see the linked functions in the `See also` section.
 
     Parameters
     ----------
@@ -59,7 +59,7 @@ def calculateDistanceByDTW(
     The data must be regularly sampled, otherwise a ValueError is raised.
     NaNs in the data will be dropped before dtw distance calculation.
 
-    See Also
+    See also
     --------
     flagPatternByDTW : flag data by DTW
     """
@@ -71,9 +71,9 @@ def calculateDistanceByDTW(
 
     def isPattern(chunk):
         if forward:
-            return dtw.accelerated_dtw(chunk[::-1], reference, "euclidean")[0]
+            return fastdtw.fastdtw(chunk[::-1], reference)[0]
         else:
-            return dtw.accelerated_dtw(chunk, reference, "euclidean")[0]
+            return fastdtw.fastdtw(chunk, reference)[0]
 
     # generate distances, excluding NaNs
     nonas = data.dropna()

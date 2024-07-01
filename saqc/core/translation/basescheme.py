@@ -148,7 +148,8 @@ class MappingScheme(TranslationScheme):
         out = DictOfSeries()
         expected = pd.Index(trans_map.values())
         for field in flags.columns:
-            out[field] = flags[field].replace(trans_map)
+            with pd.option_context("future.no_silent_downcasting", True):
+                out[field] = flags[field].replace(trans_map).infer_objects()
             diff = pd.Index(out[field]).difference(expected)
             if not diff.empty:
                 raise ValueError(
@@ -212,34 +213,5 @@ class MappingScheme(TranslationScheme):
         pd.DataFrame
         """
         out = self._translate(flags, self._backward)
-        out.attrs = attrs or {}
-        return out
-
-
-class FloatScheme(TranslationScheme):
-
-    """
-    Acts as the default Translator, provides a changeable subset of the
-    internal float flags
-    """
-
-    DFILTER_DEFAULT: float = FILTER_ALL
-
-    def __call__(self, flag: float | int) -> float:
-        try:
-            return float(flag)
-        except (TypeError, ValueError, OverflowError):
-            raise ValueError(f"invalid flag, expected a numerical value, got: {flag}")
-
-    def toInternal(self, flags: pd.DataFrame | DictOfSeries) -> Flags:
-        try:
-            return Flags(flags.astype(float))
-        except (TypeError, ValueError, OverflowError):
-            raise ValueError(
-                f"invalid flag(s), expected a collection of numerical values, got: {flags}"
-            )
-
-    def toExternal(self, flags: Flags, attrs: dict | None = None) -> DictOfSeries:
-        out = DictOfSeries(flags)
         out.attrs = attrs or {}
         return out

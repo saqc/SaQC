@@ -10,9 +10,8 @@ import numpy as np
 import pandas as pd
 import pytest
 
-import saqc
-from saqc import BAD, DOUBTFUL, UNFLAGGED, SaQC
-from saqc.core import DictOfSeries, initFlagsLike
+from saqc import BAD, DOUBTFUL, UNFLAGGED, DictOfSeries, SaQC
+from saqc.core.flags import initFlagsLike
 from tests.common import initData
 from tests.fixtures import char_dict, course_1  # noqa, todo: fix fixtures
 
@@ -52,7 +51,7 @@ def test_flagRange(data, field):
     assert all(flagged == expected)
 
 
-def test_flagSeasonalRange(data, field):
+def test_selectTime(data, field):
     data[field].iloc[::2] = 0
     data[field].iloc[1::2] = 50
     nyears = len(data[field].index.year.unique())
@@ -179,19 +178,21 @@ def test_flagManual(data, field):
     ]
 
     for kw in kwargs_list:
-        qc = SaQC(data, flags).flagManual(field, **kw)
+        with pytest.deprecated_call():
+            qc = SaQC(data, flags).flagManual(field, **kw)
         isflagged = qc._flags[field] > UNFLAGGED
         assert isflagged[isflagged].index.equals(index_exp)
 
     # flag not exist in mdata
-    qc = SaQC(data, flags).flagManual(
-        field,
-        mdata=mdata,
-        mflag="i do not exist",
-        method="ontime",
-        mformat="mflag",
-        flag=BAD,
-    )
+    with pytest.deprecated_call():
+        qc = SaQC(data, flags).flagManual(
+            field,
+            mdata=mdata,
+            mflag="i do not exist",
+            method="ontime",
+            mformat="mflag",
+            flag=BAD,
+        )
     isflagged = qc._flags[field] > UNFLAGGED
     assert isflagged[isflagged].index.equals(pd.DatetimeIndex([]))
 
@@ -220,14 +221,15 @@ def test_flagManual(data, field):
     ]
     bound_drops = {"right-open": [1], "left-open": [0], "closed": []}
     for method in ["right-open", "left-open", "closed"]:
-        qc = qc.flagManual(
-            field,
-            mdata=mdata,
-            mflag=1,
-            method=method,
-            mformat="mflag",
-            flag=BAD,
-        )
+        with pytest.deprecated_call():
+            qc = qc.flagManual(
+                field,
+                mdata=mdata,
+                mflag=1,
+                method=method,
+                mformat="mflag",
+                flag=BAD,
+            )
         isflagged = qc._flags[field] > UNFLAGGED
         for flag_i in flag_intervals:
             f_i = isflagged[slice(flag_i[0], flag_i[-1])].index
@@ -240,11 +242,10 @@ def test_flagManual(data, field):
                 assert ~unflagged.all()
 
 
-@pytest.mark.parametrize("dat", [pytest.lazy_fixture("course_1")])
-def test_flagDriftFromNorm(dat):
-    data = dat(periods=200, peak_level=5, name="field1")[0]
-    data["field2"] = dat(periods=200, peak_level=10, name="field2")[0]["field2"]
-    data["field3"] = dat(periods=200, peak_level=100, name="field3")[0]["field3"]
+def test_flagDriftFromNorm(course_1):
+    data = course_1(periods=200, peak_level=5, name="field1")[0]
+    data["field2"] = course_1(periods=200, peak_level=10, name="field2")[0]["field2"]
+    data["field3"] = course_1(periods=200, peak_level=100, name="field3")[0]["field3"]
 
     fields = ["field1", "field2", "field3"]
 
@@ -258,11 +259,10 @@ def test_flagDriftFromNorm(dat):
     assert all(qc._flags["field3"] > UNFLAGGED)
 
 
-@pytest.mark.parametrize("dat", [pytest.lazy_fixture("course_1")])
-def test_flagDriftFromReference(dat):
-    data = dat(periods=200, peak_level=5, name="field1")[0]
-    data["field2"] = dat(periods=200, peak_level=10, name="field2")[0]["field2"]
-    data["field3"] = dat(periods=200, peak_level=100, name="field3")[0]["field3"]
+def test_flagDriftFromReference(course_1):
+    data = course_1(periods=200, peak_level=5, name="field1")[0]
+    data["field2"] = course_1(periods=200, peak_level=10, name="field2")[0]["field2"]
+    data["field3"] = course_1(periods=200, peak_level=100, name="field3")[0]["field3"]
 
     fields = ["field1", "field2", "field3"]
 

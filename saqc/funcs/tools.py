@@ -8,19 +8,21 @@
 from __future__ import annotations
 
 import pickle
-import warnings
-from typing import TYPE_CHECKING, Optional
+import tkinter as tk
+from typing import TYPE_CHECKING
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from typing_extensions import Literal
 
-from saqc import FILTER_NONE, UNFLAGGED
+from saqc import BAD, FILTER_NONE, UNFLAGGED
 from saqc.core import processing, register
 from saqc.lib.checking import validateChoice
 from saqc.lib.docs import DOC_TEMPLATES
 from saqc.lib.plotting import makeFig
+from saqc.lib.selectionGUI import MplScroller, SelectionOverlay
 from saqc.lib.tools import periodicMask
 
 if TYPE_CHECKING:
@@ -28,9 +30,131 @@ if TYPE_CHECKING:
 
 
 _MPL_DEFAULT_BACKEND = mpl.get_backend()
+_TEST_MODE = False
 
 
 class ToolsMixin:
+    @register(mask=[], demask=[], squeeze=[], multivariate=True)
+    def flagByClick(
+        self: "SaQC",
+        field: str | list[str],
+        max_gap: str | None = None,
+        gui_mode: Literal["GUI", "overlay"] = "GUI",
+        selection_marker_kwargs: dict | None = None,
+        dfilter: float = BAD,
+        **kwargs,
+    ) -> "SaQC":
+        """
+        Pop up GUI for adding or removing flags by selection of points in the data plot.
+
+        * Left click and Drag the selection area over the points you want to add to selection.
+
+        * Right clack and drag the selection area over the points you want to remove from selection
+
+        * press 'shift' to switch between rectangle and span selector
+
+        * press 'enter' or click "Assign Flags" to assign flags to the selected points and end session
+
+        * press 'escape' or click "Discard" to end Session without assigneing flags to selection
+
+        * activate the sliders attached to each axes to bind the respective variable. When using the
+          span selector, points from all bound variables will be added synchronously.
+
+
+        Note, that you can only mark already flagged values, if `dfilter` is set accordingly.
+
+        Note, that you can use `flagByClick` to "unflag" already flagged values, when setting `dfilter` above the flag to
+        "unset", and setting `flag` to a flagging level associated with your "unflagged" level.
+
+        Parameters
+        ----------
+        max_gap :
+            If ``None``, all data points will be connected, resulting in long linear
+            lines, in case of large data gaps. ``NaN`` values will be removed before
+            plotting. If an offset string is passed, only points that have a distance
+            below ``max_gap`` are connected via the plotting line.
+        gui_mode :
+            * ``"GUI"`` (default), spawns TK based pop-up GUI, enabling scrolling and binding for subplots
+            * ``"overlay"``, spawns matplotlib based pop-up GUI. May be less conflicting, but does not support
+              scrolling or binding.
+        """
+        data, flags = self._data.copy(), self._flags.copy()
+
+        flag = kwargs.get("flag", BAD)
+        scrollbar = True if gui_mode == "GUI" else False
+        selection_marker_kwargs = selection_marker_kwargs or {}
+
+        if not scrollbar:
+            plt.rcParams["toolbar"] = "toolmanager"
+
+        if not _TEST_MODE:
+            plt.close("all")
+            mpl.use(_MPL_DEFAULT_BACKEND)
+        else:
+            mpl.use("Agg")
+
+        # make base figure, the gui will wrap
+        fig = makeFig(
+            data=data,
+            field=field,
+            flags=flags,
+            level=UNFLAGGED,
+            mode="subplots",
+            max_gap=max_gap,
+            history="valid",
+            xscope=None,
+            ax_kwargs={"ncols": 1},
+            scatter_kwargs={},
+            plot_kwargs={},
+        )
+
+        overlay_data = []
+        for f in field:
+            overlay_data.extend([(data[f][flags[f] < dfilter]).dropna()])
+
+        if scrollbar:  # spawn TK based GUI
+            root = tk.Tk()
+            scroller = MplScroller(root, fig=fig)
+            root.protocol("WM_DELETE_WINDOW", scroller.assignAndQuitFunc())
+            scroller.pack(side="top", fill="both", expand=True)
+
+        else:  # only use figure window overlay
+            scroller = None
+
+        selector = SelectionOverlay(
+            fig.axes,
+            data=overlay_data,
+            selection_marker_kwargs=selection_marker_kwargs,
+            parent=scroller,
+        )
+        if _TEST_MODE & scrollbar:
+            root.after(2000, root.destroy)
+            # return self
+
+        if scrollbar:
+            root.attributes("-fullscreen", True)
+            root.mainloop()
+            if not _TEST_MODE:
+                root.destroy()
+        else:  # show figure if only overlay is used
+            plt.show(block=not _TEST_MODE)
+            plt.rcParams["toolbar"] = "toolbar2"
+
+        # disconnect mouse events when GUI is closed
+        selector.disconnect()
+
+        # assign flags only if selection was confirmed by user
+        if selector.confirmed:
+            for k in range(selector.N):
+                to_flag = selector.index[k][selector.marked[k]]
+
+                new_col = pd.Series(np.nan, index=self._flags[field[k]].index)
+                new_col.loc[to_flag] = flag
+                self._flags.history[field[k]].append(
+                    new_col, {"func": "flagByClick", "args": (), "kwargs": kwargs}
+                )
+        return self
+
     @register(
         mask=[],
         demask=[],
@@ -46,7 +170,13 @@ class ToolsMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        Copy data and flags to a new name (preserve flags history).
+        Make a copy of the data and flags of `field`.
+
+        Parameters
+        ----------
+        overwrite :
+            overwrite target, if already existant.
+
         """
         if field == target:
             return self
@@ -112,8 +242,7 @@ class ToolsMixin:
         1. dublicate "field" in the input data (`copyField`)
         2. mask the dublicated data (this, `selectTime`)
         3. apply the tests you only want to be applied onto the masked data chunks (a saqc function)
-        4. project the flags, calculated on the dublicated and masked data onto the original field data
-            (`concateFlags` or `flagGeneric`)
+        4. project the flags, calculated on the dublicated and masked data onto the original field data (`concateFlags` or `flagGeneric`)
         5. drop the dublicated data (`dropField`)
 
         To see an implemented example, checkout flagSeasonalRange in the saqc.functions module
@@ -149,44 +278,59 @@ class ToolsMixin:
         Examples
         --------
         The `period_start` and `end` parameters provide a conveniant way to generate seasonal / date-periodic masks.
-        They have to be strings of the forms: "mm-ddTHH:MM:SS", "ddTHH:MM:SS" , "HH:MM:SS", "MM:SS" or "SS"
+        They have to be strings of the forms:
+
+        * "mm-ddTHH:MM:SS"
+        * "ddTHH:MM:SS"
+        * "HH:MM:SS"
+        * "MM:SS" or "SS"
+
         (mm=month, dd=day, HH=hour, MM=minute, SS=second)
         Single digit specifications have to be given with leading zeros.
         `period_start` and `seas   on_end` strings have to be of same length (refer to the same periodicity)
         The highest date unit gives the period.
         For example:
 
-        >>> start = "01T15:00:00"
-        >>> end = "13T17:30:00"
+        .. doctest::
+
+           >>> start = "01T15:00:00"
+           >>> end = "13T17:30:00"
 
         Will result in all values sampled between 15:00 at the first and  17:30 at the 13th of every month get masked
 
-        >>> start = "01:00"
-        >>> end = "04:00"
+        .. doctest::
+
+           >>> start = "01:00"
+           >>> end = "04:00"
 
         All the values between the first and 4th minute of every hour get masked.
 
-        >>> start = "01-01T00:00:00"
-        >>> end = "01-03T00:00:00"
+        .. doctest::
+
+           >>> start = "01-01T00:00:00"
+           >>> end = "01-03T00:00:00"
 
         Mask january and february of evcomprosed in theery year. masking is inclusive always, so in this case the mask will
         include 00:00:00 at the first of march. To exclude this one, pass:
 
-        >>> start = "01-01T00:00:00"
-        >>> end = "02-28T23:59:59"
+        .. doctest::
+
+           >>> start = "01-01T00:00:00"
+           >>> end = "02-28T23:59:59"
 
         To mask intervals that lap over a seasons frame, like nights, or winter, exchange sequence of season start and
         season end. For example, to mask night hours between 22:00:00 in the evening and 06:00:00 in the morning, pass:
 
-        >>> start = "22:00:00"
-        >>> end = "06:00:00"
+        >> start = "22:00:00"
+        >> end = "06:00:00"
+
         """
         validateChoice(mode, "mode", ["periodic", "selection_field"])
 
         datcol_idx = self._data[field].index
 
         if mode == "periodic":
-            mask = periodicMask(datcol_idx, start, end, ~closed)
+            mask = periodicMask(datcol_idx, start, end, closed)
         elif mode == "selection_field":
             idx = self._data[selection_field].index.intersection(datcol_idx)
             mask = self._data[selection_field].loc[idx]
@@ -212,7 +356,8 @@ class ToolsMixin:
         max_gap: str | None = None,
         mode: Literal["subplots", "oneplot"] | str = "oneplot",
         history: Literal["valid", "complete"] | list[str] | None = "valid",
-        xscope: slice | None = None,
+        xscope: slice | str | None = None,
+        yscope: tuple | list[tuple] | dict | None = None,
         store_kwargs: dict | None = None,
         ax: mpl.axes.Axes | None = None,
         ax_kwargs: dict | None = None,
@@ -247,6 +392,7 @@ class ToolsMixin:
 
         mode :
            How to process multiple variables to be plotted:
+
            * `"oneplot"` : plot all variables with their flags in one axis (default)
            * `"subplots"` : generate subplot grid where each axis contains one variable plot with associated flags
            * `"biplot"` : plotting first and second variable in field against each other in a scatter plot  (point cloud).
@@ -267,6 +413,11 @@ class ToolsMixin:
         xscope :
             Determine a chunk of the data to be plotted. ``xscope`` can be anything,
             that is a valid argument to the ``pandas.Series.__getitem__`` method.
+
+        yscope :
+             Either a tuple of 2 scalars that determines all plots' y-view limits, or a list of those
+             tuples, determining the different variables y-view limits (must match number of variables)
+             or a dictionary with variables as keys and the y-view tuple as values.
 
         ax :
             If not ``None``, plot into the given ``matplotlib.Axes`` instance, instead of a
@@ -325,36 +476,6 @@ class ToolsMixin:
         * Check/modify the module parameter `saqc.lib.plotting.SCATTER_KWARGS` to see/modify global marker defaults
         * Check/modify the module parameter `saqc.lib.plotting.PLOT_KWARGS` to see/modify global plot line defaults
         """
-        if history == "complete":
-            warnings.warn(
-                "Plotting with history='complete' is deprecated and will be removed in a future release (2.5)."
-                "To get access to an saqc variables complete flagging history and analyze or plot it in detail, use flags"
-                "history acces via `qc._flags.history[variable_name].hist` and a plotting library, such as pyplot.\n"
-                "Minimal Pseudo example, having a saqc.SaQC instance `qc`, holding a variable `'data1'`, "
-                "and having matplotlib.pyplot imported as `plt`:\n\n"
-                "plt.plot(data)\n"
-                "for f in qc._flags.history['data1'].hist \n"
-                "    markers = qc._flags.history['data1'].hist[f] > level \n"
-                "    markers=data[markers] \n"
-                "    plt.scatter(markers.index, markers.values) \n",
-                DeprecationWarning,
-            )
-
-        if "phaseplot" in kwargs:
-            warnings.warn(
-                'Parameter "phaseplot" is deprecated and will be removed in a future release (2.5). Assign to parameter "mode" instead. (plot(field, mode=phaseplot))',
-                DeprecationWarning,
-            )
-            mode = kwargs["phaseplot"]
-
-        if "cycleskip" in (ax_kwargs or {}):
-            warnings.warn(
-                'Passing "cycleskip" option with the "ax_kwargs" parameter is deprecated and will be removed in a future release (2.5). '
-                'The option now has to be passed with the "marker_kwargs" parameter',
-                DeprecationWarning,
-            )
-            marker_kwargs["cycleskip"] = ax_kwargs.pop("cycleskip")
-
         data, flags = self._data.copy(), self._flags.copy()
 
         level = kwargs.get("flag", UNFLAGGED)
@@ -368,9 +489,20 @@ class ToolsMixin:
         marker_kwargs = marker_kwargs or {}
         plot_kwargs = plot_kwargs or {}
 
+        if (
+            (yscope is not None)
+            and (len(yscope) == 2)
+            and not isinstance(yscope[0], (list, tuple))
+        ):
+            yscope = tuple(yscope)
+        if yscope is not None:
+
+            ax_kwargs.update({"ylim": yscope})
+
         if not path:
             mpl.use(_MPL_DEFAULT_BACKEND)
         else:
+            plt.close("all")  # supress matplotlib deprecation warning
             mpl.use("Agg")
 
         fig = makeFig(

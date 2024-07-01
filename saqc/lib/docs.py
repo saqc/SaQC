@@ -4,12 +4,12 @@
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import TypedDict
 
 from docstring_parser import (
-    DocstringDeprecated,
     DocstringParam,
     DocstringReturns,
+    DocstringStyle,
     compose,
     parse,
 )
@@ -58,25 +58,32 @@ COMMON = {
 }
 
 
-class FunctionParam(DocstringParam):
-    def __init__(
-        self, name: str, typehint: str, description: str, optional: bool = False
-    ):
-        super().__init__(
-            args=["param", name],
-            description=description,
-            arg_name=name,
-            type_name=typehint,
-            is_optional=optional,
-            default=None,
-        )
+def toParameter(
+    name: str, typehint: str, description: str, optional: bool = False
+) -> DocstringParam:
+    return DocstringParam(
+        args=["param", name],
+        description=description,
+        arg_name=name,
+        type_name=typehint,
+        is_optional=optional,
+        default=None,
+    )
 
 
 def docurator(func, defaults: dict[str, ParamDict] | None = None):
     if defaults is None:
         defaults = {}
 
-    tree = parse(func.__doc__)
+    docstring_return = DocstringReturns(
+        args=["returns"],
+        description="the updated SaQC object",
+        type_name="saqc.SaQC",
+        is_generator=False,
+        return_name="SaQC",
+    )
+
+    tree = parse(func.__doc__, style=DocstringStyle.NUMPYDOC)
 
     if tree.returns:
         raise ValueError(
@@ -96,7 +103,7 @@ def docurator(func, defaults: dict[str, ParamDict] | None = None):
 
     # add common kwargs
     for key, val in COMMON.items():
-        meta.append(FunctionParam(**{**val, **defaults.get(key, {})}))
+        meta.append(toParameter(**{**val, **defaults.get(key, {})}))
 
     # add return sections
     meta.append(
@@ -117,4 +124,5 @@ def docurator(func, defaults: dict[str, ParamDict] | None = None):
     tree.meta = meta
 
     func.__doc__ = compose(tree)
+
     return func

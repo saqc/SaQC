@@ -13,6 +13,6 @@ Generic Functions
 
    ~SaQC.processGeneric
    ~SaQC.flagGeneric
-   ~SaQC.roll
-   ~SaQC.transform
-   ~SaQC.resample
+   ~SaQC.andGroup
+   ~SaQC.orGroup
+

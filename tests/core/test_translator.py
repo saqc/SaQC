@@ -13,9 +13,10 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from saqc import BAD, DOUBTFUL, FILTER_NONE, UNFLAGGED, SaQC
-from saqc.core import Flags
+from saqc.constants import BAD, DOUBTFUL, FILTER_NONE, UNFLAGGED
+from saqc.core import Flags, SaQC
 from saqc.core.translation import DmpScheme, MappingScheme, PositionalScheme
+from saqc.core.translation.floatscheme import AnnotatedFloatScheme
 from tests.common import initData
 
 
@@ -93,38 +94,37 @@ def test_dmpTranslator():
 
     tflags = scheme.toExternal(flags)
 
-    assert set(tflags.columns.get_level_values(1)) == {
-        "quality_flag",
-        "quality_comment",
-        "quality_cause",
-    }
+    for df in tflags.values():
+        assert set(df.columns) == {
+            "quality_flag",
+            "quality_comment",
+            "quality_cause",
+        }
 
-    assert (tflags.loc[:, ("var1", "quality_flag")] == "DOUBTFUL").all(axis=None)
+    assert (tflags["var1"]["quality_flag"] == "DOUBTFUL").all(axis=None)
     assert (
-        tflags.loc[:, ("var1", "quality_comment")]
+        tflags["var1"]["quality_comment"]
         == '{"test": "flagBar", "comment": "I did it"}'
     ).all(axis=None)
 
-    assert (tflags.loc[:, ("var1", "quality_cause")] == "OTHER").all(axis=None)
+    assert (tflags["var1"]["quality_cause"] == "OTHER").all(axis=None)
 
-    assert (tflags.loc[:, ("var2", "quality_flag")] == "BAD").all(axis=None)
+    assert (tflags["var2"]["quality_flag"] == "BAD").all(axis=None)
     assert (
-        tflags.loc[:, ("var2", "quality_comment")]
-        == '{"test": "flagFoo", "comment": ""}'
+        tflags["var2"]["quality_comment"] == '{"test": "flagFoo", "comment": ""}'
     ).all(axis=None)
-    assert (tflags.loc[:, ("var2", "quality_cause")] == "BELOW_OR_ABOVE_MIN_MAX").all(
-        axis=None
-    )
+    assert (tflags["var2"]["quality_cause"] == "BELOW_OR_ABOVE_MIN_MAX").all(axis=None)
 
     assert (
-        tflags.loc[flags["var3"] == BAD, ("var3", "quality_comment")]
+        tflags["var3"].loc[flags["var3"] == BAD, "quality_comment"]
         == '{"test": "unknown", "comment": ""}'
     ).all(axis=None)
-    assert (tflags.loc[flags["var3"] == BAD, ("var3", "quality_cause")] == "OTHER").all(
+    assert (tflags["var3"].loc[flags["var3"] == BAD, "quality_cause"] == "OTHER").all(
         axis=None
     )
-    mask = flags["var3"] == UNFLAGGED
-    assert (tflags.loc[mask, ("var3", "quality_cause")] == "").all(axis=None)
+    assert (tflags["var3"].loc[flags["var3"] == UNFLAGGED, "quality_cause"] == "").all(
+        axis=None
+    )
 
 
 def test_positionalTranslator():
@@ -154,9 +154,10 @@ def test_positionalTranslatorIntegration():
 
     round_trip = scheme.toExternal(scheme.toInternal(flags))
 
-    assert (flags.values == round_trip.values).all()
-    assert (flags.index == round_trip.index).all()
     assert (flags.columns == round_trip.columns).all()
+    for col in flags.columns:
+        assert (flags[col] == round_trip[col]).all()
+        assert (flags[col].index == round_trip[col].index).all()
 
 
 def test_dmpTranslatorIntegration():
@@ -168,26 +169,28 @@ def test_dmpTranslatorIntegration():
     saqc = saqc.flagMissing(col).flagRange(col, min=3, max=10)
     flags = saqc.flags
 
-    qflags = flags.xs("quality_flag", axis="columns", level=1)
-    qfunc = flags.xs("quality_comment", axis="columns", level=1).map(
-        lambda v: json.loads(v)["test"] if v else ""
-    )
-    qcause = flags.xs("quality_cause", axis="columns", level=1)
+    qflags = pd.DataFrame({k: v["quality_flag"] for k, v in flags.items()})
+    qfunc = pd.DataFrame({k: v["quality_comment"] for k, v in flags.items()})
+    qcause = pd.DataFrame({k: v["quality_cause"] for k, v in flags.items()})
 
     assert qflags.isin(scheme._forward.keys()).all(axis=None)
-    assert qfunc.isin({"", "flagMissing", "flagRange"}).all(axis=None)
+    assert (
+        qfunc.map(lambda v: json.loads(v)["test"] if v else "")
+        .isin({"", "flagMissing", "flagRange"})
+        .all(axis=None)
+    )
     assert (qcause[qflags[col] == "BAD"] == "OTHER").all(axis=None)
 
     round_trip = scheme.toExternal(scheme.toInternal(flags))
 
-    assert round_trip.xs("quality_flag", axis="columns", level=1).equals(qflags)
-
-    assert round_trip.xs("quality_comment", axis="columns", level=1).equals(
-        flags.xs("quality_comment", axis="columns", level=1)
+    assert pd.DataFrame({k: v["quality_flag"] for k, v in round_trip.items()}).equals(
+        qflags
     )
-
-    assert round_trip.xs("quality_cause", axis="columns", level=1).equals(
-        flags.xs("quality_cause", axis="columns", level=1)
+    assert pd.DataFrame(
+        {k: v["quality_comment"] for k, v in round_trip.items()}
+    ).equals(qfunc)
+    assert pd.DataFrame({k: v["quality_cause"] for k, v in round_trip.items()}).equals(
+        qcause
     )
 
 
@@ -275,3 +278,23 @@ def test_positionalMulitcallsPreserveState():
         expected = tflags1[k].str.slice(start=1) * 2
         got = tflags2[k].str.slice(start=1)
         assert expected.equals(got)
+
+
+def test_annotatedFloatScheme():
+    data = initData(1)
+    col = data.columns[0]
+
+    scheme = AnnotatedFloatScheme()
+    saqc = SaQC(data=data, scheme=scheme)
+    saqc = saqc.setFlags(col, data=data[col].index[::4], flag=DOUBTFUL).flagRange(
+        col, min=3, max=10, flag=BAD
+    )
+    flags = saqc.flags
+
+    assert flags[col]["flag"].isin({DOUBTFUL, BAD, UNFLAGGED}).all(axis=None)
+    assert flags[col]["func"].isin({"", "setFlags", "flagRange"}).all(axis=None)
+
+    round_trip = scheme.toExternal(scheme.toInternal(flags))
+    assert tuple(round_trip.keys()) == tuple(flags.keys())
+    for key in flags.keys():
+        assert round_trip[key].equals(flags[key])

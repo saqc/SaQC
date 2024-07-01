@@ -177,7 +177,24 @@ def periodicMask(
             x[e:e] = True
             return x
 
-    freq = "1" + "mmmhhhdddMMMYYY"[len(season_start)]
+    freq = (
+        "1",
+        "m",
+        "m",
+        "m",
+        "h",
+        "h",
+        "h",
+        "d",
+        "d",
+        "d",
+        "M",
+        "M",
+        "M",
+        "YE",
+        "YE",
+        "YE",
+    )[len(season_start)]
     out = mask.groupby(pd.Grouper(freq=freq)).transform(_selector)
     if invert:
         out = ~out
@@ -417,12 +434,15 @@ def getApply(in_obj, apply_obj, attr_access="__name__", attr_or="apply") -> pd.S
 
     """
     try:
-        out = getattr(in_obj, getattr(apply_obj, attr_access))()
+        access = getattr(apply_obj, attr_access)
+        if access.startswith("nan"):
+            access = access[3:]
+        out = getattr(in_obj, access)()
     except AttributeError:
         try:
             # let's try to run it somewhat optimized
             out = getattr(in_obj, attr_or)(apply_obj, raw=True)
-        except:
+        except Exception:
             # did't work out, fallback
             out = getattr(in_obj, attr_or)(apply_obj)
 
@@ -554,7 +574,7 @@ def initializeTargets(
     index: pd.Index,
 ):
     """
-    Initialize all targets based on field.
+    Initialize all targets based on fields.
 
     Note
     ----
@@ -652,3 +672,21 @@ def joinExt(sep: str, iterable: Iterable[str], last_sep: str | None = None) -> s
     if len(iterable) < 2:
         return sep.join(iterable)
     return f"{sep.join(iterable[:-1])}{last_sep}{iterable[-1]}"
+
+
+def multivariateParameters(
+    field: str | list[str], target: str | list[str] | None = None
+) -> tuple[list[str], list[str], bool]:
+    fields = toSequence(field)
+    targets = fields if target is None else toSequence(target)
+    broadcasting = False
+
+    if len(targets) == 1:
+        targets = targets * len(fields)
+        broadcasting = True
+    if len(targets) != len(fields):
+        raise ValueError(
+            "expected a single 'target' or the same number of 'field' and 'target' values"
+        )
+
+    return fields, targets, broadcasting

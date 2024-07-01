@@ -7,7 +7,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Callable, Optional, Union
+from typing import TYPE_CHECKING, Callable
 
 import numpy as np
 import pandas as pd
@@ -36,7 +36,7 @@ class ResidualsMixin:
         The residual  is calculated by fitting a polynomial of degree `order` to a data
         slice of size `window`, that has x at its center.
 
-        Note, that calculating the residuals tends to be quite costy, because a function
+        Note, that calculating the residuals tends to be quite costly, because a function
         fitting is performed for every sample. To improve performance, consider the
         following possibilities:
 

@@ -8,19 +8,11 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, TypeVar, Union
+from typing import TypeVar, Union
 
 import numpy as np
 import pandas as pd
 from typing_extensions import Protocol
-
-__all__ = [
-    "T",
-    "ArrayLike",
-    "CurveFitter",
-    "ExternalFlag",
-    "OptionalNone",
-]
 
 T = TypeVar("T")
 ArrayLike = TypeVar("ArrayLike", np.ndarray, pd.Series, pd.DataFrame)
@@ -30,8 +22,9 @@ ExternalFlag = Union[str, float, int]
 
 # needed for deeper type hinting magic
 class CurveFitter(Protocol):
-    def __call__(self, data: np.ndarray, *params: float) -> np.ndarray:
-        ...  # pragma: no cover
+    def __call__(
+        self, data: np.ndarray, *params: float
+    ) -> np.ndarray: ...  # pragma: no cover
 
 
 class Comparable(Protocol):

@@ -28,31 +28,24 @@ if v["dirty"]:
         f"The repository you build is dirty. Please commit changes first {v}."
     )
 
-if "dev" in v["version"] and name == "saqc":
-    raise ValueError(
-        f"An saqc release must have version in the format X.Y.Z, "
-        f"which requires a git tag on the same commit. Please set "
-        f"a tag, then build again. {v}"
-    )
-
 
 setup(
     name=name,
     version=versioneer.get_version(),  # keep this line as it is
     cmdclass=versioneer.get_cmdclass(),  # keep this line as it is
-    author="Bert Palm, David Schaefer, Florian Gransee, Peter Luenenschloss",
+    author="David Schaefer, Bert Palm, Peter Luenenschloss",
     author_email="david.schaefer@ufz.de",
     description="A timeseries data quality control and processing tool/framework",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://git.ufz.de/rdm-software/saqc",
     packages=find_packages(exclude=("tests", "docs")),
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=[
         "Click",
-        "dtw",
         "docstring_parser",
         "fancy-collections",
+        "fastdtw",
         "matplotlib>=3.4",
         "numpy",
         "outlier-utils",

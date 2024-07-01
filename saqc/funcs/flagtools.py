@@ -19,7 +19,13 @@ from saqc import BAD, FILTER_ALL, UNFLAGGED
 from saqc.core import DictOfSeries, flagging, register
 from saqc.core.history import History
 from saqc.lib.checking import validateChoice, validateWindow
-from saqc.lib.tools import initializeTargets, isflagged, isunflagged, toSequence
+from saqc.lib.tools import (
+    initializeTargets,
+    isflagged,
+    isunflagged,
+    multivariateParameters,
+    toSequence,
+)
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -30,6 +36,10 @@ class FlagtoolsMixin:
     def flagDummy(self: "SaQC", field: str | None = None, **kwargs) -> "SaQC":
         """
         Function does nothing but returning data and flags.
+
+        Parameters
+        ----------
+
         """
         return self
 
@@ -40,10 +50,14 @@ class FlagtoolsMixin:
         """
         Set whole column to a flag value.
 
-        See Also
+        Parameters
+        ----------
+
+        See also
         --------
         clearFlags : set whole column to UNFLAGGED
         flagUnflagged : set flag value at all unflagged positions
+
         """
         self._flags[:, field] = flag
         return self
@@ -51,7 +65,7 @@ class FlagtoolsMixin:
     @register(mask=[], demask=[], squeeze=["field"])
     def clearFlags(self: "SaQC", field: str | None = None, **kwargs) -> "SaQC":
         """
-        Set whole column to UNFLAGGED.
+        Assign UNFLAGGED value to all periods in field.
 
         Notes
         -----
@@ -60,7 +74,7 @@ class FlagtoolsMixin:
         A warning is triggered if the ``flag`` keyword is given, because
         the flags are always set to `UNFLAGGED`.
 
-        See Also
+        See also
         --------
         forceFlags : set whole column to a flag value
         flagUnflagged : set flag value at all unflagged positions
@@ -80,18 +94,83 @@ class FlagtoolsMixin:
         """
         Function sets a flag at all unflagged positions.
 
-        See Also
-        --------
-        clearFlags : set whole column to UNFLAGGED
-        forceFlags : set whole column to a flag value
+        Parameters
+        ----------
 
         Notes
         -----
         This function ignores the ``dfilter`` keyword, because the
         data is not relevant for processing.
+
+        See also
+        --------
+        clearFlags : set whole column to UNFLAGGED
+        forceFlags : set whole column to a flag value
+
         """
+
         unflagged = self._flags[field].isna() | (self._flags[field] == UNFLAGGED)
         self._flags[unflagged, field] = flag
+        return self
+
+    @flagging()
+    def setFlags(
+        self,
+        field: str,
+        data: str | list | np.ndarray | pd.Series,
+        override: bool = False,
+        flag: float = BAD,
+        **kwargs,
+    ) -> "SaQC":
+        """
+        Include flags listed in external data.
+
+        Parameters
+        ----------
+
+        data :
+            Determines which timestamps to set flags at, depending on the passed type:
+
+            * 1-d `array` or `List` of timestamps or `pandas.Index`: flag `field` with `flag` at every timestamp in `f_data`
+            * 2-d `array` or List of tuples: for all elements `t[k]` out of f_data:
+              flag `field` with `flag` at every timestamp in between `t[k][0]` and `t[k][1]`
+            * pd.Series: flag `field` with `flag` in between any index and data value of the passed series
+            * str: use the variable timeseries `f_data` as flagging template
+            * pd.Series: flag `field` with `flag` in between any index and data value of the passed series
+            * 1-d `array` or `List` of timestamps: flag `field` with `flag` at every timestamp in `f_data`
+            * 2-d `array` or List of tuples: for all elements `t[k]` out of f_data:
+              flag `field` with `flag` at every timestamp in between `t[k][0]` and `t[k][1]`
+        override :
+            determines if flags shall be assigned although the value in question already has a flag assigned.
+        """
+        to_flag = pd.Series(False, index=self._data[field].index)
+
+        # check if f_data is meant to denote timestamps:
+        if (isinstance(data, (list, np.ndarray, pd.Index))) and not isinstance(
+            data[0], (tuple, np.ndarray)
+        ):
+            set_idx = pd.DatetimeIndex(data).intersection(to_flag.index)
+            to_flag[set_idx] = True
+        else:  # f_data denotes intervals:
+            if isinstance(data, (str, pd.Series)):
+                if isinstance(data, str):
+                    flags_data = self._data[data]
+                else:
+                    flags_data = data
+                intervals = flags_data.items()
+            else:
+                intervals = data
+            for s in intervals:
+                to_flag[s[0] : s[1]] = True
+
+        # elif isinstance(f_data, list):
+        if not override:
+
+            to_flag &= isunflagged(self._flags[field], thresh=kwargs["dfilter"])
+            # to_flag &= (self._flags[field] < flag) & (
+            #     self._flags[field] >= kwargs["dfilter"]
+            # )
+        self._flags[to_flag.values, field] = flag
         return self
 
     @register(mask=["field"], demask=["field"], squeeze=["field"])
@@ -111,6 +190,9 @@ class FlagtoolsMixin:
         Include flags listed in external data.
 
         The method allows to integrate pre-existing flagging information.
+
+            .. deprecated:: 2.6.0
+               Deprecated Function. See :py:meth:`~saqc.SaQC.setFlags`.
 
         Parameters
         ----------
@@ -219,6 +301,11 @@ class FlagtoolsMixin:
            2000-05-01     True
            dtype: bool
         """
+        warnings.warn(
+            "`flagManual` is deprecated and will be removed in version 2.8 of saqc. "
+            "Please use `setFlags` for similar functionality.",
+            DeprecationWarning,
+        )
         validateChoice(
             method, "method", ["left-open", "right-open", "closed", "plain", "ontime"]
         )
@@ -284,7 +371,7 @@ class FlagtoolsMixin:
             raise ValueError(method)
 
         mask = mdata == mflag
-        mask = mask.reindex(dat.index).fillna(False)
+        mask = mask.reindex(dat.index, fill_value=False)  # .fillna(False)
 
         self._flags[mask, field] = flag
         return self
@@ -294,6 +381,7 @@ class FlagtoolsMixin:
         demask=[],
         squeeze=[],
         handles_target=True,  # function defines a target parameter, so it needs to handle it
+        multivariate=True,
     )
     def transferFlags(
         self: "SaQC",
@@ -306,16 +394,15 @@ class FlagtoolsMixin:
         """
         Transfer Flags of one variable to another.
 
+        Parameters
+        ----------
+
         squeeze :
             Squeeze the history into a single column if ``True``, function specific flag information is lost.
 
         overwrite :
             Overwrite existing flags if ``True``.
 
-        See Also
-        --------
-        * :py:meth:`saqc.SaQC.flagGeneric`
-        * :py:meth:`saqc.SaQC.concatFlags`
 
         Examples
         --------
@@ -352,19 +439,17 @@ class FlagtoolsMixin:
                   a      b      c
            0   -inf   -inf   -inf
            1  255.0  255.0  255.0
+
+        See also
+        --------
+        * :py:meth:`saqc.SaQC.flagGeneric`
+        * :py:meth:`saqc.SaQC.concatFlags`
+
         """
-        history = self._flags.history[field]
 
-        if target is None:
-            target = field
-
-        if overwrite is False:
-            mask = isflagged(self._flags[target], thresh=kwargs["dfilter"])
-            history._hist[mask] = np.nan
-
-        # append a dummy column
+        fields, targets, broadcasting = multivariateParameters(field, target)
         meta = {
-            "func": f"transferFlags",
+            "func": "transferFlags",
             "args": (),
             "kwargs": {
                 "field": field,
@@ -375,15 +460,45 @@ class FlagtoolsMixin:
             },
         }
 
-        if squeeze:
-            flags = history.squeeze(raw=True)
-            # init an empty history to which we later append the squeezed flags
-            history = History(index=history.index)
-        else:
-            flags = pd.Series(np.nan, index=history.index, dtype=float)
+        for field, target in zip(fields, targets):
+            # initialize non existing targets
+            if target not in self._data:
+                self._data[target] = pd.Series(np.nan, index=self._data[field].index)
+                self._flags._data[target] = History(self._data[target].index)
+            if not self._data[field].index.equals(self._data[target].index):
+                raise ValueError(
+                    f"All Field and Target indices must match!\n"
+                    f"Indices of {field} and {target} seem to be not congruent within the context of the given\n"
+                    f"- fields: {fields}\n "
+                    f"- and targets: {targets}"
+                )
+            history = self._flags.history[field].copy(deep=True)
 
-        history.append(flags, meta)
-        self._flags.history[target].append(history)
+            if overwrite is False:
+                mask = isflagged(self._flags[target], thresh=kwargs["dfilter"])
+                history._hist[mask] = np.nan
+
+            if squeeze:
+                # add squeezed flags
+                flags = history.squeeze(raw=True)
+                history = History(index=history.index).append(flags, meta)
+            elif broadcasting is False:
+                # add an empty flags
+                flags = pd.Series(np.nan, index=history.index, dtype=float)
+                history.append(flags, meta)
+            # else:
+            #    broadcasting -> multiple fields will be written to one target
+            #    only add the fields' histories and add an empty column later
+
+            self._flags.history[target].append(history)
+
+        if broadcasting and not squeeze:
+            # add one final history column
+            # all targets are identical, if we broadcast fields -> target
+            target = targets[0]
+            history = self._flags.history[target]
+            flags = pd.Series(np.nan, index=history.index, dtype=float)
+            self._flags.history[target].append(flags, meta)
 
         return self
 
@@ -519,14 +634,77 @@ class FlagtoolsMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        Flag all values, if all the given ``field`` values are already flagged.
+        Logical AND operation for Flags.
+
+        Flag the variable(s) `field` at every period, at wich `field` in all of the saqc objects in
+        `group` is flagged.
+
+        See Examples section for examples.
 
         Parameters
         ----------
         group:
             A collection of ``SaQC`` objects. Flag checks are performed on all ``SaQC`` objects
-            based on the variables specified in :py:attr:`field`. Whenever all monitored variables
+            based on the variables specified in ``field``. Whenever all monitored variables
             are flagged, the associated timestamps will receive a flag.
+
+        Examples
+        --------
+        Flag data, if the values are above a certain threshold (determined by :py:meth:`~saqc.SaQC.flagRange`) AND if the values are
+        constant for 3 periods (determined by :py:meth:`~saqc.SaQC.flagConstants`)
+
+        .. doctest:: andGroupExample
+
+           >>> dat = pd.Series([1,0,0,0,1,2,3,4,5,5,5,4], name='data', index=pd.date_range('2000', freq='10min', periods=12))
+           >>> qc = saqc.SaQC(dat)
+           >>> qc = qc.andGroup('data', group=[qc.flagRange('data', max=4), qc.flagConstants('data', thresh=0, window=3)])
+           >>> qc.flags['data']
+           2000-01-01 00:00:00     -inf
+           2000-01-01 00:10:00     -inf
+           2000-01-01 00:20:00     -inf
+           2000-01-01 00:30:00     -inf
+           2000-01-01 00:40:00     -inf
+           2000-01-01 00:50:00     -inf
+           2000-01-01 01:00:00     -inf
+           2000-01-01 01:10:00     -inf
+           2000-01-01 01:20:00    255.0
+           2000-01-01 01:30:00    255.0
+           2000-01-01 01:40:00    255.0
+           2000-01-01 01:50:00     -inf
+           Freq: 10min, dtype: float64
+
+        Masking data, so that a test result only gets assigned during daytime (between 6 and 18 o clock for example).
+        The daytime condition is generated via :py:meth:`~saqc.SaQC.flagGeneric`:
+
+        .. doctest:: andGroupExample
+
+           >>> from saqc.lib.tools import periodicMask
+               >>> mask_func = lambda x: ~periodicMask(x.index, '06:00:00', '18:00:00', True)
+           >>> dat = pd.Series(range(100), name='data', index=pd.date_range('2000', freq='4h', periods=100))
+           >>> qc = saqc.SaQC(dat)
+           >>> qc = qc.andGroup('data', group=[qc.flagRange('data', max=5), qc.flagGeneric('data', func=mask_func)])
+           >>> qc.flags['data'].head(20)
+           2000-01-01 00:00:00     -inf
+           2000-01-01 04:00:00     -inf
+           2000-01-01 08:00:00     -inf
+           2000-01-01 12:00:00     -inf
+           2000-01-01 16:00:00     -inf
+           2000-01-01 20:00:00     -inf
+           2000-01-02 00:00:00     -inf
+           2000-01-02 04:00:00     -inf
+           2000-01-02 08:00:00    255.0
+           2000-01-02 12:00:00    255.0
+           2000-01-02 16:00:00    255.0
+           2000-01-02 20:00:00     -inf
+           2000-01-03 00:00:00     -inf
+           2000-01-03 04:00:00     -inf
+           2000-01-03 08:00:00    255.0
+           2000-01-03 12:00:00    255.0
+           2000-01-03 16:00:00    255.0
+           2000-01-03 20:00:00     -inf
+           2000-01-04 00:00:00     -inf
+           2000-01-04 04:00:00     -inf
+           Freq: 4h, dtype: float64
         """
         return _groupOperation(
             saqc=self,
@@ -554,7 +732,12 @@ class FlagtoolsMixin:
         **kwargs,
     ) -> "SaQC":
         """
-        Flag all values, if at least one of the given ``field`` values is already flagged.
+        Logical OR operation for Flags.
+
+        Flag the variable(s) `field` at every period, at wich `field` is flagged in at least one of the saqc objects
+        in `group`.
+
+        See Examples section for examples.
 
         Parameters
         ----------
@@ -562,6 +745,32 @@ class FlagtoolsMixin:
             A collection of ``SaQC`` objects. Flag checks are performed on all ``SaQC`` objects
             based on the variables specified in :py:attr:`field`. Whenever any of monitored variables
             is flagged, the associated timestamps will receive a flag.
+
+        Examples
+        --------
+        Flag data, if the values are above a certain threshold (determined by :py:meth:`~saqc.SaQC.flagRange`) OR if the values are
+        constant for 3 periods (determined by :py:meth:`~saqc.SaQC.flagConstants`)
+
+        .. doctest:: orGroupExample
+
+           >>> dat = pd.Series([1,0,0,0,0,2,3,4,5,5,7,8], name='data', index=pd.date_range('2000', freq='10min', periods=12))
+           >>> qc = saqc.SaQC(dat)
+           >>> qc = qc.orGroup('data', group=[qc.flagRange('data', max=5), qc.flagConstants('data', thresh=0, window=3)])
+           >>> qc.flags['data']
+           2000-01-01 00:00:00     -inf
+           2000-01-01 00:10:00    255.0
+           2000-01-01 00:20:00    255.0
+           2000-01-01 00:30:00    255.0
+           2000-01-01 00:40:00    255.0
+           2000-01-01 00:50:00     -inf
+           2000-01-01 01:00:00     -inf
+           2000-01-01 01:10:00     -inf
+           2000-01-01 01:20:00     -inf
+           2000-01-01 01:30:00     -inf
+           2000-01-01 01:40:00    255.0
+           2000-01-01 01:50:00    255.0
+           Freq: 10min, dtype: float64
+
         """
         return _groupOperation(
             saqc=self,
