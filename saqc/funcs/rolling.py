@@ -27,12 +27,12 @@ class RollingMixin:
     )
     def rolling(
         self: "SaQC",
-        field: str | list[str],
         window: str | int,
         target: str | list[str] = None,
         func: Callable[[pd.Series], np.ndarray] | str = "mean",
         min_periods: int = 0,
         center: bool = True,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

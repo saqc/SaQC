@@ -130,9 +130,9 @@ class GenericMixin:
     )
     def processGeneric(
         self: "SaQC",
-        field: str | Sequence[str],
         func: GenericFunction,
-        target: str | Sequence[str] | None = None,
+        field: str | list[str] | None = None,
+        target: str | list[str] | None = None,
         dfilter: float = FILTER_ALL,
         **kwargs,
     ) -> "SaQC":
@@ -204,9 +204,9 @@ class GenericMixin:
     )
     def flagGeneric(
         self: "SaQC",
-        field: str | Sequence[str],
         func: GenericFunction,
-        target: str | Sequence[str] | None = None,
+        field: str | list[str] | None = None,
+        target: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":

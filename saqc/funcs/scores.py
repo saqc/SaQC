@@ -167,7 +167,6 @@ class ScoresMixin:
     )
     def assignKNNScore(
         self: "SaQC",
-        field: Sequence[str],
         target: str,
         n: int = 10,
         func: Callable[[pd.Series], float] | str = "sum",
@@ -176,6 +175,7 @@ class ScoresMixin:
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         metric: str = "minkowski",
         p: int = 2,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -283,12 +283,12 @@ class ScoresMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def assignZScore(
         self: "SaQC",
-        field: str,
         window: str | None = None,
         norm_func: Callable | str = "std",
         model_func: Callable | str = "mean",
         center: bool = True,
         min_periods: int | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -353,13 +353,13 @@ class ScoresMixin:
     )
     def assignLOF(
         self: "SaQC",
-        field: Sequence[str],
         target: str,
         n: int = 20,
         freq: float | str | None = np.inf,
         min_periods: int = 2,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: int = 2,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -430,12 +430,12 @@ class ScoresMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def assignUniLOF(
         self: "SaQC",
-        field: str,
         n: int = 20,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: int = 1,
         density: Literal["auto"] | float = "auto",
         fill_na: bool = True,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

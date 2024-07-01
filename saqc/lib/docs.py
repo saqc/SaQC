@@ -24,7 +24,8 @@ class ParamDict(TypedDict):
 DOC_TEMPLATES = {
     "field": {
         "typehint": "List[str]",
-        "description": "List of variables names to process.",
+        "description": "List of variables names to process. Defaults to all variables present in SaQC object.",
+        "optional": True,
     },
     "target": {"optional": False},
 }
@@ -32,8 +33,9 @@ DOC_TEMPLATES = {
 COMMON = {
     "field": {
         "name": "field",
-        "description": "Variable to process.",
+        "description": "Variable(s) to process. Defaults to all variables of the SaQC object.",
         "typehint": "str | list[str]",
+        "optional": True,
     },
     "target": {
         "name": "target",
@@ -85,26 +87,36 @@ def docurator(func, defaults: dict[str, ParamDict] | None = None):
 
     if tree.returns:
         raise ValueError(
-            f"'{func.__name__}' function doctstring should not provide a returns section"
+            f"the docstring of {func.__qualname__!r} "
+            f"must not provide a returns section"
         )
 
-    # rewrite parameters
-    meta = [toParameter(**{**COMMON["field"], **defaults.get("field", {})})]
+    # check for not allowed descriptions
+    meta = []
     for p in tree.params:
         if p.arg_name in COMMON:
             raise ValueError(
-                f"'{func.__name__}' function docstring should not provide a parameter description for '{p.arg_name}'"
+                f"the docstring of {func.__qualname__!r} must not "
+                f"provide a description for parameter {p.arg_name!r}"
             )
         meta.append(p)
 
-    # additional parameters
-    for p in ("target", "dfilter", "flag"):
-        meta.append(toParameter(**{**COMMON[p], **defaults.get(p, {})}))
+    # add common kwargs
+    for key, val in COMMON.items():
+        meta.append(toParameter(**{**val, **defaults.get(key, {})}))
 
-    # return sections
-    meta.append(docstring_return)
+    # add return sections
+    meta.append(
+        DocstringReturns(
+            args=["returns"],
+            description="the updated SaQC object",
+            type_name="saqc.SaQC",
+            is_generator=False,
+            return_name="SaQC",
+        )
+    )
 
-    # everyhing else the docstring provides
+    # add everything else from the original docstring
     for m in tree.meta:
         if not isinstance(m, DocstringParam):
             meta.append(m)

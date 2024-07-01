@@ -20,6 +20,7 @@ from saqc.core.translation.basescheme import TranslationScheme
 from saqc.lib.docs import ParamDict, docurator
 from saqc.lib.tools import isflagged, squeezeSequence, toSequence
 from saqc.lib.types import ExternalFlag, OptionalNone
+from saqc.options import options
 
 if TYPE_CHECKING:
     from saqc import SaQC
@@ -330,25 +331,55 @@ def register(
         @functools.wraps(func)
         def inner(
             saqc,
-            field,
             *args,
             regex: bool = False,
             flag: ExternalFlag | OptionalNone = OptionalNone(),
             **kwargs,
         ) -> "SaQC":
-            # args -> kwargs
-            paramnames = tuple(func_signature.parameters.keys())[
-                2:
-            ]  # skip (self, field)
+            # skip (self)
+            paramnames = list(func_signature.parameters.keys())[1:]
+
+            legacy_call_style = options["legacy_call_style"]
+
+            # remove block in saqc >=3.0
+            # following cases are covered: flagRange('a', ...)
+            #  e.g. : flagRange('a', min=3, max=9), flagRange('a', 3, 9)
+            # contra cases:
+            #  - no args: e.g. flagRange(min=3, max=9)
+            #  - field is kw: flagRange(3, max=9, field='a')
+            field = None
+            if legacy_call_style and args and "field" not in kwargs:
+                if options["legacy_call_style_warning"]:
+                    warnings.warn(
+                        "Passing 'field' as first positional argument is deprecated. "
+                        "From saqc version 3.0 onwards, 'field' must be a keyword "
+                        "argument. "
+                        "To silence this warning, pass 'field' as a keyword argument "
+                        "or set saqc.options['legacy_call_style_warning'] to False.",
+                        category=FutureWarning,
+                        stacklevel=2,
+                    )
+                if "field" in paramnames:
+                    paramnames.remove("field")
+                field, *args = args
 
             # check for duplicated arguments
             args_map = dict(zip(paramnames, args))
-            intersection = set(args_map).intersection(set(kwargs))
-            if intersection:
+            if intersection := set(args_map).intersection(set(kwargs)):
                 raise TypeError(
-                    f"SaQC.{func.__name__}() got multiple values for argument '{intersection.pop()}'"
+                    f"SaQC.{func.__name__}() got multiple "
+                    f"values for argument '{intersection.pop()}'"
                 )
             kwargs = {**args_map, **kwargs}
+
+            # remove block in saqc >=3.0
+            if legacy_call_style:
+                if field is not None:
+                    kwargs["field"] = field
+
+            if (field := kwargs.pop("field", None)) is None:
+                field = list(saqc.columns)
+
             kwargs["dfilter"] = _getDfilter(func_signature, saqc._scheme, kwargs)
 
             # translate flag

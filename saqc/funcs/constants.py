@@ -29,10 +29,10 @@ class ConstantsMixin:
     @flagging()
     def flagConstants(
         self: "SaQC",
-        field: str,
         thresh: float,
         window: int | str,
         min_periods: int = 2,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -89,11 +89,11 @@ class ConstantsMixin:
     @flagging()
     def flagByVariance(
         self: "SaQC",
-        field: str,
         window: str,
         thresh: float,
         maxna: int | None = None,
         maxna_group: int | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":

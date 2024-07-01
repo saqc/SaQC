@@ -322,13 +322,13 @@ class ResamplingMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def resample(
         self: "SaQC",
-        field: str,
         freq: str,
         func: Callable[[pd.Series], pd.Series] | str = "mean",
         method: Literal["fagg", "bagg", "nagg"] = "bagg",
         maxna: int | None = None,
         maxna_group: int | None = None,
         squeeze: bool = False,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -824,7 +824,6 @@ class ResamplingMixin:
     )
     def concatFlags(
         self: "SaQC",
-        field: str,
         target: str | None = None,
         method: Literal[
             "fagg",
@@ -842,6 +841,7 @@ class ResamplingMixin:
         drop: bool = False,
         squeeze: bool = False,
         override: bool = False,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

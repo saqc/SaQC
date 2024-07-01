@@ -24,9 +24,9 @@ class TransformationMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def transform(
         self: "SaQC",
-        field: str,
         func: Callable[[pd.Series | np.ndarray], pd.Series] | str,
         freq: float | str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

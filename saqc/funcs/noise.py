@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 class NoiseMixin:
     def flagByStatLowPass(
         self: "SaQC",
-        field: str,
         window: str | pd.Timedelta,
         thresh: float,
         func: (
@@ -36,6 +35,7 @@ class NoiseMixin:
         sub_window: str | pd.Timedelta | None = None,
         sub_thresh: float | None = None,
         min_periods: int | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -99,7 +99,6 @@ class NoiseMixin:
     @flagging()
     def flagByScatterLowpass(
         self: "SaQC",
-        field: str,
         window: str | pd.Timedelta,
         thresh: float,
         func: (
@@ -108,6 +107,7 @@ class NoiseMixin:
         sub_window: str | pd.Timedelta | None = None,
         sub_thresh: float | None = None,
         min_periods: int | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":

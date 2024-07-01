@@ -25,6 +25,7 @@ __all__ = [
     "fromConfig",
 ]
 
+from saqc.options import options
 from saqc.constants import BAD, DOUBTFUL, FILTER_ALL, FILTER_NONE, GOOD, UNFLAGGED
 from saqc.core import Flags, DictOfSeries, SaQC
 from saqc.core.translation import (

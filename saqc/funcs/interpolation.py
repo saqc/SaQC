@@ -82,11 +82,11 @@ class InterpolationMixin:
     )
     def interpolateByRolling(
         self: "SaQC",
-        field: str,
         window: str | int,
         func: Callable[[pd.Series], float] | str = "median",
         center: bool = True,
         min_periods: int = 0,
+        field: str | list[str] | None = None,
         flag: float = UNFLAGGED,
         **kwargs,
     ) -> "SaQC":
@@ -157,11 +157,11 @@ class InterpolationMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def align(
         self: "SaQC",
-        field: str,
         freq: str,
         method: str = "time",
         order: int = 2,
         overwrite: bool = False,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

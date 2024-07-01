@@ -47,10 +47,10 @@ class CurvefitMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def fitPolynomial(
         self: "SaQC",
-        field: str,
         window: int | str,
         order: int,
         min_periods: int = 0,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -111,11 +111,11 @@ class CurvefitMixin:
     @register(mask=["field"], demask=[], squeeze=[])
     def fitLowpassFilter(
         self: "SaQC",
-        field: str,
         cutoff: float | str,
         nyq: float = 0.5,
         filter_order: int = 2,
         fill_method: FILL_METHODS = "linear",
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
