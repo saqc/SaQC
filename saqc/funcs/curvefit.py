@@ -50,7 +50,7 @@ class CurvefitMixin:
         window: int | str,
         order: int,
         min_periods: int = 0,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -115,7 +115,7 @@ class CurvefitMixin:
         nyq: float = 0.5,
         filter_order: int = 2,
         fill_method: FILL_METHODS = "linear",
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

@@ -35,7 +35,7 @@ class ChangepointsMixin:
         min_periods: int | Tuple[int, int],
         reduce_window: str | None = None,
         reduce_func: Callable[[np.ndarray, np.ndarray], int] = lambda x, _: x.argmax(),
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -121,7 +121,7 @@ class ChangepointsMixin:
             [np.ndarray, np.ndarray], float
         ] = lambda x, _: x.argmax(),
         model_by_resids: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

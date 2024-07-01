@@ -27,7 +27,7 @@ class ResidualsMixin:
         window: str | int,
         order: int,
         min_periods: int = 0,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -92,7 +92,7 @@ class ResidualsMixin:
         func: Callable[[pd.Series], np.ndarray] | str = "mean",
         min_periods: int = 0,
         center: bool = True,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

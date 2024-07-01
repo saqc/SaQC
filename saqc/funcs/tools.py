@@ -166,7 +166,7 @@ class ToolsMixin:
         self: "SaQC",
         target: str,
         overwrite: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -192,7 +192,7 @@ class ToolsMixin:
         return self
 
     @processing()
-    def dropField(self: "SaQC", field: str | None = None, **kwargs) -> "SaQC":
+    def dropField(self: "SaQC", field: str | list[str]| None = None, **kwargs) -> "SaQC":
         """
         Drops field from the data and flags.
         """
@@ -202,7 +202,7 @@ class ToolsMixin:
 
     @processing()
     def renameField(
-        self: "SaQC", new_name: str, field: str | None = None, **kwargs
+        self: "SaQC", new_name: str, field: str | list[str] | None = None, **kwargs
     ) -> "SaQC":
         """
         Rename field in data and flags.
@@ -226,7 +226,7 @@ class ToolsMixin:
         start: str | None = None,
         end: str | None = None,
         closed: bool = True,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

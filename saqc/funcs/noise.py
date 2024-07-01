@@ -35,7 +35,7 @@ class NoiseMixin:
         sub_window: str | pd.Timedelta | None = None,
         sub_thresh: float | None = None,
         min_periods: int | None = None,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -107,7 +107,7 @@ class NoiseMixin:
         sub_window: str | pd.Timedelta | None = None,
         sub_thresh: float | None = None,
         min_periods: int | None = None,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":

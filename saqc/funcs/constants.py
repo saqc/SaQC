@@ -32,7 +32,7 @@ class ConstantsMixin:
         thresh: float,
         window: int | str,
         min_periods: int = 2,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -93,7 +93,7 @@ class ConstantsMixin:
         thresh: float,
         maxna: int | None = None,
         maxna_group: int | None = None,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":

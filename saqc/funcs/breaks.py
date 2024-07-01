@@ -36,7 +36,7 @@ class BreaksMixin:
     @register(mask=[], demask=[], squeeze=["field"])
     def flagMissing(
         self: "SaQC",
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         dfilter: float = FILTER_ALL,
         **kwargs,
@@ -64,7 +64,7 @@ class BreaksMixin:
         self: "SaQC",
         gap_window: str,
         group_window: str,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -134,7 +134,7 @@ class BreaksMixin:
         thresh: float,
         window: str,
         min_periods: int = 1,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         dfilter: float = FILTER_ALL,
         **kwargs,

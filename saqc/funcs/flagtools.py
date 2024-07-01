@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 
 class FlagtoolsMixin:
     @flagging()
-    def flagDummy(self: "SaQC", field: str | None = None, **kwargs) -> "SaQC":
+    def flagDummy(self: "SaQC", field: str | list[str] | None = None, **kwargs) -> "SaQC":
         """
         Function does nothing but returning data and flags.
 
@@ -45,7 +45,7 @@ class FlagtoolsMixin:
 
     @register(mask=[], demask=[], squeeze=["field"])
     def forceFlags(
-        self: "SaQC", field: str | None = None, flag: float = BAD, **kwargs
+        self: "SaQC", field: str | list[str] | None = None, flag: float = BAD, **kwargs
     ) -> "SaQC":
         """
         Set whole column to a flag value.
@@ -63,7 +63,7 @@ class FlagtoolsMixin:
         return self
 
     @register(mask=[], demask=[], squeeze=["field"])
-    def clearFlags(self: "SaQC", field: str | None = None, **kwargs) -> "SaQC":
+    def clearFlags(self: "SaQC", field: str | list[str] | None = None, **kwargs) -> "SaQC":
         """
         Assign UNFLAGGED value to all periods in field.
 
@@ -89,7 +89,7 @@ class FlagtoolsMixin:
 
     @register(mask=[], demask=[], squeeze=["field"])
     def flagUnflagged(
-        self: "SaQC", field: str | None = None, flag: float = BAD, **kwargs
+        self: "SaQC", field: str | list[str] | None = None, flag: float = BAD, **kwargs
     ) -> "SaQC":
         """
         Function sets a flag at all unflagged positions.
@@ -182,7 +182,7 @@ class FlagtoolsMixin:
         ] = "left-open",
         mformat: Literal["start-end", "mflag"] = "start-end",
         mflag: Any = 1,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -388,7 +388,7 @@ class FlagtoolsMixin:
         target: str | None = None,
         squeeze: bool = False,
         overwrite: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -507,7 +507,7 @@ class FlagtoolsMixin:
         self: "SaQC",
         window: str | int,
         method: Literal["ffill", "bfill"] = "ffill",
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         dfilter: float = FILTER_ALL,
         **kwargs,

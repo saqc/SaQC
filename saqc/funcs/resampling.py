@@ -328,7 +328,7 @@ class ResamplingMixin:
         maxna: int | None = None,
         maxna_group: int | None = None,
         squeeze: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -841,7 +841,7 @@ class ResamplingMixin:
         drop: bool = False,
         squeeze: bool = False,
         override: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

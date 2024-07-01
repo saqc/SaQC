@@ -66,7 +66,7 @@ class DriftMixin:
             [np.ndarray | pd.Series, np.ndarray | pd.Series], np.ndarray
         ] = cityblock,
         method: LinkageString = "single",
-        field: Sequence[str] | None = None,
+        field: list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -185,7 +185,7 @@ class DriftMixin:
         metric: Callable[
             [np.ndarray | pd.Series, np.ndarray | pd.Series], np.ndarray
         ] = cityblock,
-        field: Sequence[str] | None = None,
+        field: list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -247,7 +247,7 @@ class DriftMixin:
         maintenance_field: str,
         model: Callable[..., float] | Literal["linear", "exponential"],
         cal_range: int = 5,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -381,7 +381,7 @@ class DriftMixin:
         model: CurveFitter,
         tolerance: Optional[str] = None,
         epoch: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -500,7 +500,7 @@ class DriftMixin:
         window: str,
         min_periods: int,
         tolerance: str | None = None,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -566,7 +566,7 @@ class DriftMixin:
             [np.ndarray | pd.Series, np.ndarray | pd.Series], float
         ] = lambda x, y: np.abs(np.nanmean(x) - np.nanmean(y)),
         frac: float = 0.5,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -638,7 +638,7 @@ class DriftMixin:
             np.nanmean(x) - np.nanmean(y)
         ),
         frac: float = 0.5,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

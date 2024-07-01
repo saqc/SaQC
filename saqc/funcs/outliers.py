@@ -66,7 +66,7 @@ class OutliersMixin:
         thresh: Literal["auto"] | float = 1.5,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: int = 1,
-        field: Sequence[str] | None = None,
+        field: list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -177,7 +177,7 @@ class OutliersMixin:
         fill_na: bool = True,
         slope_correct: bool = True,
         min_offset: float = None,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -415,7 +415,7 @@ class OutliersMixin:
         self: "SaQC",
         min: float = -np.inf,
         max: float = np.inf,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -443,7 +443,7 @@ class OutliersMixin:
         min_periods: int = 11,
         iter_start: float = 0.5,
         alpha: float = 0.05,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -558,7 +558,7 @@ class OutliersMixin:
         drop_flagged: bool = False,  # TODO: still a case ?
         thresh: float = 3.5,
         min_periods_r: int = 1,
-        field: Sequence[str] | None = None,
+        field: list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -788,7 +788,7 @@ class OutliersMixin:
         raise_factor: float = 2.0,
         slope: float | None = None,
         weight: float = 0.8,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -956,7 +956,7 @@ class OutliersMixin:
         min_residuals: int | None = None,
         min_periods: int | None = None,
         center: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -1020,7 +1020,7 @@ class OutliersMixin:
         window: int | str,
         thresh: float | None = None,
         thresh_relative: float | None = None,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -1223,7 +1223,7 @@ class OutliersMixin:
         alpha: float = 0.05,
         min_periods: int = 8,
         pedantic: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
@@ -1339,7 +1339,7 @@ class OutliersMixin:
         min_periods: int | None = None,
         center: bool = True,
         axis: int = 0,
-        field: Sequence[str] | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":

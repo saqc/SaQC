@@ -175,7 +175,7 @@ class ScoresMixin:
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         metric: str = "minkowski",
         p: int = 2,
-        field: Sequence[str] | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -288,7 +288,7 @@ class ScoresMixin:
         model_func: Callable | str = "mean",
         center: bool = True,
         min_periods: int | None = None,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -359,7 +359,7 @@ class ScoresMixin:
         min_periods: int = 2,
         algorithm: Literal["ball_tree", "kd_tree", "brute", "auto"] = "ball_tree",
         p: int = 2,
-        field: Sequence[str] | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -435,7 +435,7 @@ class ScoresMixin:
         p: int = 1,
         density: Literal["auto"] | float = "auto",
         fill_na: bool = True,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

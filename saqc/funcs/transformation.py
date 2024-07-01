@@ -26,7 +26,7 @@ class TransformationMixin:
         self: "SaQC",
         func: Callable[[pd.Series | np.ndarray], pd.Series] | str,
         freq: float | str | None = None,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

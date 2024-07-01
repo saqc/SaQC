@@ -86,7 +86,7 @@ class InterpolationMixin:
         func: Callable[[pd.Series], float] | str = "median",
         center: bool = True,
         min_periods: int = 0,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = UNFLAGGED,
         **kwargs,
     ) -> "SaQC":
@@ -161,7 +161,7 @@ class InterpolationMixin:
         method: str = "time",
         order: int = 2,
         overwrite: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         **kwargs,
     ) -> "SaQC":
         """

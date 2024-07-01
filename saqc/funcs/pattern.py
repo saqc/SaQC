@@ -97,7 +97,7 @@ class PatternMixin:
         max_distance: float = 0.0,
         normalize: bool = True,
         plot: bool = False,
-        field: str | None = None,
+        field: str | list[str] | None = None,
         flag: float = BAD,
         **kwargs,
     ) -> "SaQC":
