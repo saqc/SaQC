@@ -12,8 +12,8 @@ import pytest
 from saqc import BAD, UNFLAGGED, SaQC
 from saqc.constants import FILTER_NONE
 from saqc.core import DictOfSeries, Flags
-from tests.common import initData
 from saqc.lib.ts_operators import clip
+from tests.common import initData
 
 
 @pytest.fixture
