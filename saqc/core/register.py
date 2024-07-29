@@ -339,7 +339,7 @@ def register(
                 field, *args = args
                 warnings.warn(
                     "Using 'field' as positional argument is deprecated "
-                    "and will raise an exception in saqc > 3.0; pass field "
+                    "and will raise an exception in saqc>=3.0; pass field "
                     "as keyword instead.",
                     DeprecationWarning,
                     stacklevel=2,
