@@ -48,7 +48,6 @@ class FloatScheme(TranslationScheme):
 
 class AnnotatedFloatScheme(FloatScheme):
     def toExternal(self, flags: Flags, attrs: dict | None = None) -> DictOfSeries:
-
         tflags = super().toExternal(flags, attrs=attrs)
 
         out = DictOfSeries()

@@ -185,7 +185,6 @@ class DmpScheme(MappingScheme):
         df : external flags
         """
         for df in flags.values():
-
             if not df.columns.isin(_QUALITY_LABELS).all(axis=None):
                 raise TypeError(
                     f"DMP-Flags expect the labels {list(_QUALITY_LABELS)} in the secondary level"

@@ -95,7 +95,6 @@ PILLARMETHODS = ["mshift", "sshift"]
 def _reindexerFromPillarPoints(
     method, data_aggregation, flags_aggregation, tolerance, datcol, index, idx_source
 ):
-
     if method == "mshift":
         na_wrapper = lambda x: x
     else:
@@ -143,7 +142,6 @@ def _reindexerFromPillarPoints(
         new_dat = datcol.where(dummy, np.nan)
 
     elif method == "sshift":
-
         new_dat = pd.Series(data_aggregation, index=index)
 
     return flags_reindexer, new_dat
@@ -385,7 +383,7 @@ class ResamplingMixin:
         # we check any interval for sufficing the maxna and maxnagroup condition
         # broadcast is set to False, since we mimic "pandas resample"
         self = self.reindex(
-            field,
+            field=field,
             target=tmp_val_field,
             index=freq,
             method=method,
@@ -395,7 +393,7 @@ class ResamplingMixin:
         )
         # repeat the reindexing with the selected resampling func func
         self = self.reindex(
-            field,
+            field=field,
             index=freq,
             method=method,
             data_aggregation=func,
@@ -406,11 +404,11 @@ class ResamplingMixin:
         )
         # where the validation returned False, overwrite the resampling result:
         self = self.processGeneric(
-            [field, tmp_val_field],
+            field=[field, tmp_val_field],
             target=field,
             func=lambda x, y: x.where(y.astype(bool), np.nan),
         )
-        self = self.dropField(tmp_val_field)
+        self = self.dropField(field=tmp_val_field)
 
         r_meta = {
             "field": field,
@@ -570,8 +568,8 @@ class ResamplingMixin:
         .. doctest:: reindexExample
 
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.reindex('data', target='linear', index='2D', method='mshift', data_aggregation='linear')
-           >>> qc = qc.reindex('data', target='limited_linear', index='2D', method='mshift', data_aggregation='linear', tolerance='1D')
+           >>> qc = qc.reindex(field='data', target='linear', index='2D', method='mshift', data_aggregation='linear')
+           >>> qc = qc.reindex(field='data', target='limited_linear', index='2D', method='mshift', data_aggregation='linear', tolerance='1D')
            >>> qc.data # doctest: +SKIP
                               data |               linear |       limited_linear |
            ======================= | ==================== | ==================== |
@@ -601,8 +599,8 @@ class ResamplingMixin:
 
         .. doctest:: reindexExample
 
-           >>> qc = qc.setFlags('linear', data=['2000-01-16'])
-           >>> qc = qc.reindex('linear', index='data', tolerance='2D', method='sshift', dfilter=FILTER_NONE)
+           >>> qc = qc.setFlags(field='linear', data=['2000-01-16'])
+           >>> qc = qc.reindex(field='linear', index='data', tolerance='2D', method='sshift', dfilter=FILTER_NONE)
            >>> qc.flags[['data', 'linear']] # doctest: +SKIP
                                data |                     linear |
            ======================== | ========================== |
@@ -635,8 +633,8 @@ class ResamplingMixin:
         .. doctest:: reindexExample
 
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.reindex('data', index='1D', target='n_shifted', method='nshift')
-           >>> qc = qc.reindex('n_shifted', index='data', target='n_shifted_undone', method='nshift')
+           >>> qc = qc.reindex(field='data', index='1D', target='n_shifted', method='nshift')
+           >>> qc = qc.reindex(field='n_shifted', index='data', target='n_shifted_undone', method='nshift')
            >>> qc.data # doctest: +SKIP
                               data |        n_shifted |          n_shifted_undone |
            ======================= | ================ | ========================= |
@@ -671,10 +669,10 @@ class ResamplingMixin:
         .. doctest:: reindexExample
 
            >>> qc = saqc.SaQC(data)
-           >>> qc = qc.reindex('data', target='sum_aggregate', index='3D', method='fagg', data_aggregation='sum')
-           >>> qc = qc.setFlags('sum_aggregate', data=['2000-01-18', '2000-01-24'])
-           >>> qc = qc.reindex('sum_aggregate', target='bagg', index='data', method='bagg', dfilter=FILTER_NONE)
-           >>> qc = qc.reindex('sum_aggregate', target='bagg_limited', index='data', method='bagg', tolerance='2D', dfilter=FILTER_NONE)
+           >>> qc = qc.reindex(field='data', target='sum_aggregate', index='3D', method='fagg', data_aggregation='sum')
+           >>> qc = qc.setFlags(field='sum_aggregate', data=['2000-01-18', '2000-01-24'])
+           >>> qc = qc.reindex(field='sum_aggregate', target='bagg', index='data', method='bagg', dfilter=FILTER_NONE)
+           >>> qc = qc.reindex(field='sum_aggregate', target='bagg_limited', index='data', method='bagg', tolerance='2D', dfilter=FILTER_NONE)
            >>> qc.flags # doctest: +SKIP
                                data |     sum_aggregate |                       bagg |               bagg_limited |
            ======================== | ================= | ========================== | ========================== |
@@ -758,7 +756,6 @@ class ResamplingMixin:
             flags_reindexer = lambda x: pd.Series(flags_aggregation, index=index)
 
         if method.endswith("agg") | (method in SHIFTMETHODS) | method.endswith("match"):
-
             grouper, bc_grouper = _aggregationGrouper(
                 method, index, idx_source, tolerance, datcol, broadcast
             )
@@ -957,7 +954,7 @@ class ResamplingMixin:
         # - broadcast is True, since we project a flag onto all the periods its data value was aggregated
         #   from when aligning
         self = self.reindex(
-            field,
+            field=field,
             target=temp_field,
             index=self._data[target].index,
             tolerance=freq,
@@ -967,7 +964,7 @@ class ResamplingMixin:
             broadcast=True,
         )
         # transfer reindexed flags
-        self = self.transferFlags(temp_field, target, squeeze=squeeze)
+        self = self.transferFlags(field=temp_field, target=target, squeeze=squeeze)
         self = self.dropField(field=temp_field)
         if drop:
             return self.dropField(field=field)

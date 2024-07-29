@@ -23,9 +23,9 @@ def test_makeFig(tmp_path):
     )
     d_saqc = saqc.SaQC(data)
     d_saqc = (
-        d_saqc.flagRange("data", max=500)
-        .flagRange("data", max=400)
-        .flagRange("data", max=300)
+        d_saqc.flagRange(field="data", max=500)
+        .flagRange(field="data", max=400)
+        .flagRange(field="data", max=300)
     )
 
     # not interactive, no storing
@@ -44,6 +44,7 @@ def test_makeFig(tmp_path):
     )
 
 
+@pytest.mark.slow
 @pytest.mark.filterwarnings("ignore::UserWarning")
 def test_flagByClick():
     saqc.funcs.tools._TEST_MODE = True
@@ -52,5 +53,5 @@ def test_flagByClick():
         index=pd.date_range("2000", freq="1d", periods=100),
     )
     qc = saqc.SaQC(data)
-    qc = qc.flagByClick(data.columns, gui_mode="overlay")
-    qc = qc.flagByClick(data.columns)
+    qc = qc.flagByClick(field=data.columns, gui_mode="overlay")
+    qc = qc.flagByClick(field=data.columns)

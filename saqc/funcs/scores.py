@@ -256,7 +256,7 @@ class ScoresMixin:
                 )
             target = target[0]
         if target in self._data.columns:
-            self = self.dropField(target)
+            self = self.dropField(field=target)
 
         fields = toSequence(field)
         val_frame = self._data[fields].copy().to_pandas()
@@ -403,7 +403,7 @@ class ScoresMixin:
                 )
             target = target[0]
         if target in self._data.columns:
-            self = self.dropField(target)
+            self = self.dropField(field=target)
 
         fields = toSequence(field)
         val_frame = self._data[fields].copy().to_pandas()

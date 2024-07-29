@@ -494,7 +494,6 @@ class ToolsMixin:
         ):
             yscope = tuple(yscope)
         if yscope is not None:
-
             ax_kwargs.update({"ylim": yscope})
 
         if not path:

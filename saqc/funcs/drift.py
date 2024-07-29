@@ -531,7 +531,7 @@ class DriftMixin:
         #   - This whole function does not set any flags
         #   - Checking is delegated to the called functions
         cluster_field = field + "_CPcluster"
-        qc = self.copyField(field, cluster_field)
+        qc = self.copyField(field=field, target=cluster_field)
         qc.data[cluster_field] = _getChangePoints(
             data=qc._data[cluster_field],
             stat_func=lambda x, y: np.abs(np.mean(x) - np.mean(y)),
@@ -548,12 +548,12 @@ class DriftMixin:
             spread=spread,
         )
         qc = qc.correctRegimeAnomaly(
-            field,
-            cluster_field,
-            lambda x, p1: np.array([p1] * x.shape[0]),
+            field=field,
+            cluster_field=cluster_field,
+            model=lambda x, p1: np.array([p1] * x.shape[0]),
             tolerance=tolerance,
         )
-        qc = qc.dropField(cluster_field)
+        qc = qc.dropField(field=cluster_field)
         return qc
 
     @flagging()

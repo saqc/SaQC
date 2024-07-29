@@ -13,6 +13,7 @@ from saqc import BAD, UNFLAGGED, SaQC
 from saqc.constants import FILTER_NONE
 from saqc.core import DictOfSeries, Flags
 from tests.common import initData
+from saqc.lib.ts_operators import clip
 
 
 @pytest.fixture
@@ -24,7 +25,7 @@ def test_emptyData():
     # test that things do not break with empty data sets
     saqc = SaQC(data=pd.DataFrame({"x": [], "y": []}))
 
-    saqc.flagGeneric("x", func=lambda x: x < 0)
+    saqc.flagGeneric(field="x", func=lambda x: x < 0)
     assert saqc.data.empty
     assert saqc.flags.empty
 
@@ -184,10 +185,10 @@ def test_label():
     )
 
     qc = SaQC(dat)
-    qc = qc.flagRange("data1", max=4, label="out of range")
-    qc = qc.flagRange("data1", max=0, label="out of range2")
+    qc = qc.flagRange(field="data1", max=4, label="out of range")
+    qc = qc.flagRange(field="data1", max=0, label="out of range2")
     qc = qc.flagGeneric(
-        ["data1", "data3"],
+        field=["data1", "data3"],
         target="data2",
         func=lambda x, y: isflagged(x, "out of range") | isflagged(y),  # noqa
     )
@@ -218,5 +219,5 @@ def test_processGenericClip(kwargs, got, expected):
         columns=[field],
         index=pd.date_range("2020-06-30", periods=len(expected)),
     )
-    qc = SaQC(got).processGeneric(field, func=lambda x: clip(x, **kwargs))
+    qc = SaQC(got).processGeneric(field=field, func=lambda x: clip(x, **kwargs))
     assert (qc._data[field] == expected[field]).all()

@@ -334,7 +334,6 @@ def register(
 
         @functools.wraps(func)
         def inner(saqc, *args, **kwargs) -> "SaQC":
-
             field = kwargs.pop("field", None)
             if field is None:
                 field, *args = args

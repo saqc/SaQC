@@ -44,7 +44,7 @@ def test_errorHandling(data):
     qc = SaQC(data)
 
     with pytest.raises(TypeError):
-        qc.raisingFunc(var1)
+        qc.raisingFunc(field=var1)
 
 
 @pytest.mark.parametrize("optional", OPTIONAL)
@@ -62,7 +62,7 @@ def test_dtypes(data, flags):
     flags_raw = DictOfSeries(flags)
     var1, var2 = data.columns[:2]
 
-    pflags = SaQC(data, flags=flags_raw).flagAll(var1).flagAll(var2).flags
+    pflags = SaQC(data, flags=flags_raw).flagAll(field=var1).flagAll(field=var2).flags
 
     for c in pflags.columns:
         assert pflags[c].dtype == flags[c].dtype
@@ -86,7 +86,7 @@ def test_autoTranslation():
 
 def test_new_call(data):
     qc = SaQC(data)
-    qc = qc.flagRange("var1", max=5)
+    qc = qc.flagRange(field="var1", max=5)
 
 
 def test_SaQC_attributes():
@@ -100,7 +100,7 @@ def test_SaQC_attributes():
 
 def test_copy(data):
     qc = SaQC(data)
-    qc = qc.flagRange("var1").flagRange("var1", min=0, max=0)
+    qc = qc.flagRange(field="var1").flagRange(field="var1", min=0, max=0)
 
     deep = qc.copy(deep=True)
     shallow = qc.copy(deep=False)
@@ -231,7 +231,7 @@ def test_validation(data):
         return saqc
 
     with pytest.raises(RuntimeError):
-        qc.flagFoo("a")
+        qc.flagFoo(field="a")
 
 
 def test__copy__():
@@ -253,7 +253,7 @@ def test__deepcopy__():
 def test_immutability(data):
     field = data.columns[0]
     saqc_before = SaQC(data)
-    saqc_after = saqc_before.flagDummy(field)
+    saqc_after = saqc_before.flagDummy(field=field)
     for name in SaQC._attributes:
         assert getattr(saqc_before, name) is not getattr(saqc_after, name)
 
@@ -288,13 +288,13 @@ def test_fieldsTargetsExpansionFail(field, target):
     data = pd.DataFrame({"a": [1, 2], "b": [2, 3], "c": [3, 4], "d": [4, 5]})
     qc = SaQC(data)
     with pytest.raises(ValueError):
-        qc.foo(field, target=target)
+        qc.foo(field=field, target=target)
     with pytest.raises(ValueError):
-        qc.bar(field, target=target)
+        qc.bar(field=field, target=target)
     with pytest.raises(ValueError):
-        qc.baz(field, target=target)
+        qc.baz(field=field, target=target)
     with pytest.raises(ValueError):
-        qc.fooBar(field, target=target)
+        qc.fooBar(field=field, target=target)
 
 
 @pytest.mark.parametrize(
@@ -326,10 +326,10 @@ def test_fieldsTargetsExpansion(field, target):
 
     data = pd.DataFrame({"a": [1, 2], "b": [2, 3], "c": [3, 4], "d": [4, 5]})
     qc = SaQC(data)
-    qc.foo(field, target=target)
-    qc.bar(field, target=target)
-    qc.baz(field, target=target)
-    qc.fooBar(field, target=target)
+    qc.foo(field=field, target=target)
+    qc.bar(field=field, target=target)
+    qc.baz(field=field, target=target)
+    qc.fooBar(field=field, target=target)
 
 
 @pytest.mark.parametrize(
@@ -354,8 +354,8 @@ def test_fieldsTargetsExpansionMultivariate(field, target):
         {"a": [1, 2, 3], "b": [2, 3, 4], "c": [3, 4, 5], "d": [4, 5, 6]}
     )
     qc = SaQC(data)
-    qc.foo(field, target)
-    qc.bar(field, target)
+    qc.foo(field=field, target=target)
+    qc.bar(field=field, target=target)
 
 
 def test_columnConsitency(data):
@@ -367,7 +367,7 @@ def test_columnConsitency(data):
     field = data.columns[0]
     qc = SaQC(data)
     with pytest.raises(RuntimeError):
-        qc.flagFoo(field)
+        qc.flagFoo(field=field)
 
 
 @pytest.mark.parametrize(
@@ -388,7 +388,7 @@ def test_dfilterTranslation(data, user_flag, internal_flag):
 
     field = data.columns[0]
     qc = SaQC(data, scheme="simple")
-    qc.flagFoo(field, dfilter=user_flag)
+    qc.flagFoo(field=field, dfilter=user_flag)
 
 
 @pytest.mark.parametrize(

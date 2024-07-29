@@ -96,7 +96,7 @@ class RollingMixin:
         else:
             if target:
                 for ft in zip(field, target):
-                    self = self.copyField(ft[0], target=ft[1], overwrite=True)
+                    self = self.copyField(field=ft[0], target=ft[1], overwrite=True)
                 field = target
             for f in field:
                 self._data, self._flags = _roll(
@@ -123,7 +123,6 @@ def _hroll(
     center: bool = True,
     **kwargs,
 ):
-
     if isinstance(window, str):
         freq = getFreqDelta(data[field].to_pandas().index)
         if freq is None:

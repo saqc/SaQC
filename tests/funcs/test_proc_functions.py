@@ -36,7 +36,11 @@ def test_multivariateRolling(window, center, expected):
     )
     qc = saqc.SaQC(data)
     qc = qc.rolling(
-        ["a", "b", "c"], func="count", target="count", window=window, center=center
+        field=["a", "b", "c"],
+        func="count",
+        target="count",
+        window=window,
+        center=center,
     )
     assert np.array_equal(qc.data["count"].values, expected, equal_nan=True)
 
@@ -47,8 +51,8 @@ def test_rollingInterpolateMissing(course_5):
     data = DictOfSeries(data)
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).interpolateByRolling(
-        field,
-        3,
+        field=field,
+        window=3,
         func=np.median,
         center=True,
         min_periods=0,
@@ -56,8 +60,8 @@ def test_rollingInterpolateMissing(course_5):
     )
     assert qc.data[field][characteristics["missing"]].notna().all()
     qc = SaQC(data, flags).interpolateByRolling(
-        field,
-        3,
+        field=field,
+        window=3,
         func=np.nanmean,
         center=False,
         min_periods=3,
@@ -73,14 +77,16 @@ def test_transform(course_5):
     flags = initFlagsLike(data)
     qc = SaQC(data, flags)
 
-    result = qc.transform(field, func=linearInterpolation)
+    result = qc.transform(field=field, func=linearInterpolation)
     assert result.data[field][characteristics["missing"]].isna().all()
 
-    result = qc.transform(field, func=lambda x: linearInterpolation(x, inter_limit=3))
+    result = qc.transform(
+        field=field, func=lambda x: linearInterpolation(x, inter_limit=3)
+    )
     assert result.data[field][characteristics["missing"]].notna().all()
 
     result = qc.transform(
-        field,
+        field=field,
         func=lambda x: polynomialInterpolation(x, inter_limit=3, inter_order=3),
     )
     assert result.data[field][characteristics["missing"]].notna().all()
@@ -92,9 +98,9 @@ def test_resample(course_5):
     data = DictOfSeries(data)
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).resample(
-        field,
-        "10min",
-        "mean",
+        field=field,
+        freq="10min",
+        func="mean",
         maxna=2,
         maxna_group=1,
     )
@@ -108,7 +114,7 @@ def test_interpolateGrid(course_5, course_3):
     data_grid, _ = course_3()
     data["grid"] = data_grid["data"]
     flags = initFlagsLike(data)
-    SaQC(data, flags).align("data", "1h", "time")
+    SaQC(data, flags).align(field="data", freq="1h", method="time")
 
 
 @pytest.mark.slow
@@ -117,14 +123,20 @@ def test_offsetCorrecture():
     data.iloc[30:40] = -100
     data.iloc[70:80] = 100
     flags = initFlagsLike(data)
-    qc = SaQC(data, flags).correctOffset("dat", 40, 20, "3d", 1)
+    qc = SaQC(data, flags).correctOffset(
+        field="dat",
+        max_jump=40,
+        spread=20,
+        window="3d",
+        min_periods=1,
+    )
     assert (qc.data["dat"] == 0).all()
 
 
 # GL-333
 def test_resampleSingleEmptySeries():
     qc = saqc.SaQC(pd.DataFrame(1, columns=["a"], index=pd.DatetimeIndex([])))
-    qc.resample("a", freq="1d")
+    qc.resample(field="a", freq="1d")
 
 
 @pytest.mark.parametrize(
@@ -142,7 +154,7 @@ def test_resampleSingleEmptySeries():
 )
 def test_assignZScore(data):
     qc = saqc.SaQC(data)
-    qc = qc.assignZScore("data", window="20D")
+    qc = qc.assignZScore(field="data", window="20D")
     mean_res = qc.data["data"].mean()
     std_res = qc.data["data"].std()
     assert -0.1 < mean_res < 0.1

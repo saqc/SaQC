@@ -83,7 +83,7 @@ class FlagtoolsMixin:
             flag = kwargs.pop("flag")
             warnings.warn(f"`flag={flag}` is ignored here.")
 
-        return self.forceFlags(field, flag=UNFLAGGED, **kwargs)
+        return self.forceFlags(field=field, flag=UNFLAGGED, **kwargs)
 
     @register(mask=[], demask=[], squeeze=["field"])
     def flagUnflagged(self: "SaQC", field: str, flag: float = BAD, **kwargs) -> "SaQC":
@@ -161,7 +161,6 @@ class FlagtoolsMixin:
 
         # elif isinstance(f_data, list):
         if not override:
-
             to_flag &= isunflagged(self._flags[field], thresh=kwargs["dfilter"])
             # to_flag &= (self._flags[field] < flag) & (
             #     self._flags[field] >= kwargs["dfilter"]

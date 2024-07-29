@@ -149,7 +149,6 @@ def main(
     flags_result = saqc.flags
 
     if outfile:
-
         out = DictOfSeries()
         for k in data_result.keys():
             flagscol = flags_result[k]
