@@ -34,7 +34,14 @@ def test_statPass():
     data = DictOfSeries(data=data)
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).flagByScatterLowpass(
-        "data", "20D", 0.999, np.std, "5D", 0.999, 0, flag=BAD
+        field="data",
+        window="20D",
+        thresh=0.999,
+        func=np.std,
+        sub_window="5D",
+        sub_thresh=0.999,
+        min_periods=0,
+        flag=BAD,
     )
     assert (qc.flags["data"].iloc[:100] == UNFLAGGED).all()
     assert (qc.flags["data"].iloc[100:120] == BAD).all()
@@ -45,7 +52,7 @@ def test_flagRange(data, field):
     min, max = 10, 90
     flags = initFlagsLike(data)
     qc = SaQC(data, flags)
-    qc = qc.flagRange(field, min=min, max=max, flag=BAD)
+    qc = qc.flagRange(field=field, min=min, max=max, flag=BAD)
     flagged = qc.flags[field] > UNFLAGGED
     expected = (data[field] < min) | (data[field] > max)
     assert all(flagged == expected)
@@ -88,18 +95,18 @@ def test_selectTime(data, field):
         start = f"{test['startmonth']:02}-{test['startday']:02}T00:00:00"
         end = f"{test['endmonth']:02}-{test['endday']:02}T00:00:00"
 
-        qc = qc.copyField(field, newfield)
+        qc = qc.copyField(field=field, target=newfield)
         qc = qc.selectTime(
-            newfield,
+            field=newfield,
             mode="periodic",
             start=start,
             end=end,
             closed=True,
             flag=BAD,
         )
-        qc = qc.flagRange(newfield, min=test["min"], max=test["max"], flag=BAD)
-        qc = qc.transferFlags(newfield, target=field, flag=BAD, overwrite=True)
-        qc = qc.dropField(newfield)
+        qc = qc.flagRange(field=newfield, min=test["min"], max=test["max"], flag=BAD)
+        qc = qc.transferFlags(field=newfield, target=field, flag=BAD, overwrite=True)
+        qc = qc.dropField(field=newfield)
         flagged = qc._flags[field] > UNFLAGGED
         assert flagged.sum() == expected
 
@@ -110,7 +117,7 @@ def test_clearFlags(data, field):
     assert all(flags[field] == BAD)
 
     qc = SaQC(data, flags)
-    qc = qc.clearFlags(field)
+    qc = qc.clearFlags(field=field)
     assert all(qc._flags[field] == UNFLAGGED)
 
 
@@ -119,7 +126,7 @@ def test_forceFlags(data, field):
     flags[:, field] = BAD
     assert all(flags[field] == BAD)
 
-    qc = SaQC(data, flags).forceFlags(field, flag=DOUBTFUL)
+    qc = SaQC(data, flags).forceFlags(field=field, flag=DOUBTFUL)
     assert all(qc._flags[field] == DOUBTFUL)
 
 
@@ -144,14 +151,14 @@ def test_flagIsolated(data, field):
     #         ..    ..     ..
 
     qc = SaQC(data, flags).flagIsolated(
-        field, group_window="1D", gap_window="2.1D", flag=BAD
+        field=field, group_window="1D", gap_window="2.1D", flag=BAD
     )
     assert (qc._flags[field].iloc[[3, 5]] == BAD).all()
     neg_list = [k for k in range(d_len) if k not in [3, 5]]
     assert (qc._flags[field].iloc[neg_list] == UNFLAGGED).all()
 
     qc = qc.flagIsolated(
-        field,
+        field=field,
         group_window="2D",
         gap_window="2.1D",
         flag=BAD,

@@ -226,7 +226,7 @@ class InterpolationMixin:
             data_agg_func = DATA_REINDEXER.get(method, None)
 
         self = self.reindex(
-            field,
+            field=field,
             index=freq,
             tolerance=freq,
             method=method,

@@ -28,7 +28,7 @@ def test_constants_flagBasic(data):
     field, *_ = data.columns
     flags = initFlagsLike(data)
     qc = SaQC(data, flags)
-    qc = qc.flagConstants(field, window="15Min", thresh=0.1, flag=BAD)
+    qc = qc.flagConstants(field=field, window="15Min", thresh=0.1, flag=BAD)
     flagscol = qc._flags[field]
     assert np.all(flagscol[5:25] == BAD)
     assert np.all(flagscol[:5] == UNFLAGGED)
@@ -39,7 +39,7 @@ def test_constants_flagVarianceBased(data):
     field, *_ = data.columns
     flags = initFlagsLike(data)
     qc = SaQC(data, flags)
-    qc = qc.flagByVariance(field, window="1h", thresh=0.0005, flag=BAD)
+    qc = qc.flagByVariance(field=field, window="1h", thresh=0.0005, flag=BAD)
 
     flagscol = qc._flags[field]
     assert np.all(flagscol[5:25] == BAD)

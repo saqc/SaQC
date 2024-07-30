@@ -164,7 +164,7 @@ class OutliersMixin:
             mask = ~isflagged(qc._flags[f], kwargs["dfilter"]) & s_mask
             qc._flags[mask, f] = flag
 
-        return qc.dropField(field_)
+        return qc.dropField(field=field_)
 
     @flagging()
     def flagUniLOF(
@@ -407,7 +407,7 @@ class OutliersMixin:
                 s_mask[correct_idx] = False
 
         qc._flags[s_mask, field] = flag
-        qc = qc.dropField(tmp_field)
+        qc = qc.dropField(field=tmp_field)
         return qc
 
     @flagging()
@@ -752,7 +752,7 @@ class OutliersMixin:
             **kwargs,
         )
         for field_ in fields_:
-            qc = qc.dropField(field_)
+            qc = qc.dropField(field=field_)
 
         qc = qc.flagByStray(
             field=knn_field,
@@ -776,7 +776,7 @@ class OutliersMixin:
             flag=flag,
             **kwargs,
         )
-        return qc.dropField(knn_field)
+        return qc.dropField(field=knn_field)
 
     @flagging()
     def flagRaise(

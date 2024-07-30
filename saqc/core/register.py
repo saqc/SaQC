@@ -323,41 +323,51 @@ def register(
     def outer(func: Callable[P, SaQC]) -> Callable[P, SaQC]:
         func_signature = inspect.signature(func)
         _checkDecoratorKeywords(
-            func_signature, func.__name__, mask, demask, squeeze, handles_target
+            func_signature,
+            func.__name__,
+            mask,
+            demask,
+            squeeze,
+            handles_target,
         )
         func = docurator(func, docstring)
 
         @functools.wraps(func)
-        def inner(
-            saqc,
-            field,
-            *args,
-            regex: bool = False,
-            flag: ExternalFlag | OptionalNone = OptionalNone(),
-            **kwargs,
-        ) -> "SaQC":
-            # args -> kwargs
-            paramnames = tuple(func_signature.parameters.keys())[
-                2:
-            ]  # skip (self, field)
+        def inner(saqc, *args, **kwargs) -> "SaQC":
+            field = kwargs.pop("field", None)
+            if field is None:
+                field, *args = args
+                warnings.warn(
+                    "Using 'field' as positional argument is deprecated "
+                    "and will raise an exception in saqc>=3.0; pass field "
+                    "as keyword instead.",
+                    DeprecationWarning,
+                    stacklevel=2,
+                )
 
             # check for duplicated arguments
+            paramnames = tuple(func_signature.parameters.keys())[2:]  # skip self+field
             args_map = dict(zip(paramnames, args))
-            intersection = set(args_map).intersection(set(kwargs))
-            if intersection:
+            if intersection := set(args_map) & set(kwargs):
                 raise TypeError(
                     f"SaQC.{func.__name__}() got multiple values for argument '{intersection.pop()}'"
                 )
             kwargs = {**args_map, **kwargs}
+
+            # handle global dfilter keyword
             kwargs["dfilter"] = _getDfilter(func_signature, saqc._scheme, kwargs)
 
-            # translate flag
-            if not isinstance(flag, OptionalNone):
-                # translation schemes might want to use a flag
-                # `None` so we introduce a special class here
-                kwargs["flag"] = saqc._scheme(flag)
+            # handle global flag keyword
+            if "flag" in kwargs:
+                # Keep in mind that a translation schemes might
+                # want to use None as a flag
+                kwargs["flag"] = saqc._scheme(kwargs["flag"])
 
+            # handle global regex keyword
+            regex = kwargs.get("regex", False)
             fields = _expandField(regex, saqc._data.columns, field)
+
+            # handle global target keyword
             targets = toSequence(kwargs.pop("target", fields))
 
             fields, targets = _homogenizeFieldsTargets(

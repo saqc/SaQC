@@ -133,14 +133,16 @@ def test_resampleAggregateInvert(data, method, freq, expected):
 
     qc = SaQC(data, flags)
 
-    qc = qc.copyField(field, field_aggregated)
-    qc = qc.resample(field_aggregated, freq, func="sum", method=method)
+    qc = qc.copyField(field=field, target=field_aggregated)
+    qc = qc.resample(field=field_aggregated, freq=freq, func="sum", method=method)
     assert qc._data[field_aggregated].index.freq == pd.Timedelta(freq)
     assert qc._data[field_aggregated].equals(expected)
     assert qc._flags.history[field_aggregated].meta[-1]["func"] == "resample"
     checkInvariants(qc._data, qc._flags, field_aggregated, identical=True)
 
-    qc = qc.concatFlags(field_aggregated, target=field, method=method, invert=True)
+    qc = qc.concatFlags(
+        field=field_aggregated, target=field, method=method, invert=True
+    )
     assert qc.data[field].equals(pre_data[field])
     assert qc.flags[field].equals(pre_flaggger[field])
     checkInvariants(qc._data, qc._flags, field, identical=True)
@@ -192,12 +194,12 @@ def test_alignInterpolateInvert(data, method, freq, expected):
 
     qc = SaQC(data, flags)
 
-    qc = qc.copyField(field, field_aligned)
-    qc = qc.align(field_aligned, freq=freq, method=method)
+    qc = qc.copyField(field=field, target=field_aligned)
+    qc = qc.align(field=field_aligned, freq=freq, method=method)
     assert qc.data[field_aligned].equals(expected)
     checkInvariants(qc._data, qc._flags, field, identical=True)
 
-    qc = qc.concatFlags(field_aligned, target=field, method="mshift", invert=True)
+    qc = qc.concatFlags(field=field_aligned, target=field, method="mshift", invert=True)
     assert qc.data[field].equals(pre_data[field])
     assert qc.flags[field].equals(pre_flags[field])
     checkInvariants(qc._data, qc._flags, field, identical=True)
@@ -279,15 +281,15 @@ def test_alignShiftInvert(data, method, freq, expected):
 
     qc = SaQC(data, flags)
 
-    qc = qc.copyField(field, field_aligned)
-    qc = qc.align(field_aligned, freq, method=method)
+    qc = qc.copyField(field=field, target=field_aligned)
+    qc = qc.align(field=field_aligned, freq=freq, method=method)
     meta = qc._flags.history[field_aligned].meta[-1]
 
     assert qc.data[field_aligned].equals(expected)
     assert (meta["func"], meta["kwargs"]["method"]) == ("reindex", method)
     checkInvariants(qc._data, qc._flags, field, identical=True)
 
-    qc = qc.concatFlags(field_aligned, target=field, method=method, invert=True)
+    qc = qc.concatFlags(field=field_aligned, target=field, method=method, invert=True)
     assert qc.data[field].equals(pre_data[field])
     assert qc.flags[field].equals(pre_flags[field])
     checkInvariants(qc._data, qc._flags, field, identical=True)

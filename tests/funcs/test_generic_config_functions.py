@@ -234,7 +234,7 @@ def test_callableArgumentsUnary(data):
     for name, func in tests:
         cr = _ConfigReader(data).readString(config.format(name))
         result_config = cr.run().data
-        result_api = SaQC(data).testFuncUnary(var, func=func).data
+        result_api = SaQC(data).testFuncUnary(field=var, func=func).data
         expected = data[var].rolling(window=window).apply(func)
         assert (result_config[var].dropna() == expected.dropna()).all(axis=None)
         assert (result_api[var].dropna() == expected.dropna()).all(axis=None)
@@ -261,7 +261,7 @@ def test_callableArgumentsBinary(data):
     for name, func in tests:
         cr = _ConfigReader(data).readString(config.format(name))
         result_config = cr.run().data
-        result_api = SaQC(data).testFuncBinary(var1, func=func).data
+        result_api = SaQC(data).testFuncBinary(field=var1, func=func).data
         expected = func(data[var1], data[var2])
         assert (result_config[var1].dropna() == expected.dropna()).all(axis=None)
         assert (result_api[var1].dropna() == expected.dropna()).all(axis=None)

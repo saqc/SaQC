@@ -33,7 +33,7 @@ def test_flagMad(spiky_data):
     field, *_ = data.columns
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).flagZScore(
-        field, window="1h", method="modified", thresh=3.5, flag=BAD
+        field=field, window="1h", method="modified", thresh=3.5, flag=BAD
     )
     flag_result = qc.flags[field]
     test_sum = (flag_result.iloc[spiky_data[1]] == BAD).sum()
@@ -45,7 +45,7 @@ def test_flagSpikesBasic(spiky_data):
     field, *_ = data.columns
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).flagOffset(
-        field, thresh=60, tolerance=10, window="20min", flag=BAD
+        field=field, thresh=60, tolerance=10, window="20min", flag=BAD
     )
     flag_result = qc.flags[field]
     test_sum = (flag_result.iloc[spiky_data[1]] == BAD).sum()
@@ -94,15 +94,15 @@ def test_flagMVScores(course_3):
     data = DictOfSeries(field1=s1, field2=s2)
     flags = initFlagsLike(data)
     qc = SaQC(data, flags)
-    qc = qc.processGeneric("field1", func=lambda x: np.log(x))
-    qc = qc.processGeneric("field2", func=lambda x: np.log(x))
+    qc = qc.processGeneric(field="field1", func=lambda x: np.log(x))
+    qc = qc.processGeneric(field="field2", func=lambda x: np.log(x))
     qc = qc.assignKNNScore(
-        ["field1", "field2"],
+        field=["field1", "field2"],
         target="kNNScores",
     )
-    qc = qc.flagByStray("kNNScores", iter_start=0.95)
-    qc = qc.transferFlags("kNNScores", target="field1")
-    qc = qc.transferFlags("kNNScores", target="field2")
+    qc = qc.flagByStray(field="kNNScores", iter_start=0.95)
+    qc = qc.transferFlags(field="kNNScores", target="field1")
+    qc = qc.transferFlags(field="kNNScores", target="field2")
 
     _check(fields, qc.flags, characteristics)
 
@@ -118,7 +118,7 @@ def test_grubbs(course_3):
         out_val=-10,
     )
     flags = initFlagsLike(data)
-    qc = SaQC(data, flags).flagUniLOF("data", density=0.4)
+    qc = SaQC(data, flags).flagUniLOF(field="data", density=0.4)
     assert np.all(qc.flags["data"][char_dict["drop"]] > UNFLAGGED)
 
 
@@ -135,7 +135,12 @@ def test_flagCrossStatistics(parameters):
     data.iloc[bad_idx[0], bad_idx[1]] = 10
     flags = initFlagsLike(data)
     qc = SaQC(data, flags).flagZScore(
-        fields, thresh=2, method=parameters[0], flag=BAD, axis=1, window=parameters[1]
+        field=fields,
+        thresh=2,
+        method=parameters[0],
+        flag=BAD,
+        axis=1,
+        window=parameters[1],
     )
 
     isflagged = qc.flags.to_pandas() > UNFLAGGED
@@ -152,22 +157,22 @@ def test_flagZScoresUV():
     data.iloc[[5, 80], 0] = 5
     data.iloc[[40], 0] = -6
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore("data", window=None)
+    qc = qc.flagZScore(field="data", window=None)
 
     assert (qc.flags.to_pandas().iloc[[5, 40, 80], 0] > 0).all()
 
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore("data", window=None, min_residuals=10)
+    qc = qc.flagZScore(field="data", window=None, min_residuals=10)
 
     assert (qc.flags.to_pandas()["data"] < 0).all()
 
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore("data", window="20D")
+    qc = qc.flagZScore(field="data", window="20D")
 
     assert (qc.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
 
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore("data", window=20)
+    qc = qc.flagZScore(field="data", window=20)
 
     assert (qc.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
 
@@ -185,22 +190,22 @@ def test_flagZScoresMV():
     data.iloc[[40], 0] = -6
     data.iloc[[60], 1] = 10
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore(["data", "data2"], window=None)
+    qc = qc.flagZScore(field=["data", "data2"], window=None)
     assert (qc.flags.to_pandas().iloc[[5, 40, 80], 0] > 0).all()
     assert (qc.flags.to_pandas().iloc[[60], 1] > 0).all()
 
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore("data", window=None, min_residuals=10)
+    qc = qc.flagZScore(field="data", window=None, min_residuals=10)
 
     assert (qc.flags.to_pandas()[["data", "data2"]] < 0).all().all()
 
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore(["data", "data2"], window="20D")
+    qc = qc.flagZScore(field=["data", "data2"], window="20D")
 
     assert (qc.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
 
     qc = saqc.SaQC(data)
-    qc = qc.flagZScore("data", window=20)
+    qc = qc.flagZScore(field="data", window=20)
 
     assert (qc.flags.to_pandas().iloc[[40, 80], 0] > 0).all()
 
@@ -211,7 +216,7 @@ def test_flagZScoresMV():
 def test_flagUniLOF(spiky_data, n, p, thresh):
     data = spiky_data[0]
     field, *_ = data.columns
-    qc = SaQC(data).flagUniLOF(field, n=n, p=p, thresh=thresh)
+    qc = SaQC(data).flagUniLOF(field=field, n=n, p=p, thresh=thresh)
     flag_result = qc.flags[field]
     test_sum = (flag_result.iloc[spiky_data[1]] == BAD).sum()
     assert test_sum == len(spiky_data[1])
@@ -225,7 +230,7 @@ def test_flagLOF(spiky_data, vars, p, thresh):
         {f"data{v}": spiky_data[0].to_pandas().squeeze() for v in range(vars)}
     )
     field, *_ = data.columns
-    qc = SaQC(data).flagLOF(field)
+    qc = SaQC(data).flagLOF(field=field)
     flag_result = qc.flags[field]
     test_sum = (flag_result.iloc[spiky_data[1]] == BAD).sum()
     assert test_sum == len(spiky_data[1])

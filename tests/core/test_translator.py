@@ -146,7 +146,9 @@ def test_positionalTranslatorIntegration():
 
     scheme = PositionalScheme()
     saqc = SaQC(data=data, scheme=scheme)
-    saqc = saqc.flagMissing(col).flagRange(col, min=3, max=10, flag=DOUBTFUL)
+    saqc = saqc.flagMissing(field=col).flagRange(
+        field=col, min=3, max=10, flag=DOUBTFUL
+    )
     flags = saqc.flags
 
     for field in flags.keys():
@@ -166,7 +168,7 @@ def test_dmpTranslatorIntegration():
 
     scheme = DmpScheme()
     saqc = SaQC(data=data, scheme=scheme)
-    saqc = saqc.flagMissing(col).flagRange(col, min=3, max=10)
+    saqc = saqc.flagMissing(field=col).flagRange(field=col, min=3, max=10)
     flags = saqc.flags
 
     qflags = pd.DataFrame({k: v["quality_flag"] for k, v in flags.items()})
@@ -202,10 +204,10 @@ def test_dmpValidCombinations():
     saqc = SaQC(data=data, scheme=scheme)
 
     with pytest.raises(ValueError):
-        saqc.flagRange(col, min=3, max=10, cause="SOMETHING_STUPID").flags
+        saqc.flagRange(field=col, min=3, max=10, cause="SOMETHING_STUPID").flags
 
     with pytest.raises(ValueError):
-        saqc.flagRange(col, min=3, max=10, cause="").flags
+        saqc.flagRange(field=col, min=3, max=10, cause="").flags
 
 
 def _buildupSaQCObjects():
@@ -222,7 +224,7 @@ def _buildupSaQCObjects():
     for _ in range(2):
         saqc = SaQC(data=data, flags=flags)
         saqc = saqc.flagRange(field=col, min=5, max=6, dfilter=FILTER_NONE).flagRange(
-            col, min=3, max=10, dfilter=FILTER_NONE
+            field=col, min=3, max=10, dfilter=FILTER_NONE
         )
         flags = saqc._flags
         out.append(saqc)
@@ -286,8 +288,8 @@ def test_annotatedFloatScheme():
 
     scheme = AnnotatedFloatScheme()
     saqc = SaQC(data=data, scheme=scheme)
-    saqc = saqc.setFlags(col, data=data[col].index[::4], flag=DOUBTFUL).flagRange(
-        col, min=3, max=10, flag=BAD
+    saqc = saqc.setFlags(field=col, data=data[col].index[::4], flag=DOUBTFUL).flagRange(
+        field=col, min=3, max=10, flag=BAD
     )
     flags = saqc.flags
 
