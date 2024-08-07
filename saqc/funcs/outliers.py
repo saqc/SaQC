@@ -61,9 +61,9 @@ class OutliersMixin:
         api_key: str = "",
         level: float = 0.99,
         context: Sequence[str] = None,
-        pass_join: Literal['inner','outer','fwd','bwd'] = 'inner',
+        pass_join: Literal["inner", "outer", "fwd", "bwd"] = "inner",
         flag: float = BAD,
-        nixtla_kwargs = None,
+        nixtla_kwargs=None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -97,7 +97,9 @@ class OutliersMixin:
 
         freq = getFreqDelta(dat.index)
         if freq is None:
-            raise ValueError(f"Variables {[field] + context} have no common uniform sampling rate")
+            raise ValueError(
+                f"Variables {[field] + context} have no common uniform sampling rate"
+            )
         freq = str(int(freq.total_seconds())) + "s"
         # prepare data for nixtla api
 
@@ -105,7 +107,7 @@ class OutliersMixin:
 
         # prepare backwards running data (for inverted forecast)
         dat_r = dat.copy()
-        dat_r[[field] + context] = dat_r[[field] + context].iloc[::-1,:].values
+        dat_r[[field] + context] = dat_r[[field] + context].iloc[::-1, :].values
 
         # keep track of where wich timestamp went
         # (detect_anomalies does not return array of input size, so undoing inversion is tricky without tracking))
@@ -133,10 +135,10 @@ class OutliersMixin:
         anomalies = anomalies[anomalies].index
         anomalies_r = OD_r["anomaly"].astype(bool)
         anomalies_r = anomalies_r[anomalies_r].index
-        if pass_join in ['inner','outer']:
+        if pass_join in ["inner", "outer"]:
             Anomalies = anomalies.join(anomalies_r, how=pass_join)
         else:
-            Anomalies = anomalies if pass_join == 'fwd' else anomalies_r
+            Anomalies = anomalies if pass_join == "fwd" else anomalies_r
 
         # assign the detected anomalies the current flag value
         self = self.setFlags(field, data=Anomalies, flag=flag, kwargs=kwargs)
