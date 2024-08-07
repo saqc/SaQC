@@ -12,10 +12,10 @@ import uuid
 import warnings
 from typing import TYPE_CHECKING, Callable, Sequence, Tuple
 
+import nixtla
 import numpy as np
 import numpy.polynomial.polynomial as poly
 import pandas as pd
-import nixtla
 from outliers import smirnov_grubbs  # noqa, on pypi as outlier-utils
 from scipy.stats import median_abs_deviation
 from typing_extensions import Literal
@@ -39,6 +39,7 @@ from saqc.lib.tools import getFreqDelta, isflagged, toSequence
 if TYPE_CHECKING:
     from saqc import SaQC
 
+
 class OutliersMixin:
     @staticmethod
     def _validateLOF(algorithm, n, p, density):
@@ -53,18 +54,16 @@ class OutliersMixin:
                 f"'density' must be 'auto' or a float or a function, not {density}"
             )
 
-    @flagging(
-
-    )
+    @flagging()
     def flagByTimeGPT(
         self: "SaQC",
         field: Sequence[str],
-        api_key: str='',
-        level: float=.99,
-        model: Literal['timegpt-1','timegpt-1-long-horizon'] = 'timegpt-1',
+        api_key: str = "",
+        level: float = 0.99,
+        model: Literal["timegpt-1", "timegpt-1-long-horizon"] = "timegpt-1",
         flag: float = BAD,
         **kwargs,
-        ) -> "SaQC":
+    ) -> "SaQC":
         """
         Use the foundational timeseries model `timeGPT` to flag data.
 
@@ -87,58 +86,60 @@ class OutliersMixin:
 
         """
 
-
-        nixtla_client = nixtla.NixtlaClient(
-            api_key=api_key
-        )
-        level = level*100
+        nixtla_client = nixtla.NixtlaClient(api_key=api_key)
+        level = level * 100
         dat = self._data[[field]].to_pandas()
         freq = getFreqDelta(dat.index)
         if freq is None:
-            raise ValueError(f'target variable {field} is not uniformly sampled')
-        freq = str(int(freq.total_seconds())) + 's'
+            raise ValueError(f"target variable {field} is not uniformly sampled")
+        freq = str(int(freq.total_seconds())) + "s"
         # prepare data for nixtla api
-        dat = dat.resample(freq).interpolate('time')
-        dat['ds'] = dat.index
+        dat = dat.resample(freq).interpolate("time")
+        dat["ds"] = dat.index
 
         # prepare backwards running data (for inverted forecast)
         dat_r = dat.copy()
-        dat_r['data'] = dat_r['data'][::-1].values
+        dat_r["data"] = dat_r["data"][::-1].values
 
         # keep track of where wich timestamp went
         # (detect_anomalies does not return array of input size, so undoing inversion is tricky without tracking))
-        dat_map = pd.Series(dat['ds'].values[::-1], index=dat.index)
+        dat_map = pd.Series(dat["ds"].values[::-1], index=dat.index)
 
         # 2 nixtla passes
         # forward
-        OD = nixtla_client.detect_anomalies(dat, target_col=field, freq=freq,level=level, model=model)
+        OD = nixtla_client.detect_anomalies(
+            dat, target_col=field, freq=freq, level=level, model=model
+        )
         # backward
-        OD_r = nixtla_client.detect_anomalies(dat_r, target_col=field, freq=freq, level=level, model=model)
+        OD_r = nixtla_client.detect_anomalies(
+            dat_r, target_col=field, freq=freq, level=level, model=model
+        )
 
         # reinstantiate index
-        OD.index = pd.DatetimeIndex(OD['ds'])
-        OD_r.index = pd.DatetimeIndex(OD_r['ds'])
+        OD.index = pd.DatetimeIndex(OD["ds"])
+        OD_r.index = pd.DatetimeIndex(OD_r["ds"])
         # map indices with the tracking to project timestamps from backward forecast result onto fwd results
         OD_r.index = pd.DatetimeIndex(dat_map[OD_r.index].values)
 
         # get those points, that were declared anomalies in both passes
-        anomalies = OD['anomaly'].astype(bool)
+        anomalies = OD["anomaly"].astype(bool)
         anomalies = anomalies[anomalies].index
-        anomalies_r = OD_r['anomaly'].astype(bool)
+        anomalies_r = OD_r["anomaly"].astype(bool)
         anomalies_r = anomalies_r[anomalies_r].index
-        Anomalies = anomalies.join(anomalies_r, how='inner')
+        Anomalies = anomalies.join(anomalies_r, how="inner")
 
         # assign the detected anomalies the current flag value
-        self = self.setFlags(field, data=Anomalies, flag=flag,kwargs=kwargs)
+        self = self.setFlags(field, data=Anomalies, flag=flag, kwargs=kwargs)
         return self
+
     @flagging()
     def flagRange(
-            self: "SaQC",
-            field: str,
-            min: float = -np.inf,
-            max: float = np.inf,
-            flag: float = BAD,
-            **kwargs,
+        self: "SaQC",
+        field: str,
+        min: float = -np.inf,
+        max: float = np.inf,
+        flag: float = BAD,
+        **kwargs,
     ) -> "SaQC":
         """
         Function flags values exceeding the closed
@@ -156,6 +157,7 @@ class OutliersMixin:
         mask = (datacol < min) | (datacol > max)
         self._flags[mask, field] = flag
         return self
+
     @register(
         mask=["field"],
         demask=["field"],
