@@ -60,8 +60,10 @@ class OutliersMixin:
         field: Sequence[str],
         api_key: str = "",
         level: float = 0.99,
-        model: Literal["timegpt-1", "timegpt-1-long-horizon"] = "timegpt-1",
+        context: Sequence[str] = None,
+        pass_join: Literal['inner','outer','fwd','bwd'] = 'inner',
         flag: float = BAD,
+        nixtla_kwargs = None,
         **kwargs,
     ) -> "SaQC":
         """
@@ -83,23 +85,27 @@ class OutliersMixin:
             Of course, the notion of `probability` should not be taken at face value here.
         model :
             Model to use.
+        context :
+
 
         """
 
-        nixtla_client = nixtla.NixtlaClient(api_key=api_key)
         level = level * 100
-        dat = self._data[[field]].to_pandas()
+        context = context or []
+        nixtla_kwargs = nixtla_kwargs or {}
+        dat = self._data[[field] + context].to_pandas()
+
         freq = getFreqDelta(dat.index)
         if freq is None:
-            raise ValueError(f"target variable {field} is not uniformly sampled")
+            raise ValueError(f"Variables {[field] + context} have no common uniform sampling rate")
         freq = str(int(freq.total_seconds())) + "s"
         # prepare data for nixtla api
-        dat = dat.resample(freq).interpolate("time")
+
         dat["ds"] = dat.index
 
         # prepare backwards running data (for inverted forecast)
         dat_r = dat.copy()
-        dat_r["data"] = dat_r["data"][::-1].values
+        dat_r[[field] + context] = dat_r[[field] + context].iloc[::-1,:].values
 
         # keep track of where wich timestamp went
         # (detect_anomalies does not return array of input size, so undoing inversion is tricky without tracking))
@@ -107,12 +113,13 @@ class OutliersMixin:
 
         # 2 nixtla passes
         # forward
+        nixtla_client = nixtla.NixtlaClient(api_key=api_key)
         OD = nixtla_client.detect_anomalies(
-            dat, target_col=field, freq=freq, level=level, model=model
+            dat, target_col=field, freq=freq, level=level, **nixtla_kwargs
         )
         # backward
         OD_r = nixtla_client.detect_anomalies(
-            dat_r, target_col=field, freq=freq, level=level, model=model
+            dat_r, target_col=field, freq=freq, level=level, **nixtla_kwargs
         )
 
         # reinstantiate index
@@ -126,7 +133,10 @@ class OutliersMixin:
         anomalies = anomalies[anomalies].index
         anomalies_r = OD_r["anomaly"].astype(bool)
         anomalies_r = anomalies_r[anomalies_r].index
-        Anomalies = anomalies.join(anomalies_r, how="inner")
+        if pass_join in ['inner','outer']:
+            Anomalies = anomalies.join(anomalies_r, how=pass_join)
+        else:
+            Anomalies = anomalies if pass_join == 'fwd' else anomalies_r
 
         # assign the detected anomalies the current flag value
         self = self.setFlags(field, data=Anomalies, flag=flag, kwargs=kwargs)
